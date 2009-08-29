@@ -1,0 +1,61 @@
+========================================================================
+DICOMLIB - C++ DICOM library
+========================================================================
+
+
+LICENSE
+-------
+Copyright 2003 Sunnybrook and Women's College Health Science Center
+Implemented by Trevor Morgan  (morgan@sten.sunnybrook.utoronto.ca)
+
+See the file LICENSE.txt for copyright and licensing info.
+
+
+HISTORY
+-------
+
+This library is based on UCDMC99 and previous work performed at 
+University of California Davis, and Karl Franzens University, Graz.
+
+It is developed and maintained at Sunnybrook and Women's
+College Health Science Centre.
+
+Contact email:
+	morgan@sten.sunnybrook.utoronto.ca
+	
+Latest versions are published at:
+	http://dicomlib.swresearch.ca
+	
+	
+DEPENDENCIES
+------------
+
+It's dependencies are:
+
+BOOST c++ library, downloadable from http://www.boost.org
+	
+The 'socket' c++ library, also developed by me, and distributed
+together with this library.
+
+
+REFERENCE
+---------
+
+References to the DICOM standard are to version 3, as
+published in 2001.  The standard can be obtained from
+	
+	http://medical.nema.org/dicom/2001.html
+	
+	
+	
+DOCUMENTATION
+-------------
+
+Source code is documented in a format understandable to
+the DOXYGEN documentation tool.  Running the doxygen
+command in the code directory will create a set of html
+pages describing the code.
+
+doxygen can be obtained from.
+
+	http://www.doxygen.org

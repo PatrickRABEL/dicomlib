@@ -1,0 +1,30 @@
+In the next version of the library, we could define Tag as follows:
+
+typedef std::pair<UINT16,UINT16> Tag;
+
+const Tag Null 				= Tag(0x0000,0x0000);
+const Tag AFF_SOP_CLASS_UID = Tag(0x0000,0x0002);
+and so on...
+
+This may or may not be actually worth the effort, but it would match
+the dicom description of a tag better.
+
+Basically I consider the c++ 'enum' construct to be somewhat flawed,
+not least in that despite the presence of curly brackets '{' and '}',
+it does not introduce a new scope.  ie I can't currently write:
+
+	enum E{a,b,c};
+	E e = E::a;
+
+But I don't know of a better solution
+
+
+typedef std::pair<UINT16,UINT16> Tag;
+
+class DataSet
+public: std::map<Tag,Value>
+{};
+
+//access how?
+
+ds("Patient's Name") >> val...;

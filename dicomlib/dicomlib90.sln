@@ -1,0 +1,46 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 10.00
+# Visual Studio 2008
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "dicomlib", "dicomlib90.vcproj", "{3D10DF49-8BB7-4F8C-A1BE-F68FBB3DEC84}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "WinScippy", "..\WinScippy\WinScippy.vcproj", "{C6F55645-8762-469B-8012-AC47B0028634}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		DebugNoDLL|Win32 = DebugNoDLL|Win32
+		Release|Win32 = Release|Win32
+		ReleaseNoDLL|Win32 = ReleaseNoDLL|Win32
+		ScippyLiteDebug|Win32 = ScippyLiteDebug|Win32
+		ScippyLiteRelease|Win32 = ScippyLiteRelease|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{3D10DF49-8BB7-4F8C-A1BE-F68FBB3DEC84}.Debug|Win32.ActiveCfg = Debug|Win32
+		{3D10DF49-8BB7-4F8C-A1BE-F68FBB3DEC84}.Debug|Win32.Build.0 = Debug|Win32
+		{3D10DF49-8BB7-4F8C-A1BE-F68FBB3DEC84}.DebugNoDLL|Win32.ActiveCfg = DebugNoDLL|Win32
+		{3D10DF49-8BB7-4F8C-A1BE-F68FBB3DEC84}.DebugNoDLL|Win32.Build.0 = DebugNoDLL|Win32
+		{3D10DF49-8BB7-4F8C-A1BE-F68FBB3DEC84}.Release|Win32.ActiveCfg = Release|Win32
+		{3D10DF49-8BB7-4F8C-A1BE-F68FBB3DEC84}.Release|Win32.Build.0 = Release|Win32
+		{3D10DF49-8BB7-4F8C-A1BE-F68FBB3DEC84}.ReleaseNoDLL|Win32.ActiveCfg = ReleaseNoDLL|Win32
+		{3D10DF49-8BB7-4F8C-A1BE-F68FBB3DEC84}.ReleaseNoDLL|Win32.Build.0 = ReleaseNoDLL|Win32
+		{3D10DF49-8BB7-4F8C-A1BE-F68FBB3DEC84}.ScippyLiteDebug|Win32.ActiveCfg = Debug|Win32
+		{3D10DF49-8BB7-4F8C-A1BE-F68FBB3DEC84}.ScippyLiteDebug|Win32.Build.0 = Debug|Win32
+		{3D10DF49-8BB7-4F8C-A1BE-F68FBB3DEC84}.ScippyLiteRelease|Win32.ActiveCfg = Release|Win32
+		{3D10DF49-8BB7-4F8C-A1BE-F68FBB3DEC84}.ScippyLiteRelease|Win32.Build.0 = Release|Win32
+		{C6F55645-8762-469B-8012-AC47B0028634}.Debug|Win32.ActiveCfg = Debug|Win32
+		{C6F55645-8762-469B-8012-AC47B0028634}.Debug|Win32.Build.0 = Debug|Win32
+		{C6F55645-8762-469B-8012-AC47B0028634}.DebugNoDLL|Win32.ActiveCfg = Debug|Win32
+		{C6F55645-8762-469B-8012-AC47B0028634}.DebugNoDLL|Win32.Build.0 = Debug|Win32
+		{C6F55645-8762-469B-8012-AC47B0028634}.Release|Win32.ActiveCfg = Release|Win32
+		{C6F55645-8762-469B-8012-AC47B0028634}.Release|Win32.Build.0 = Release|Win32
+		{C6F55645-8762-469B-8012-AC47B0028634}.ReleaseNoDLL|Win32.ActiveCfg = Release|Win32
+		{C6F55645-8762-469B-8012-AC47B0028634}.ReleaseNoDLL|Win32.Build.0 = Release|Win32
+		{C6F55645-8762-469B-8012-AC47B0028634}.ScippyLiteDebug|Win32.ActiveCfg = ScippyLiteDebug|Win32
+		{C6F55645-8762-469B-8012-AC47B0028634}.ScippyLiteDebug|Win32.Build.0 = ScippyLiteDebug|Win32
+		{C6F55645-8762-469B-8012-AC47B0028634}.ScippyLiteRelease|Win32.ActiveCfg = ScippyLiteRelease|Win32
+		{C6F55645-8762-469B-8012-AC47B0028634}.ScippyLiteRelease|Win32.Build.0 = ScippyLiteRelease|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

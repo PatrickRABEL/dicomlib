@@ -1,0 +1,45 @@
+import os
+sources="""
+	aaac.cpp
+	aarj.cpp
+	aarq.cpp
+	AssociationRejection.cpp
+	Buffer.cpp
+	Cdimse.cpp
+	ClientConnection.cpp
+	CommandSets.cpp
+	DataDictionary.cpp
+	Decoder.cpp
+	Dumper.cpp
+	Encoder.cpp
+	Exceptions.cpp
+	File.cpp
+	FileMetaInformation.cpp
+	GroupLength.cpp
+	Ndimse.cpp
+	pdata.cpp
+	PresentationContexts.cpp
+	QueryRetrieve.cpp
+	Server.cpp
+	ServiceBase.cpp
+	ThreadSpecificServer.cpp
+	TransferSyntax.cpp
+	UID.cpp
+	Utility.cpp
+	ValueToStream.cpp
+	Version.cpp
+"""
+
+mylibs='/usr/local/lib_tm'
+boost_libs=mylibs+ '/boost_1_31_0/bin/boost/libs'
+
+
+cpppath=['..']
+cpppath.append(mylibs + '/boost_1_31_0')
+env = Environment(CPPPATH=cpppath,ENV = {'PATH' : os.environ['PATH']},LINK='g++')
+
+env.StaticLibrary(target = 'dicom', source = sources.split())
+
+
+
+
