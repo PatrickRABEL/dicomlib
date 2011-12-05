@@ -93,7 +93,7 @@ namespace dicom
 				myself to, but if you really need it, remove the following
 				re-throw command
 			*/
-			//throw;
+			throw;
 			In.seekg(0);
 		}
 
@@ -176,6 +176,11 @@ namespace dicom
 	void Read(std::string FileName,DataSet& data,size_t max_number_of_byte_to_read)
 	{
 		std::ifstream in(FileName.c_str(),std::ios::binary);
+        
+        if(in.fail())
+            throw dicom::exception("Couldn't open input file");
+            
+
 		ReadFromStream(in,data,max_number_of_byte_to_read);
 	}
 

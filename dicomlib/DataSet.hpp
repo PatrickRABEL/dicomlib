@@ -14,16 +14,7 @@
 
 namespace dicom
 {
-	//!	Thrown when the user requests a tag that is not in the data set
-	struct TagNotFound:public dicom::exception
-	{
-		Tag tag_;
-		TagNotFound(Tag tag):dicom::exception("Tag not found."),tag_(tag)
-		{
-
-		}
-		virtual ~TagNotFound() throw() {}
-	};
+	
 
 	//!Set of DICOM data elements
 	/*!

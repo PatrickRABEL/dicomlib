@@ -5,7 +5,7 @@
 
 #include <utility>//for std::pair
 #include "Types.hpp"
-
+#include "Exceptions.hpp"
 
 namespace dicom
 {
@@ -505,6 +505,20 @@ namespace dicom
 		TAG_SEQ_DELIM_ITEM            = 0xfffee0dd
 	};
 
+	//!	Thrown when the user requests a tag that is not in the data set
+	struct TagNotFound:public dicom::exception
+	{
+		Tag tag_;
+		TagNotFound(Tag tag):dicom::exception("Tag not found."),tag_(tag)
+		{
+
+		}
+    
+    	virtual const char* what() const throw(); 
+		virtual ~TagNotFound() throw() {}
+	};
+	
+	
 
 	//!This value is always used to indicate undefined length
 	/*!

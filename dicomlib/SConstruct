@@ -22,6 +22,7 @@ sources=[
 	"QueryRetrieve.cpp",
 	"Server.cpp",
 	"ServiceBase.cpp",
+	"Tag.cpp",
 	"ThreadSpecificServer.cpp",
 	"TransferSyntax.cpp",
 	"UID.cpp",
