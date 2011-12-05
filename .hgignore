@@ -1,5 +1,8 @@
 syntax: glob
 *.o
+*.so
+*.os
+pydicomlib/.sconsign.dblite
 dicomlib/.sconsign.dblite
 dicomlib/libdicom.a
 
