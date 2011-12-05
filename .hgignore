@@ -1,2 +1,5 @@
 syntax: glob
 *.o
+dicomlib/.sconsign.dblite
+dicomlib/libdicom.a
+
