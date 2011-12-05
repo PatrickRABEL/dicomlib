@@ -1,0 +1,31 @@
+#Makes 'dicom.so' so that in python we can go:
+#>>>import dicom
+#
+import os
+sources=[
+    "pydicomlib.cpp",
+    "ClientConnection.cpp",
+    "DataSet.cpp",
+    "Tag.cpp",
+    "UID.cpp",
+    "Value.cpp",
+    "VR.cpp"]
+
+libs=['dicom','boost_python','boost_date_time'] 
+cpppath=[
+    '..',
+    '/usr/include/python2.7'
+]
+
+libpath=['../dicomlib']
+
+
+env=Environment(CPPPATH=cpppath,LIBS=libs,LIBPATH=libpath)#  ,ENV={'PATH' : os.environ['PATH']})
+
+#we set SHLIBPREFIX so we get dicom.so, rather than libdicom.so
+#Then we can do 'import dicom' rather than 'import libdicom'
+#Is there a more 'pythonic' way of doing shared libraries?  Am I expected
+#to have a python wrapper?
+env.SharedLibrary(target = 'dicom', source = sources,SHLIBPREFIX="")
+
+
