@@ -35,7 +35,7 @@ namespace
 	BOOST_PYTHON_MODULE(dicom)
 	{
 		scope().attr("__doc__" )	= "Python bindings for the 'dicomlib' DICOM library";
-		scope().attr("__version__")	= "0.5.0";
+		scope().attr("__version__")	= "0.6.0";
 
 		AppendValueDefinition();
 		AppendDataSetDefinition();

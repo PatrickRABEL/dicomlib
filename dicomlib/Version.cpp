@@ -14,9 +14,9 @@ namespace dicom
 	namespace library
 	{
 		const char* name	= "dicomlib";
-		const char* version	= "0.9.4";
+		const char* version	= "0.9.5";
 		const int major_version = 0;
 		const int minor_version = 9;
-		const int revision = 4;
+		const int revision = 5;
 	}//namespace library
 }
