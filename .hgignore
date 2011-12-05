@@ -4,5 +4,7 @@ syntax: glob
 *.os
 pydicomlib/.sconsign.dblite
 dicomlib/.sconsign.dblite
+examples/.sconsign.dblite
+examples/main
 dicomlib/libdicom.a
 
