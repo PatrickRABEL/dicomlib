@@ -2,6 +2,9 @@
 #define SWITCH_ENDIAN_HPP_INCLUDE_GUARD_2304875234560
 #include <boost/static_assert.hpp>
 #include <boost/type_traits.hpp>
+
+#include <algorithm>
+
 //!Reverses the bytes in a variable.
 /*!
 	It is possible that we could heavily optimise endian switching using
