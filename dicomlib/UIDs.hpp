@@ -62,6 +62,8 @@ namespace dicom
 
 	*/
 
+    const UID JPEG2000                              = UID("1.2.840.10008.1.2.4.91");
+
 
 
 	/*

@@ -26,8 +26,9 @@ namespace dicom
 			EXPL_VR_BE_TRANSFER_SYNTAX == uid			||
 			JPEG_BASELINE_TRANSFER_SYNTAX == uid		||
 			JPEG_LOSSLESS_NON_HIERARCHICAL == uid		||
-			JPEG2000_LOSSLESS_ONLY == uid
-			,"Syntax not recognised.");
+			JPEG2000_LOSSLESS_ONLY == uid               ||
+            JPEG2000 == uid
+			,"Syntax not recognised: " + uid.str());
 
 	}
 
@@ -65,7 +66,8 @@ namespace dicom
 		return (
 			JPEG_BASELINE_TRANSFER_SYNTAX==uid_||
 			JPEG_LOSSLESS_NON_HIERARCHICAL==uid_ ||
-			JPEG2000_LOSSLESS_ONLY==uid_
+			JPEG2000_LOSSLESS_ONLY==uid_ ||
+            JPEG2000 ==uid_
 			);
 	}
 }//namespace dicom
