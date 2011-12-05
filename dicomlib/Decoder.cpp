@@ -284,6 +284,8 @@ namespace dicom{
 	*/
 	void Decoder::DecodeElement()
 	{
+		
+		
 		Tag tag;
 		buffer_ >> tag;
 
@@ -578,17 +580,26 @@ namespace dicom{
 	  * Also, it won't cause problems for you guys.
 	  * Mei, Nov 2006
 	  */
+//	void ReadFromBuffer(Buffer& buffer, DataSet& data, TS transfer_syntax)
+//	{
+//		Decoder d(buffer,data,transfer_syntax);
+//		d.NonStandardDecode();
+//	}
+
+
+/*
+    Trevor.Morgan@sri.utoronto.ca /  December 2012
+    For now I've removed the above hack, because I want to write a more robust mechanism
+    for handling 'incorrect' files.  This should ideally be handled in the context of a user
+    option; for example a 'strict' mode and a 'lax' mode for the parser.  Furthermore we 
+    really need a solid suite of sample files to test against.
+*/
+
 	void ReadFromBuffer(Buffer& buffer, DataSet& data, TS transfer_syntax)
 	{
 		Decoder d(buffer,data,transfer_syntax);
-		d.NonStandardDecode();
+		d.Decode();
 	}
-
-	//void ReadFromBuffer(Buffer& buffer, DataSet& data, TS transfer_syntax)
-	//{
-	//	Decoder d(buffer,data,transfer_syntax);
-	//	d.Decode();
-	//}
 
 	void ReadElementFromBuffer(Buffer& buffer, DataSet& ds,TS transfer_syntax)
 	{

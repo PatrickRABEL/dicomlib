@@ -106,7 +106,7 @@ namespace dicom
 		*/
 
 		size_t BytesToRead=GetStreamSize(In)-In.tellg();
-		BytesToRead=min(BytesToRead,max_number_of_byte_to_read);
+		BytesToRead=std::min(BytesToRead,max_number_of_byte_to_read);
 
 		int ByteOrder=ts.isBigEndian()?
 			__BIG_ENDIAN:__LITTLE_ENDIAN;

@@ -15,7 +15,7 @@
 #include "GroupLength.hpp"
 #include "UIDs.hpp"
 
-#include "ImageDisplay/TiffFile.hpp"
+//#include "ImageDisplay/TiffFile.hpp"
 
 
 namespace dicom
@@ -85,6 +85,7 @@ namespace dicom
 	}
 
 
+/*
 	void MakePreampleTiffHeader(const DataSet& data, long BytesToWrite, char* Preamble)
 	{
 		unsigned short width, height, samples_per_px, bits_allocated;
@@ -100,7 +101,7 @@ namespace dicom
 			Preamble[i] = tiff_header_.buf[i];
 	}
 
-
+*/
 	FileMetaInformation::FileMetaInformation(const DataSet& data,TS ts,long BytesToWrite)
 	{
 		const UID& classUID=data(TAG_SOP_CLASS_UID).Get<UID>();
@@ -110,7 +111,7 @@ namespace dicom
 		std::fill(Preamble_,Preamble_+128,0);
 
 		//Adding Tiff metaheader
-		MakePreampleTiffHeader(data, BytesToWrite, Preamble_);
+		//MakePreampleTiffHeader(data, BytesToWrite, Preamble_);
 
 		TypeFromVR<VR_OB>::Type VersionInfoData;//Set to (0,1) for the version of the standard that we support.
 		VersionInfoData.push_back(0x00);
