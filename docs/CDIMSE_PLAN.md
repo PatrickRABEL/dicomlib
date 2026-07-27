@@ -14,14 +14,14 @@ network flow are covered by tests.
 | C-FIND | SCU request/response and SCP callback dispatch with pending matches followed by success | `cdimse_commandsets` |
 | C-MOVE | SCU request/response command sets and SCP callback dispatch after Identifier read | `cdimse_commandsets` |
 | C-GET | SCU request/response command sets and SCP callback dispatch after Identifier read; C-STORE sub-operations are application-handler responsibility | `cdimse_commandsets` |
-| C-CANCEL-RQ command set | Command set for cancelling C-FIND, C-GET, or C-MOVE; SCP dispatch accepts the command without requiring a SOP Class UID | `cdimse_commandsets` |
+| C-CANCEL-RQ command set | Command set for cancelling C-FIND, C-GET, or C-MOVE; SCP dispatch accepts the command without requiring a SOP Class UID and records the referenced Message ID on the association state | `cdimse_commandsets` |
 | SCU response validation | Response Command Field and Message ID Being Responded To are checked for C-ECHO, C-STORE, C-FIND, C-GET, and C-MOVE | Code path in `Cdimse.cpp` |
 
 ## Remaining
 
 | Area | Current status |
 | --- | --- |
-| C-CANCEL asynchronous effect | The command is encoded and accepted by SCP dispatch, but the single-thread-per-association request loop does not interrupt an already-running C-FIND, C-GET, or C-MOVE handler. A cancellable handler API and network test are required before claiming full cancellation semantics. |
+| C-CANCEL asynchronous effect | The command is encoded, accepted by SCP dispatch, and recorded on `ServiceBase`. The single-thread-per-association request loop does not interrupt an already-running C-FIND, C-GET, or C-MOVE handler. A cancellable handler API and network test are required before claiming full cancellation semantics. |
 | C-GET sub-operation orchestration | The SCP dispatch delegates to the registered handler. The library does not yet provide a built-in C-STORE sub-operation scheduler, counters, or final response generator for C-GET. |
 | C-MOVE sub-operation orchestration | The SCP dispatch delegates to the registered handler. The library does not yet provide a built-in association opener to the Move Destination, C-STORE scheduler, counters, or final response generator for C-MOVE. |
 | Service-specific status ranges | The command set can carry status values, but service/SOP-class-specific status validation and detailed failed/warning related fields are not complete. |
@@ -31,8 +31,8 @@ network flow are covered by tests.
 ## Execution Order
 
 1. Add an in-process association test harness for SCU/SCP message exchange.
-2. Add cancellable operation state per association and expose it to C-FIND,
-   C-GET, and C-MOVE handlers.
+2. Add network coverage for C-CANCEL state observation during a running
+   cancellable C-FIND, C-GET, or C-MOVE handler.
 3. Implement and test C-GET C-STORE sub-operation orchestration on the same
    association, including pending/final response counters.
 4. Implement and test C-MOVE sub-operation orchestration on destination

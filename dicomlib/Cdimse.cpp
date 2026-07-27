@@ -88,6 +88,7 @@ namespace dicom
 #endif
 		UINT16 msgID,data_set_status;
 		command(TAG_MSG_ID)>>msgID;
+		pdu.ClearCancelRequest(msgID);
 		command(TAG_DATA_SET_TYPE)>>data_set_status;
 		if(data_set_status==DataSetStatus::NO_DATA_SET)
 			throw exception("No data set");
@@ -133,7 +134,9 @@ namespace dicom
 	void HandleCGet(CGetFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID)
 	{
 		(void)classUID;
-		UINT16 data_set_status;
+		UINT16 msgID,data_set_status;
+		command(TAG_MSG_ID)>>msgID;
+		pdu.ClearCancelRequest(msgID);
 		command(TAG_DATA_SET_TYPE)>>data_set_status;
 		if(data_set_status==DataSetStatus::NO_DATA_SET)
 			throw exception("No data set");
@@ -145,7 +148,6 @@ namespace dicom
 
 	void HandleCCancel(ServiceBase& pdu, const DataSet& command)
 	{
-		(void)pdu;
 		UINT16 messageIDBeingRespondedTo = 0;
 		UINT16 dataSetType = 0;
 		command(TAG_MSG_ID_RSP) >> messageIDBeingRespondedTo;
@@ -154,13 +156,16 @@ namespace dicom
 			throw exception("C-CANCEL-RQ references invalid Message ID");
 		if(dataSetType != DataSetStatus::NO_DATA_SET)
 			throw exception("C-CANCEL-RQ shall not contain a data set");
+		pdu.RequestCancel(messageIDBeingRespondedTo);
 	}
 
 	void HandleCMove(CMoveFunction handler,ServiceBase& pdu,
 		const DataSet& command, const UID& classUID)
 	{
 		(void)classUID;
-		UINT16 data_set_status;
+		UINT16 msgID,data_set_status;
+		command(TAG_MSG_ID)>>msgID;
+		pdu.ClearCancelRequest(msgID);
 		command(TAG_DATA_SET_TYPE)>>data_set_status;
 		if(data_set_status==DataSetStatus::NO_DATA_SET)
 			throw exception("No data set");

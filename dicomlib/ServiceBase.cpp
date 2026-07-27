@@ -426,11 +426,26 @@ namespace dicom
 	UID ServiceBase::GetTransferSyntaxUID(BYTE PresentationContextID)
 	{
 		typedef std::vector<primitive::PresentationContextAccept>::const_iterator Iter;
-		
+
 		for(Iter I=AcceptedPresentationContexts_.begin();I!=AcceptedPresentationContexts_.end();I++)
 			if(I->PresentationContextID_==PresentationContextID)
 				return I->TrnSyntax_.UID_;
 		throw std::runtime_error("Couldn't identify Presentation Context");
+	}
+
+	void ServiceBase::RequestCancel(UINT16 messageID)
+	{
+		CancelRequestedMessageIDs_.insert(messageID);
+	}
+
+	bool ServiceBase::IsCancelRequested(UINT16 messageID) const
+	{
+		return CancelRequestedMessageIDs_.find(messageID) != CancelRequestedMessageIDs_.end();
+	}
+
+	void ServiceBase::ClearCancelRequest(UINT16 messageID)
+	{
+		CancelRequestedMessageIDs_.erase(messageID);
 	}
 
 	//bool ServiceBase::GetTransferSyntaxUID(BYTE PCID, UID& uid)

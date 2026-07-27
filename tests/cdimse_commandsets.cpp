@@ -1,6 +1,8 @@
+#include "dicomlib/Cdimse.hpp"
 #include "dicomlib/CommandSets.hpp"
 
 #include <cassert>
+#include <exception>
 
 namespace
 {
@@ -11,6 +13,14 @@ namespace
 		data(tag) >> value;
 		return value;
 	}
+
+	struct NullService : public dicom::ServiceBase
+	{
+		Network::Socket* GetSocket()
+		{
+			return 0;
+		}
+	};
 
 	void checkCEcho()
 	{
@@ -91,6 +101,40 @@ namespace
 		assert(get<UINT16>(rq, dicom::TAG_DATA_SET_TYPE) == dicom::DataSetStatus::NO_DATA_SET);
 		assert(!rq.exists(dicom::TAG_AFF_SOP_CLASS_UID));
 		assert(!rq.exists(dicom::TAG_REQ_SOP_CLASS_UID));
+
+		NullService service;
+		assert(!service.IsCancelRequested(7));
+		dicom::HandleCCancel(service, rq);
+		assert(service.IsCancelRequested(7));
+		service.ClearCancelRequest(7);
+		assert(!service.IsCancelRequested(7));
+
+		dicom::CommandSet::CCancelRQ invalidMessageID(0);
+		bool rejectedMessageID = false;
+		try
+		{
+			dicom::HandleCCancel(service, invalidMessageID);
+		}
+		catch(const std::exception&)
+		{
+			rejectedMessageID = true;
+		}
+		assert(rejectedMessageID);
+
+		dicom::DataSet invalidDataSetType;
+		invalidDataSetType.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD, dicom::Command::C_CANCEL_RQ);
+		invalidDataSetType.Put<dicom::VR_US>(dicom::TAG_MSG_ID_RSP, UINT16(7));
+		invalidDataSetType.Put<dicom::VR_US>(dicom::TAG_DATA_SET_TYPE, dicom::DataSetStatus::YES_DATA_SET);
+		bool rejectedDataSetType = false;
+		try
+		{
+			dicom::HandleCCancel(service, invalidDataSetType);
+		}
+		catch(const std::exception&)
+		{
+			rejectedDataSetType = true;
+		}
+		assert(rejectedDataSetType);
 	}
 
 	void checkCMove()

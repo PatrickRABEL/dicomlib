@@ -1,5 +1,6 @@
 #ifndef SERVICE_BASE_HPP_23847239487238
 #define SERVICE_BASE_HPP_23847239487238
+#include <set>
 #include <string>
 #include "socket/Socket.hpp"
 #include "Buffer.hpp"
@@ -68,6 +69,10 @@ namespace dicom
 		//bool GetTransferSyntaxUID(BYTE, UID& TrnUID);
 
 		UID GetTransferSyntaxUID(BYTE PresentationContextID);
+
+		void RequestCancel(UINT16 messageID);
+		bool IsCancelRequested(UINT16 messageID) const;
+		void ClearCancelRequest(UINT16 messageID);
 	
 
 		//Following two parameters keep a record of the conditions under which
@@ -86,6 +91,9 @@ namespace dicom
 		for now. -Sam Shen Jan 22, 2007
 		*/
 		BYTE CurrentPresentationContextID_;
+
+		//!Message IDs referenced by valid C-CANCEL-RQ commands on this association.
+		std::set<UINT16> CancelRequestedMessageIDs_;
 
 		//this function should only be called on the client side because client decides which 
 		//transfer syntax to use. -Sam
