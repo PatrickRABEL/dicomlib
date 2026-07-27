@@ -23,7 +23,12 @@ namespace dicom
 		std::vector<UID> encapsulated = GetEncapsulatedTransferSyntaxUIDs();
 		for(size_t i=0;i<encapsulated.size();++i)
 		{
-			if(encapsulated[i] != RLE_LOSSLESS_TRANSFER_SYNTAX)
+#if DICOMLIB_WITH_RLE
+			const bool skipRLE = encapsulated[i] == RLE_LOSSLESS_TRANSFER_SYNTAX;
+#else
+			const bool skipRLE = false;
+#endif
+			if(!skipRLE)
 				transfer_syntaxes.push_back(primitive::TransferSyntax(encapsulated[i]));
 		}
 #endif

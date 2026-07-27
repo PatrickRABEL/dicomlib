@@ -14,7 +14,7 @@ corresponding encode/decode path is implemented and covered by tests.
 | Deflated Explicit VR Little Endian | `1.2.840.10008.1.2.1.99` | Dataset encode/decode through zlib raw DEFLATE | `DICOMLIB_WITH_ZLIB` | `transfer_syntax_roundtrip` with zlib |
 | RLE Lossless | `1.2.840.10008.1.2.5` | Pixel Data encode/decode through built-in DICOM RLE codec | `DICOMLIB_WITH_RLE` | `rle_codec`, `transfer_syntax_roundtrip` with RLE |
 | SCU presentation context proposal | Implemented syntaxes only | `PresentationContexts::Add()` proposes enabled native, Deflated, RLE, or pass-through syntaxes | Build options above | `transfer_syntax_support` |
-| Encapsulated fragment pass-through | UIDs listed by generated `IsEncapsulatedTransferSyntaxUID()` | Fragment-level read/write without pixel decode | `DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH` | Policy test only |
+| Encapsulated fragment pass-through | UIDs listed by generated `IsEncapsulatedTransferSyntaxUID()` | Fragment-level read/write without pixel decode | `DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH` | `transfer_syntax_support`, `transfer_syntax_roundtrip` |
 | External dependency discovery | zlib, JPEG, GDCM, CharLS, OpenJPEG, OpenJPH, libjxl, FFmpeg | CMake detection and missing dependency reporting | `DICOMLIB_PREPARE_EXTERNAL_CODECS` | Configure-time checks |
 
 ## Remaining

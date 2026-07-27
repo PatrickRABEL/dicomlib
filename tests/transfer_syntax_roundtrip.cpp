@@ -66,6 +66,40 @@ namespace
 		assert(pixels[2] == 0x0506);
 		assert(pixels[3] == 0x0708);
 	}
+
+	void assertEncapsulatedFragmentPassThrough()
+	{
+		dicom::DataSet source;
+		source.Put<dicom::VR_US>(dicom::TAG_ROWS, UINT16(2));
+		source.Put<dicom::VR_US>(dicom::TAG_COLUMNS, UINT16(2));
+		source.Put<dicom::VR_US>(dicom::TAG_SAMPLES_PER_PX, UINT16(1));
+		source.Put<dicom::VR_US>(dicom::TAG_BITS_ALLOC, UINT16(8));
+
+		dicom::TypeFromVR<dicom::VR_OB>::Type fragment1;
+		fragment1.push_back(0xff);
+		fragment1.push_back(0xd8);
+		fragment1.push_back(0xff);
+		fragment1.push_back(0xdb);
+		dicom::TypeFromVR<dicom::VR_OB>::Type fragment2;
+		fragment2.push_back(0xff);
+		fragment2.push_back(0xda);
+		fragment2.push_back(0x00);
+		fragment2.push_back(0x0c);
+		source.Put<dicom::VR_OB>(dicom::TAG_PIXEL_DATA, fragment1);
+		source.Put<dicom::VR_OB>(dicom::TAG_PIXEL_DATA, fragment2);
+
+		dicom::TS ts(dicom::JPEG_BASELINE_TRANSFER_SYNTAX);
+		dicom::Buffer encoded(__LITTLE_ENDIAN);
+		dicom::WriteToBuffer(source, encoded, ts);
+
+		dicom::DataSet decoded;
+		dicom::ReadFromBuffer(encoded, decoded, ts);
+
+		const std::vector<dicom::Value> fragments = decoded.Values(dicom::TAG_PIXEL_DATA);
+		assert(fragments.size() == 2);
+		assert(fragments[0].Get<dicom::TypeFromVR<dicom::VR_OB>::Type>() == fragment1);
+		assert(fragments[1].Get<dicom::TypeFromVR<dicom::VR_OB>::Type>() == fragment2);
+	}
 }
 
 int main()
@@ -83,6 +117,10 @@ int main()
 
 #if DICOMLIB_WITH_RLE
 	assertRoundTrip(dicom::TS(dicom::RLE_LOSSLESS_TRANSFER_SYNTAX));
+#endif
+
+#if DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH
+	assertEncapsulatedFragmentPassThrough();
 #endif
 
 	return 0;
