@@ -56,6 +56,8 @@ namespace dicom
 
 	void HandleCGet(CGetFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID);
 
+	void HandleCCancel(ServiceBase& pdu, const DataSet& command);
+
 	class CGetSCP
 	{
 		HandlerFunction handler_;
@@ -81,6 +83,7 @@ namespace dicom
 		ServiceBase& service_;
 		const UID classUID_;
 		UINT16 lastMessageID_;
+		void writeCancelForLastRQ();
 	public:
 		SCU(ServiceBase& service,UID classUID):service_(service),classUID_(classUID),lastMessageID_(0){}
 	};
@@ -113,6 +116,7 @@ namespace dicom
 	public:
 		CFindSCU(ServiceBase& service,const UID& classUID);
 		void writeRQ(const DataSet& data, UINT16 priority = Priority::MEDIUM);
+		void writeCancelRQ();
 		void readRSP(UINT16& status, DataSet&  data);
 		void readRSP(UINT16& status, DataSet& response, DataSet&  data);
 	};
@@ -122,6 +126,7 @@ namespace dicom
 	public:
 		CGetSCU(ServiceBase& service,const UID& classUID);
 		void writeRQ(const DataSet& data, UINT16 priority = Priority::MEDIUM);
+		void writeCancelRQ();
 		void readRSP(UINT16& status, DataSet&  data);
 		void readRSP(UINT16& status, DataSet& response, DataSet&  data);
 	};
@@ -133,6 +138,7 @@ namespace dicom
 		CMoveSCU(ServiceBase& service,const UID& classUID);
 		void writeRQ(const std::string& destAET,
 			const DataSet& data, UINT16 priority = Priority::MEDIUM);
+		void writeCancelRQ();
 		void  readRSP(UINT16& status, DataSet&  data);
 		void readRSP(UINT16& status, DataSet& response, DataSet&  data);
 	};

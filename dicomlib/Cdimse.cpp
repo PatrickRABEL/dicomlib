@@ -132,11 +132,28 @@ namespace dicom
 
 	void HandleCGet(CGetFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID)
 	{
-		(void)handler;
-		(void)pdu;
-		(void)command;
 		(void)classUID;
-		throw NotYetImplemented();
+		UINT16 data_set_status;
+		command(TAG_DATA_SET_TYPE)>>data_set_status;
+		if(data_set_status==DataSetStatus::NO_DATA_SET)
+			throw exception("No data set");
+		DataSet request_data;
+		pdu.Read(request_data);
+
+		handler(pdu,command,request_data);
+	}
+
+	void HandleCCancel(ServiceBase& pdu, const DataSet& command)
+	{
+		(void)pdu;
+		UINT16 messageIDBeingRespondedTo = 0;
+		UINT16 dataSetType = 0;
+		command(TAG_MSG_ID_RSP) >> messageIDBeingRespondedTo;
+		command(TAG_DATA_SET_TYPE) >> dataSetType;
+		if(messageIDBeingRespondedTo == 0)
+			throw exception("C-CANCEL-RQ references invalid Message ID");
+		if(dataSetType != DataSetStatus::NO_DATA_SET)
+			throw exception("C-CANCEL-RQ shall not contain a data set");
 	}
 
 	void HandleCMove(CMoveFunction handler,ServiceBase& pdu,
@@ -160,6 +177,14 @@ namespace dicom
 	CEchoSCU::CEchoSCU(ServiceBase& service)
 	: SCU(service,VERIFICATION_SOP_CLASS)
 	{
+	}
+
+	void SCU::writeCancelForLastRQ()
+	{
+		if(lastMessageID_ == 0)
+			throw exception("Cannot send C-CANCEL-RQ before a request has been sent");
+		CommandSet::CCancelRQ rq(lastMessageID_);
+		service_.WriteCommand(rq, classUID_);
 	}
 
 	void CEchoSCU::writeRQ()
@@ -225,6 +250,11 @@ namespace dicom
 		service_.WriteDataSet(data, classUID_);
 	}
 
+	void CFindSCU::writeCancelRQ()
+	{
+		writeCancelForLastRQ();
+	}
+
 	void CFindSCU::readRSP(UINT16& status, DataSet&  data)
 	{
 		DataSet response;
@@ -261,6 +291,11 @@ namespace dicom
 		service_.WriteDataSet(data, classUID_);
 	}
 
+	void CGetSCU::writeCancelRQ()
+	{
+		writeCancelForLastRQ();
+	}
+
 	void CGetSCU::readRSP(UINT16& status, DataSet&  data)
 	{
 		DataSet rsp;
@@ -291,6 +326,11 @@ namespace dicom
 		CommandSet::CMoveRQ rq(lastMessageID_, classUID_, destAET, priority);
 		service_.WriteCommand(rq, classUID_);
 		service_.WriteDataSet(data, classUID_);
+	}
+
+	void CMoveSCU::writeCancelRQ()
+	{
+		writeCancelForLastRQ();
 	}
 
 /*

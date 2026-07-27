@@ -123,6 +123,13 @@ namespace dicom
 			UID classUID("");
 			command(TAG_CMD_FIELD) >> cmd;
 
+			if(cmd == Command::C_CANCEL_RQ)
+			{
+				HandleCCancel(*this,command);
+				server_.LogMessage("Handled a C-CANCEL-RQ");
+				return;
+			}
+
 
 			/*
 				Where is the following operation specified???
@@ -181,8 +188,6 @@ namespace dicom
 			}
 			break;
 
-			//case Command::C_CANCEL_RQ:
-			//	return ;	// ignored by this version
 // 			case Command::N_CREATE_RQ:
 // 				return
 // 				return NCreateSCP(getNHandler(m_mapNCreate, classUID)).handle(pdu, rq, classUID);

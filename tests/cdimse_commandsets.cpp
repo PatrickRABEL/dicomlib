@@ -83,6 +83,16 @@ namespace
 		assert(get<UINT16>(rsp, dicom::TAG_NUM_WARN_SUBOP) == 0);
 	}
 
+	void checkCCancel()
+	{
+		dicom::CommandSet::CCancelRQ rq(7);
+		assert(get<UINT16>(rq, dicom::TAG_CMD_FIELD) == dicom::Command::C_CANCEL_RQ);
+		assert(get<UINT16>(rq, dicom::TAG_MSG_ID_RSP) == 7);
+		assert(get<UINT16>(rq, dicom::TAG_DATA_SET_TYPE) == dicom::DataSetStatus::NO_DATA_SET);
+		assert(!rq.exists(dicom::TAG_AFF_SOP_CLASS_UID));
+		assert(!rq.exists(dicom::TAG_REQ_SOP_CLASS_UID));
+	}
+
 	void checkCMove()
 	{
 		const dicom::UID classUID("1.2.840.10008.5.1.4.1.2.2.2");
@@ -107,6 +117,7 @@ int main()
 	checkCStore();
 	checkCFind();
 	checkCGet();
+	checkCCancel();
 	checkCMove();
 	return 0;
 }
