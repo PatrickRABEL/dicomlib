@@ -99,7 +99,9 @@ namespace utility
 		std::for_each(
 			data.begin(),
 			data.end(),
-			boost::bind(AddItemToReport, report, _1, sequence));
+			[report, sequence](const dicom::DataSet::value_type& item) {
+				AddItemToReport(report, item, sequence);
+			});
 		
 	}
 

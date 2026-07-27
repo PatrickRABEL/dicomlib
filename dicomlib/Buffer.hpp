@@ -2,9 +2,7 @@
 #define BUFFER_HPP_INCLUDE_GUARD_7711062925
 #include <queue>
 #include <vector>
-
-
-#include <boost/utility.hpp>
+#include <type_traits>
 
 #include "socket/Base.hpp"
 #include "socket/SwitchEndian.hpp"
@@ -62,7 +60,7 @@ namespace dicom
 		{}
 		virtual ~ReadBeyondBuffer() throw(){}
 	};
-	class Buffer : public std::vector<BYTE>, boost::noncopyable
+	class Buffer : public std::vector<BYTE>
 	{
 
 	private:
@@ -78,6 +76,8 @@ namespace dicom
 	public:
 		Buffer():I_(0),ExternalByteOrder_(__LITTLE_ENDIAN){}
 		Buffer(int ExternalByteOrder):I_(0),ExternalByteOrder_(ExternalByteOrder){}
+		Buffer(const Buffer&) = delete;
+		Buffer& operator=(const Buffer&) = delete;
 		void SetEndian(int endian){ExternalByteOrder_=endian;}
 		int GetEndian(){return ExternalByteOrder_;}
 		iterator position();
@@ -88,7 +88,7 @@ namespace dicom
 		template <typename T>
 		Buffer& operator << (T data)
 		{
-			BOOST_STATIC_ASSERT(::boost::is_fundamental<T>::value);//because we're treating it as a byte stream.
+			static_assert(std::is_fundamental<T>::value, "Buffer only serializes fundamental types");
 
 			if(ExternalByteOrder_!=__BYTE_ORDER && sizeof(T)!=1)
 			{
@@ -107,8 +107,8 @@ namespace dicom
 		template<typename T>
 		Buffer& operator >> (T& data)
 		{
-			BOOST_STATIC_ASSERT(!(::boost::is_const<T>::value));//because we're writing to it.
-			BOOST_STATIC_ASSERT(::boost::is_fundamental<T>::value);//because we're treating it as a byte stream.
+			static_assert(!(std::is_const<T>::value), "Cannot deserialize into const type");
+			static_assert(std::is_fundamental<T>::value, "Buffer only deserializes fundamental types");
 			BYTE* pdata=reinterpret_cast<BYTE*> (&data);
 
 			if(int(sizeof(T))>(end()-position()))

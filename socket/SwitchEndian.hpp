@@ -1,9 +1,8 @@
 #ifndef SWITCH_ENDIAN_HPP_INCLUDE_GUARD_2304875234560
 #define SWITCH_ENDIAN_HPP_INCLUDE_GUARD_2304875234560
-#include <boost/static_assert.hpp>
-#include <boost/type_traits.hpp>
-
 #include <algorithm>
+#include <type_traits>
+#include <unistd.h>
 
 //!Reverses the bytes in a variable.
 /*!
@@ -14,16 +13,12 @@
 */
 
 
-#ifdef _WIN32
-	typedef char SwabType;
-#else
-	typedef void SwabType;
-#endif
+typedef void SwabType;
 
 inline
 void SwitchVectorEndian(std::vector<unsigned short>& data)
 {
-	BOOST_STATIC_ASSERT(sizeof(unsigned short)==2);
+	static_assert(sizeof(unsigned short)==2, "unsigned short must be 2 bytes");
 
 	SwabType* p_data=reinterpret_cast <SwabType*>(&data[0]);
 
@@ -42,8 +37,8 @@ void SwitchVectorEndian(std::vector<unsigned short>& data)
 template <typename T>
 inline T SwitchEndian(T value)
 {
-	BOOST_STATIC_ASSERT(::boost::is_arithmetic<T>::value);//either a float or an integral...
-	BOOST_STATIC_ASSERT(!::boost::is_const<T>::value);
+	static_assert(std::is_arithmetic<T>::value, "SwitchEndian requires an arithmetic type");
+	static_assert(!std::is_const<T>::value, "SwitchEndian cannot modify const values");
 	unsigned char* b=(unsigned char*)(&value);
 	std::reverse(b,b+sizeof(T));//alternatively could use swab()
 	return value;

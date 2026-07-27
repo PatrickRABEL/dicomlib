@@ -1,18 +1,13 @@
 #ifndef SOCKET_HPP_INCLUDE_GUARD_8753431
 #define SOCKET_HPP_INCLUDE_GUARD_8753431
 
-#if (!defined _WIN32)
 	#include <unistd.h>
 	#include <errno.h>
 	#include <sys/types.h>
 	#include <sys/socket.h>
 	#include <netinet/in.h>
 	#include <netdb.h>
-	#include <unistd.h>
 	#include <arpa/inet.h>
-#else//_WIN32
-	#include <winsock2.h>
-#endif//_WIN32
 
 #include <string.h>
 
@@ -20,39 +15,23 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <type_traits>
 
-#include <boost/utility.hpp>
-#include <boost/static_assert.hpp>
-#include <boost/type_traits.hpp>
-
-#include "EnablesWinSock.hpp"
 #include "Base.hpp"
 #include "SwitchEndian.hpp"
 
-#if defined (_WIN32)
-	typedef char* RECV_DATA_TYPE;
-
-	#ifndef socklen_t //python libraries define this, grrr.
-		typedef int socklen_t;
-	#endif
-#else
-	typedef void* RECV_DATA_TYPE;
-	typedef int SOCKET;
-#endif
+typedef void* RECV_DATA_TYPE;
+typedef int SOCKET;
 typedef  RECV_DATA_TYPE SEND_DATA_TYPE;
 
 
 //!Contains all of our socket classes.
 namespace Network
 {
-	//!Calls WSAGetLastError on windows, errno on unix.
+	//!Returns errno on POSIX platforms.
 	inline int GetLastError()
 	{
-#ifdef _WIN32
-		return WSAGetLastError();
-#else
 		return errno;//Is thread safe, I think.
-#endif
 	}
 
 	//!Thrown when reads (recv()) fail.
@@ -110,50 +89,6 @@ namespace Network
 		}
 	};
 
-
-#ifdef _WIN32
-
-	//!	Windows doesn't support MSG_WAITALL, so we need to do a bit more work manually
-
-		/*!
-		Windows doesn't MSG_WAITALL, so recv may return before all the
-		data we asked for has been received.  To work around this, we 
-		loop until we've got all the data.
-	*/
-	inline int WindowsSafeRecv(SOCKET s,RECV_DATA_TYPE data,int BytesToRead)
-	{
-		int BytesLeftToRead=BytesToRead;
-		RECV_DATA_TYPE CurrentPointInData=data;
-		while(BytesLeftToRead!=0)
-		{
-			int BytesRead=recv(s,CurrentPointInData,BytesLeftToRead,0);
-			if(BytesRead==0)
-				throw ConnectionLost();
-			if(BytesRead==SOCKET_ERROR)
-				throw SystemError("recv",Network::GetLastError());
-			CurrentPointInData+=BytesRead;
-			BytesLeftToRead-=BytesRead;
-		}
-		return BytesToRead;
-
-	}
-
-
-	//Force MSVC 7.0 to instantiate some templated functions
-	//This is a workaround to a known bug, see http://groups.google.ca/groups?hl=en&lr=&ie=UTF-8&oe=UTF-8&threadm=4ac23acc.0301190831.34470124%40posting.google.com&rnum=20&prev=/groups%3Fq%3Dlnk1120%2Btemplate%2Bfunction%26hl%3Den%26lr%3D%26ie%3DUTF-8%26oe%3DUTF-8%26start%3D10%26sa%3DN
-
-	inline bool InstantiateTemplatedFunctions()
-	{
-		unsigned char c(0x00);
-		c = SwitchEndian<unsigned char>(c);
-
-		return (c==0xff);
-	}
-
-
-
-#endif
-
 	//!Base socket class.
 	/*!
 		Socket is an Abstract Base Class, in that it requires derived
@@ -163,14 +98,13 @@ namespace Network
 		Socket
 
 	*/
-	class Socket : public boost::noncopyable//, public CanRead, public CanSend
-#ifdef _WIN32
-		,public EnablesWindowsSockets
-#endif
+	class Socket
 	{
 	public:
 
 		Socket(int ExternalEndian=__BIG_ENDIAN):ExternalByteOrder_(ExternalEndian){}
+		Socket(const Socket&) = delete;
+		Socket& operator=(const Socket&) = delete;
 
 		const int ExternalByteOrder_;//will generally be BIG_ENDIAN, but in some dicom cases will be LITTLE_ENDIAN
 
@@ -191,17 +125,13 @@ namespace Network
 		void Readn(T* Begin, size_t count)
 		{
 
-			BOOST_STATIC_ASSERT(::boost::is_fundamental<T>::value);
-			BOOST_STATIC_ASSERT(!::boost::is_const<T>::value);
+			static_assert(std::is_fundamental<T>::value, "Socket can only read fundamental types");
+			static_assert(!std::is_const<T>::value, "Socket cannot read into const data");
 
 			int BytesToRead=int(count*sizeof(T));
 
 			//Read data from socket
-#ifdef __unix
 			int BytesRead=recv(GetSocketDescriptor(),(RECV_DATA_TYPE)Begin,BytesToRead,MSG_WAITALL);
-#else
-			int BytesRead=WindowsSafeRecv(GetSocketDescriptor(),(RECV_DATA_TYPE)Begin,BytesToRead);
-#endif
 			//fix endian-ness - this is very slow...
 			if(ExternalByteOrder_!=__BYTE_ORDER && sizeof(T)>1)
 				std::transform(Begin,Begin+count,Begin,SwitchEndian<T>);
@@ -232,7 +162,7 @@ namespace Network
 		template <typename T>
 		void Read(std::vector<T>& data)
 		{
-			BOOST_STATIC_ASSERT(::boost::is_fundamental<T>::value);
+			static_assert(std::is_fundamental<T>::value, "Socket can only read fundamental vectors");
 
 			//assume underlying data is contiguous - see
 			//http://www.parashift.com/c++-faq-lite/containers-and-templates.html#faq-34.3
@@ -302,7 +232,7 @@ namespace Network
 		template <typename T>
 		void Sendn_AlreadySwapped(const T* Begin,size_t count) const
 		{
-			BOOST_STATIC_ASSERT(::boost::is_fundamental<T>::value);
+			static_assert(std::is_fundamental<T>::value, "Socket can only send fundamental types");
 			int BytesToSend=int(count*sizeof(T));
 
 			int BytesSent = ::send(GetSocketDescriptor(),
@@ -316,7 +246,7 @@ namespace Network
 		template <typename T>
 		void Sendn(const T* Begin, size_t count) const
 		{
-			BOOST_STATIC_ASSERT(::boost::is_fundamental<T>::value);
+			static_assert(std::is_fundamental<T>::value, "Socket can only send fundamental types");
 
 			if(ExternalByteOrder_==__BYTE_ORDER || sizeof(T)==1)
 			{
@@ -388,6 +318,7 @@ namespace Network
 				SwitchVectorEndian(swapped_data);				//optimized
 				Sendn_AlreadySwapped(&swapped_data[0],data.size());
 			}
+			return *this;
 		}
 // 		template <typename T>
 // 		const Socket& operator << (const std::vector<T>& data)const
@@ -434,11 +365,7 @@ namespace Network
 
 		virtual ~AssignedSocket()
 		{
-#if defined(_WIN32)
-			closesocket(socket_descriptor_);
-#else
 			close(socket_descriptor_);
-#endif
 		}
 
 
@@ -490,13 +417,8 @@ namespace Network
 			*/
 			int on = 1;
 
-#ifdef _WIN32
-			if (setsockopt(GetSocketDescriptor(), SOL_SOCKET, SO_EXCLUSIVEADDRUSE, ( const char* ) &on, sizeof ( on ) ) == -1 )
-				throw SystemError("Couldn't set socket option");
-#else
 			if (setsockopt(GetSocketDescriptor(), SOL_SOCKET, SO_REUSEADDR, ( const char* ) &on, sizeof ( on ) ) == -1 )
 				throw SystemError("Couldn't set socket option");
-#endif 
 
 			int status=bind(GetSocketDescriptor(),(sockaddr*)&(address.address_),sizeof(sockaddr));
 			if(status)
@@ -545,11 +467,7 @@ namespace Network
 		}
 		virtual ~AcceptedSocket()
 		{
-#if defined(_WIN32)
-			closesocket(socket_descriptor_);
-#else
 			close(socket_descriptor_);
-#endif
 		}
 
 	};

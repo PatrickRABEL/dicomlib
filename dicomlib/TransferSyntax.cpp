@@ -19,16 +19,7 @@ namespace dicom
 	TS::TS(const UID& uid):uid_(uid)
 	{
 		//make sure uid represents a known transfer syntax.
-		dicom::Enforce(
-			IMPL_VR_LE_TRANSFER_SYNTAX == uid			||
-			EXPL_VR_LE_TRANSFER_SYNTAX == uid			||
-			DEFLATED_EXPL_VR_LE_TRANSFER_SYNTAX == uid	||
-			EXPL_VR_BE_TRANSFER_SYNTAX == uid			||
-			JPEG_BASELINE_TRANSFER_SYNTAX == uid		||
-			JPEG_LOSSLESS_NON_HIERARCHICAL == uid		||
-			JPEG2000_LOSSLESS_ONLY == uid               ||
-            JPEG2000 == uid
-			,"Syntax not recognised: " + uid.str());
+		dicom::Enforce(IsTransferSyntaxUID(uid),"Syntax not recognised: " + uid.str());
 
 	}
 
@@ -63,11 +54,6 @@ namespace dicom
 	*/
 	bool TS::isEncapsulated() const
 	{
-		return (
-			JPEG_BASELINE_TRANSFER_SYNTAX==uid_||
-			JPEG_LOSSLESS_NON_HIERARCHICAL==uid_ ||
-			JPEG2000_LOSSLESS_ONLY==uid_ ||
-            JPEG2000 ==uid_
-			);
+		return IsEncapsulatedTransferSyntaxUID(uid_);
 	}
 }//namespace dicom

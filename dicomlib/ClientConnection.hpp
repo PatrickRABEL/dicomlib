@@ -1,7 +1,7 @@
 #ifndef CLIENT_CONNECTION_HPP_INCLUDE_GUARD_35872343523
 #define CLIENT_CONNECTION_HPP_INCLUDE_GUARD_35872343523
+#include <memory>
 #include <string>
-#include <boost/scoped_ptr.hpp>
 #include "ServiceBase.hpp"
 #include "aaac.hpp"
 #include "PresentationContexts.hpp"
@@ -59,7 +59,7 @@ namespace dicom
 	class ClientConnection : public ServiceBase
 	{
 		//Network::ClientSocket* socket_;
-        boost::scoped_ptr<Network::ClientSocket> socket_;
+        std::unique_ptr<Network::ClientSocket> socket_;
 	public:
 		virtual Network::Socket* GetSocket(){return socket_.get();}
 

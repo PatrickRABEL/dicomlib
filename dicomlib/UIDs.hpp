@@ -155,6 +155,9 @@ namespace dicom
 	//!Feed in one of the above entries and get a human-readable string in return.
 	std::string GetUIDName(UID StorageSOP);
 
+	bool IsTransferSyntaxUID(UID uid);
+	bool IsEncapsulatedTransferSyntaxUID(UID uid);
+
 	/*
 		See Part 4, Section C.3.1
 

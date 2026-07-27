@@ -1,0 +1,81 @@
+cmake_minimum_required(VERSION 3.16)
+
+project(dicomlib VERSION 0.9.5 LANGUAGES CXX)
+
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    message(FATAL_ERROR "dicomlib supports Linux and macOS only")
+endif()
+
+set(DICOMLIB_SUPPORTED_PROCESSORS
+    x86
+    i386
+    i686
+    x86_64
+    amd64
+    arm
+    armv7
+    armv7l
+    aarch64
+    arm64
+)
+
+string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" DICOMLIB_PROCESSOR)
+if(NOT DICOMLIB_PROCESSOR IN_LIST DICOMLIB_SUPPORTED_PROCESSORS)
+    message(FATAL_ERROR "Unsupported processor '${CMAKE_SYSTEM_PROCESSOR}'. Supported: x86, x86_64, ARM 32-bit, ARM 64-bit")
+endif()
+
+add_library(dicom STATIC
+    dicomlib/aaac.cpp
+    dicomlib/aarj.cpp
+    dicomlib/aarq.cpp
+    dicomlib/AssociationRejection.cpp
+    dicomlib/Buffer.cpp
+    dicomlib/Cdimse.cpp
+    dicomlib/ClientConnection.cpp
+    dicomlib/CommandSets.cpp
+    dicomlib/DataDictionary.cpp
+    dicomlib/Decoder.cpp
+    dicomlib/Dumper.cpp
+    dicomlib/Encoder.cpp
+    dicomlib/Exceptions.cpp
+    dicomlib/File.cpp
+    dicomlib/FileMetaInformation.cpp
+    dicomlib/GroupLength.cpp
+    dicomlib/Ndimse.cpp
+    dicomlib/pdata.cpp
+    dicomlib/PresentationContexts.cpp
+    dicomlib/QueryRetrieve.cpp
+    dicomlib/Server.cpp
+    dicomlib/ServiceBase.cpp
+    dicomlib/Tag.cpp
+    dicomlib/ThreadSpecificServer.cpp
+    dicomlib/TransferSyntax.cpp
+    dicomlib/UID.cpp
+    dicomlib/UIDs.cpp
+    dicomlib/Utility.cpp
+    dicomlib/ValueToStream.cpp
+    dicomlib/Version.cpp
+    dicomlib/ViewCodeSequence.cpp
+)
+
+target_include_directories(dicom
+    PUBLIC
+        "${CMAKE_CURRENT_SOURCE_DIR}"
+)
+
+target_compile_features(dicom PUBLIC cxx_std_17)
+set_target_properties(dicom PROPERTIES
+    CXX_STANDARD 17
+    CXX_STANDARD_REQUIRED YES
+    CXX_EXTENSIONS NO
+    OUTPUT_NAME dicom
+)
+
+target_compile_options(dicom PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+)
+
+find_package(Threads REQUIRED)
+target_link_libraries(dicom PUBLIC Threads::Threads)

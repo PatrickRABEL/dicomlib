@@ -22,9 +22,7 @@
 
 #include <sstream>
 #include <vector>
-#include <boost/static_assert.hpp>
-#include <boost/type_traits.hpp>
-#include <boost/shared_ptr.hpp>
+#include <type_traits>
 
 #include "Exceptions.hpp"
 #include "UID.hpp"
@@ -58,19 +56,27 @@ namespace dicom
 		VR_LO = 0x4f4c, //!< Long string
 		VR_LT = 0x544c, //!< Long Text
 		VR_OB = 0x424f, //!< Other Byte String
+		VR_OD = 0x444f, //!< Other Double String
+		VR_OF = 0x464f, //!< Other Float String
+		VR_OL = 0x4c4f, //!< Other Long String
 		VR_OW = 0x574f, //!< Other Word String
+		VR_OV = 0x564f, //!< Other Very Long String
 		VR_PN = 0x4e50, //!< Person Name
 		VR_SH = 0x4853, //!< Short String
 		VR_SL = 0x4C53, //!< Signed long
 		VR_SQ = 0x5153, //!< Sequence
 		VR_SS = 0x5353, //!< Signed Short
 		VR_ST = 0x5453, //!< Short text
+		VR_SV = 0x5653, //!< Signed Very Long
 		VR_TM = 0x4d54, //!< Time
+		VR_UC = 0x4355, //!< Unlimited Characters
 		VR_UI = 0x4955, //!< Unique Identifier
 		VR_UL = 0x4C55, //!< Unsigned Long
 		VR_UN = 0x4e55, //!< Unknown
+		VR_UR = 0x5255, //!< Universal Resource Identifier or Locator
 		VR_US = 0x5355, //!< Unsigned Short
-		VR_UT = 0x5455  //!< Unlimited Text
+		VR_UT = 0x5455, //!< Unlimited Text
+		VR_UV = 0x5655  //!< Unsigned Very Long
 		};
 
 	//!General VR mismatch, mistake etc.
@@ -131,17 +137,17 @@ namespace dicom
 		//don't know about.
 //#if (defined _MSC_VER && _MSC_VER<=1300)//MSVC for some reason always tries to instantiate this?
 //#else
-//		BOOST_STATIC_ASSERT(false);//to flag the error a bit more helpfully.
+//		static_assert(false);//to flag the error a bit more helpfully.
 //#endif
 	};
 
 	//do i need this?  Is there any platform where the following is not the case?
-	BOOST_STATIC_ASSERT(sizeof(double)==8);
-	BOOST_STATIC_ASSERT(sizeof(float)==4);
+	static_assert(sizeof(double)==8, "double must be 8 bytes");
+	static_assert(sizeof(float)==4, "float must be 4 bytes");
 	
-    //BOOST_STATIC_ASSERT(sizeof(signed long)==4);
+    //static_assert(sizeof(signed long)==4);
 	
-    BOOST_STATIC_ASSERT(sizeof(signed short)==2);
+    static_assert(sizeof(signed short)==2, "signed short must be 2 bytes");
 
 	template<> struct TypeFromVR<VR_AE>{typedef	ApplicationEntity			Type;	};
 	template<> struct TypeFromVR<VR_AS>{typedef	std::string					Type;	};//please replace
@@ -160,7 +166,11 @@ namespace dicom
 	template<> struct TypeFromVR<VR_LO>{typedef	std::string					Type;	};
 	template<> struct TypeFromVR<VR_LT>{typedef	std::string					Type;	};
 	template<> struct TypeFromVR<VR_OB>{typedef	std::vector<BYTE>			Type;	};
+	template<> struct TypeFromVR<VR_OD>{typedef	std::vector<double>			Type;	};
+	template<> struct TypeFromVR<VR_OF>{typedef	std::vector<float>			Type;	};
+	template<> struct TypeFromVR<VR_OL>{typedef	std::vector<UINT32>			Type;	};
 	template<> struct TypeFromVR<VR_OW>{typedef	std::vector<UINT16>			Type;	};
+	template<> struct TypeFromVR<VR_OV>{typedef	std::vector<UINT64>			Type;	};
 	template<> struct TypeFromVR<VR_PN>{typedef	std::string					Type;	};
 	template<> struct TypeFromVR<VR_SH>{typedef	std::string					Type;	};//please replace.
 	template<> struct TypeFromVR<VR_SL>{typedef	signed int					Type;	};//Here we use int not long as long is sometimes 64 bits, and VR_SL _must_ be 32 bits
@@ -171,12 +181,16 @@ namespace dicom
 	template<> struct TypeFromVR<VR_SQ>{typedef	std::vector<DataSet>		Type;	};
 
 	template<> struct TypeFromVR<VR_ST>{typedef	std::string					Type;	};
+	template<> struct TypeFromVR<VR_SV>{typedef	INT64						Type;	};
 	template<> struct TypeFromVR<VR_TM>{typedef	std::string					Type;	};//please replace.
+	template<> struct TypeFromVR<VR_UC>{typedef	std::string					Type;	};
 	template<> struct TypeFromVR<VR_UI>{typedef	UID							Type;	};
 	template<> struct TypeFromVR<VR_UL>{typedef UINT32			 			Type;	};
 	template<> struct TypeFromVR<VR_UN>{typedef	std::vector<BYTE>			Type;	};// a string of bytes, don't know what else to do with it
+	template<> struct TypeFromVR<VR_UR>{typedef	std::string					Type;	};
 	template<> struct TypeFromVR<VR_US>{typedef	UINT16						Type;	};
 	template<> struct TypeFromVR<VR_UT>{typedef	std::string					Type;	};
+	template<> struct TypeFromVR<VR_UV>{typedef	UINT64						Type;	};
 	/*
 		//are there any left?
 		.
@@ -195,7 +209,7 @@ namespace dicom
 	struct StaticVRCheck
 	{
 		typedef typename TypeFromVR<vr>::Type EXPECTED_TYPE;
-		BOOST_STATIC_ASSERT((boost::is_same<EXPECTED_TYPE,typename boost::remove_const<GIVEN_TYPE>::type>::value));
+		static_assert((std::is_same<EXPECTED_TYPE,typename std::remove_const<GIVEN_TYPE>::type>::value), "Type does not match VR");
 	};
 
 	//!Fails to compile if VR is one of SQ,OB,OW,or UN
@@ -206,14 +220,14 @@ namespace dicom
 	template<VR vr>
 	struct StaticMultiplicityCheck
 	{
-		BOOST_STATIC_ASSERT(vr!= VR_SQ && vr!=VR_OB && vr!=VR_OW && vr!=VR_UN && vr!=VR_UT && vr!=VR_CS && vr!=VR_AS && vr!=VR_LT);
+		static_assert(vr!= VR_SQ && vr!=VR_OB && vr!=VR_OD && vr!=VR_OF && vr!=VR_OL && vr!=VR_OW && vr!=VR_OV && vr!=VR_UN && vr!=VR_UC && vr!=VR_UR && vr!=VR_UT && vr!=VR_CS && vr!=VR_AS && vr!=VR_LT, "VR does not support fundamental multiplicity decoding");
 	};
 
 	//!Throws BadVR if TYPE1 is not the same as TYPE2
 	template<typename TYPE1, typename TYPE2>
 	void ThrowIfDifferent(VR vr)
 	{
-		if(!(::boost::is_same<TYPE1,TYPE2>::value))
+		if(!(std::is_same<TYPE1,TYPE2>::value))
 		{
 			throw BadVR(vr);
 		}
@@ -230,7 +244,7 @@ namespace dicom
 
 	*/
 	template <typename TYPE>
-	void DynamicVRCheck(VR vr) throw(BadVR)
+	void DynamicVRCheck(VR vr)
 	{
 		switch (vr)
 		{
@@ -273,8 +287,20 @@ namespace dicom
 		case VR_OB:
 			ThrowIfDifferent<TYPE,TypeFromVR<VR_OB>::Type>(vr);
 			break;
+		case VR_OD:
+			ThrowIfDifferent<TYPE,TypeFromVR<VR_OD>::Type>(vr);
+			break;
+		case VR_OF:
+			ThrowIfDifferent<TYPE,TypeFromVR<VR_OF>::Type>(vr);
+			break;
+		case VR_OL:
+			ThrowIfDifferent<TYPE,TypeFromVR<VR_OL>::Type>(vr);
+			break;
 		case VR_OW:
 			ThrowIfDifferent<TYPE,TypeFromVR<VR_OW>::Type>(vr);
+			break;
+		case VR_OV:
+			ThrowIfDifferent<TYPE,TypeFromVR<VR_OV>::Type>(vr);
 			break;
 		case VR_PN:
 			ThrowIfDifferent<TYPE,TypeFromVR<VR_PN>::Type>(vr);
@@ -295,8 +321,14 @@ namespace dicom
 		case VR_ST:
 			ThrowIfDifferent<TYPE,TypeFromVR<VR_ST>::Type>(vr);
 			break;
+		case VR_SV:
+			ThrowIfDifferent<TYPE,TypeFromVR<VR_SV>::Type>(vr);
+			break;
 		case VR_TM:
 			ThrowIfDifferent<TYPE,TypeFromVR<VR_TM>::Type>(vr);
+			break;
+		case VR_UC:
+			ThrowIfDifferent<TYPE,TypeFromVR<VR_UC>::Type>(vr);
 			break;
 		case VR_UI:
 			ThrowIfDifferent<TYPE,TypeFromVR<VR_UI>::Type>(vr);
@@ -307,11 +339,17 @@ namespace dicom
 		case VR_UN:
 			ThrowIfDifferent<TYPE,TypeFromVR<VR_UN>::Type>(vr);
 			break;
+		case VR_UR:
+			ThrowIfDifferent<TYPE,TypeFromVR<VR_UR>::Type>(vr);
+			break;
 		case VR_US:
 			ThrowIfDifferent<TYPE,TypeFromVR<VR_US>::Type> (vr);
 			break;
 		case VR_UT:
 			ThrowIfDifferent<TYPE,TypeFromVR<VR_UT>::Type>(vr);
+			break;
+		case VR_UV:
+			ThrowIfDifferent<TYPE,TypeFromVR<VR_UV>::Type>(vr);
 			break;
 		default:
 

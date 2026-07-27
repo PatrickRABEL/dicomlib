@@ -6,10 +6,7 @@
 *	See LICENSE.txt for copyright and licensing info.
 *************************************************************************/
 #include <iostream>
-#include <boost/static_assert.hpp>
-#include <boost/type_traits.hpp>
-
-#include <boost/tokenizer.hpp>
+#include <type_traits>
 
 #include "DataSet.hpp"
 #include "Types.hpp"
@@ -104,7 +101,7 @@ namespace dicom{
 		template <VR vr>
 		void DecodeString(Tag tag, size_t length)
 		{
-			BOOST_STATIC_ASSERT((boost::is_same<std::string,typename TypeFromVR<vr>::Type>::value));
+			static_assert((std::is_same<std::string,typename TypeFromVR<vr>::Type>::value), "DecodeString requires a string VR");
 
 			string s(length,' ');
 			buffer_>>s;
@@ -126,14 +123,15 @@ namespace dicom{
 				dataset_.template Put<vr>(tag,s);
 			else
 			{
-			//	parse multiplicity using boost::tokenizer
-
-				typedef boost::tokenizer<boost::char_separator<char> > tokenizer;
-				boost::char_separator<char> sep("\\","",boost::keep_empty_tokens);//strings are seperated by backslashes;
-				tokenizer tokens(s, sep);
-
-				for (tokenizer::iterator tok_iter = tokens.begin();tok_iter != tokens.end(); ++tok_iter)
-					dataset_.template Put<vr>(tag,*tok_iter);
+				std::string::size_type start = 0;
+				for(;;)
+				{
+					std::string::size_type end = s.find('\\', start);
+					dataset_.template Put<vr>(tag,s.substr(start,end-start));
+					if(end == std::string::npos)
+						break;
+					start = end + 1;
+				}
 			}
 
 			/**	Question: Is the multiplicity of CS 1 for the above block?  
@@ -161,13 +159,15 @@ namespace dicom{
 			StripTrailingWhitespace(s);
 
 
-			typedef boost::tokenizer<boost::char_separator<char> > tokenizer;
-			boost::char_separator<char> sep("\\","",boost::keep_empty_tokens);//UIDS are seperated by backslashes;
-			tokenizer tokens(s, sep);
-
-			for (tokenizer::iterator tok_iter = tokens.begin();tok_iter != tokens.end(); ++tok_iter)
-				//dataset_.template Put<VR_UI>(tag,UID(*tok_iter));
-				dataset_.Put<VR_UI>(tag,UID(*tok_iter));
+			std::string::size_type start = 0;
+			for(;;)
+			{
+				std::string::size_type end = s.find('\\', start);
+				dataset_.Put<VR_UI>(tag,UID(s.substr(start,end-start)));
+				if(end == std::string::npos)
+					break;
+				start = end + 1;
+			}
 		}
 
 
@@ -221,13 +221,24 @@ namespace dicom{
 			}
 		}
 
+		template <VR vr>
+		void DecodeVector(Tag tag, size_t length)
+		{
+			typedef typename TypeFromVR<vr>::Type VectorType;
+			typedef typename VectorType::value_type ItemType;
+			VectorType data(length/sizeof(ItemType),0);
+			for(size_t i=0;i<data.size();++i)
+				buffer_>>data[i];
+			dataset_.Put<vr>(tag,data);
+		}
+
 
 	};
 
 
 
 	//!DICOM messages need to have even byte length.(Part 5 section 7.1)
-	void CheckEven(int ByteLength)throw (exception)
+	void CheckEven(int ByteLength)
 	{
 		if(ByteLength & 1)
 			throw dicom::exception("Byte length not even.");
@@ -246,7 +257,7 @@ namespace dicom{
 			
 			vr=VR(w);
 
-			if (vr == VR_UN || vr == VR_SQ || vr == VR_OW || vr == VR_OB || vr == VR_UT)//see Part5 / 7.1.2
+			if (vr == VR_UN || vr == VR_SQ || vr == VR_OW || vr == VR_OB || vr == VR_OD || vr == VR_OF || vr == VR_OL || vr == VR_OV || vr == VR_UC || vr == VR_UR || vr == VR_UT)//see Part5 / 7.1.2
 			{
 				buffer_ >> w;		//	2 bytes unused
 				buffer_>>length;	//4 bytes of length info
@@ -358,6 +369,12 @@ namespace dicom{
 			return;
 		case VR_OB://other byte string
 			return DecodeOB(tag,length);
+		case VR_OD://other double string
+			return DecodeVector<VR_OD>(tag,length);
+		case VR_OF://other float string
+			return DecodeVector<VR_OF>(tag,length);
+		case VR_OL://other long string
+			return DecodeVector<VR_OL>(tag,length);
 		case VR_OW://other word string
 			{
 				TypeFromVR<VR_OW>::Type data((length>>1),0);// divide length by 2 because this is an array of
@@ -367,11 +384,19 @@ namespace dicom{
 				dataset_.Put<VR_OW>(tag,data);
 			}
 			break;
+		case VR_OV://other very long string
+			return DecodeVector<VR_OV>(tag,length);
 		case VR_UL://unsigned long
 			GetElementValue<VR_UL>(tag,length);
 			return;
 		case VR_SL://signed long
 			GetElementValue<VR_SL>(tag,length);
+			return;
+		case VR_SV://signed very long
+			GetElementValue<VR_SV>(tag,length);
+			return;
+		case VR_UV://unsigned very long
+			GetElementValue<VR_UV>(tag,length);
 			return;
 		case VR_FL://float
 			GetElementValue<VR_FL>(tag,length);
@@ -418,6 +443,10 @@ namespace dicom{
 			return DecodeString<VR_ST>(tag,length);
 		case VR_TM:
 			return DecodeString<VR_TM>(tag,length);
+		case VR_UC:
+			return DecodeString<VR_UC>(tag,length);
+		case VR_UR:
+			return DecodeString<VR_UR>(tag,length);
 		case VR_UT:
 			return DecodeString<VR_UT>(tag,length);
 		case VR_IS:
@@ -615,12 +644,8 @@ Some notes on data time:
 
 
 Part5/Table 6.2-1 specifies how VR_DT is encoded.
-We're not currently converting this interally to a boost time object, but
-hopefully we will in the future.
-However boost doesn't have a mechanism for managing Coordinated Universal Time
-offsets, so it might be safest to just leave it as a string.  If we do that,
-then we should probably also make VR_DA stay as a string, and get rid of
-the dependency on boost::date_time entirely?
+We're not currently converting this internally to a time object. Keeping it
+as a string avoids timezone conversion ambiguity.
 
 */
 

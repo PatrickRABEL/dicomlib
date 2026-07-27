@@ -13,6 +13,7 @@
 #include "DataSet.hpp"
 #include "UID.hpp"
 #include "ServiceBase.hpp"
+#include <functional>
 
 /*
 	Is inheritance the correct mechanism to use here, or 
@@ -31,13 +32,8 @@ namespace dicom
 {
 
 
-#if defined(_MSC_VER)//should also check the value of this, as MSVC v7.1 and above may not need this workaround.
-	typedef boost::function3<void,ServiceBase&,const DataSet&,DataSet&>
-		NHandlerFunction
-#else
-	typedef boost::function<void(ServiceBase&,const DataSet&,DataSet&)>
+	typedef std::function<void(ServiceBase&,const DataSet&,DataSet&)>
 		NHandlerFunction;
-#endif
 
 			//handler(pdu,rspData,command,data);
 	//class NHandler

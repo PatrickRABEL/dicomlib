@@ -1,0 +1,12 @@
+build/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+*.a
+*.o
+*.so
+*.dylib
+*.pyc
+__pycache__/
+.DS_Store

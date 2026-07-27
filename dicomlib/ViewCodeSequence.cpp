@@ -1,10 +1,5 @@
 #include <iostream>
-#include <boost/static_assert.hpp>
-#include <boost/type_traits.hpp>
-
-#include <boost/tokenizer.hpp>
-#include <boost/date_time/gregorian/gregorian.hpp>
-#include <boost/date_time/date_parsing.hpp>
+#include <algorithm>
 
 #include "DataSet.hpp"
 //#include "Exceptions.hpp"

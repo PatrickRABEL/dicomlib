@@ -3,12 +3,14 @@
 #include <string>
 #include <sstream>
 #include <algorithm>
-#include <boost/noncopyable.hpp>
 namespace utility
 {
 
-	struct ProfilingStatistics:boost::noncopyable
+	struct ProfilingStatistics
 	{
+		ProfilingStatistics() = default;
+		ProfilingStatistics(const ProfilingStatistics&) = delete;
+		ProfilingStatistics& operator=(const ProfilingStatistics&) = delete;
 		class routine
 		{
 			unsigned long times_called_;

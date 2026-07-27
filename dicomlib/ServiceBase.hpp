@@ -38,8 +38,10 @@ namespace dicom
 
 		Keeps track of conditions under which association was set up
 	*/
-    struct ServiceBase: boost::noncopyable
+    struct ServiceBase
 	{
+		ServiceBase(const ServiceBase&) = delete;
+		ServiceBase& operator=(const ServiceBase&) = delete;
 
 		//ServiceBase(Network::Socket* socket);
 		ServiceBase();

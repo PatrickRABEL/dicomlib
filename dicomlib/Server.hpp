@@ -1,20 +1,16 @@
 #ifndef SERVER_HPP_INCLUDE_GUARD_26510884
 #define SERVER_HPP_INCLUDE_GUARD_26510884
 
-#ifdef _WIN32
-#pragma warning(disable:4275) //boost threads is creating this warning, discussion on the mailing list indicates that it's safe to turn off.
-#endif
-
-#include <boost/thread/thread.hpp>
-#include <boost/thread/xtime.hpp>
 #if defined( __unix__)
 #include <signal.h>
 #endif
 
+#include <functional>
+#include <memory>
+#include <mutex>
 #include <set>
+#include <thread>
 
-#include <boost/thread/thread.hpp>
-#include <boost/function.hpp>
 #include "socket/Socket.hpp"
 #include "Cdimse.hpp"
 #include "ServiceBase.hpp"
@@ -28,17 +24,10 @@ namespace dicom
 	inheritance and virtual functions.
 */
 
-#if defined(_MSC_VER)//see comments in Cdimse.hpp for following syntax.
-	typedef boost::function1<bool,const std::string&> StringCheckFunction;
-	typedef boost::function2<bool,const std::string&,const std::string> StringCheckFunction2;
-	typedef boost::function1<void,const primitive::AAssociateRQ&> AssociationNegotiatedFunction;
-	typedef boost::function1<void,void> AssociationTerminatedFunction;
-#else
-	typedef boost::function1<bool,const std::string&> StringCheckFunction;
-	typedef boost::function2<bool,const std::string&,const std::string> StringCheckFunction2;
-	typedef boost::function<void()> AssociationTerminatedFunction;
-	typedef boost::function<void(const primitive::AAssociateRQ&)> AssociationNegotiatedFunction;
-#endif
+	typedef std::function<bool(const std::string&)> StringCheckFunction;
+	typedef std::function<bool(const std::string&,const std::string)> StringCheckFunction2;
+	typedef std::function<void()> AssociationTerminatedFunction;
+	typedef std::function<void(const primitive::AAssociateRQ&)> AssociationNegotiatedFunction;
 
 
 	//!Thrown if we don't have a handler function for the requested service class.
@@ -74,8 +63,10 @@ namespace dicom
 
 
 	*/
-    class Server: boost::noncopyable
+    class Server
 	{
+		Server(const Server&) = delete;
+		Server& operator=(const Server&) = delete;
 
 		//!Only used if Server runs in a new thread.
 		/*!
@@ -83,12 +74,12 @@ namespace dicom
 			it is run in a new thread, the following member handles that thread.
 			(in either case, it will spawn a thread for every incoming connection.)
 		*/
-		boost::thread* ServerThread_;
+		std::unique_ptr<std::thread> ServerThread_;
 
 		//!do we want a mutex for every member, or just one?
-		boost::mutex mutex_;
+		std::mutex mutex_;
 
-		boost::mutex killflag_mutex;
+		std::mutex killflag_mutex;
 
 		//!When this is set to true, the Server will stop accepting new connections and eventually terminate.
 		bool KillFlag;
@@ -99,8 +90,8 @@ namespace dicom
 			we should make them static?
 		*/
 
-		static boost::mutex cerr_mutex;
-		static boost::mutex cout_mutex;
+		static std::mutex cerr_mutex;
+		static std::mutex cout_mutex;
 
 
 		/*
@@ -112,7 +103,7 @@ namespace dicom
 			it will make thread-safety easier too.
 			(This is a CALL BACK system.)
 
-			This uses the boost::function library to encapsulate functions-as-objects
+			This uses std::function to encapsulate functions-as-objects.
 		*/
 
 
@@ -141,7 +132,7 @@ namespace dicom
 		/*!
 			 Probably not really needed, as they should only be set before we start serving.
 		*/
-		boost::mutex AETMutex_;
+		std::mutex AETMutex_;
 
 		//!returns true if a client has requested a connection, false if Kill flag has been raised, otherwise blocks.
 		bool ClientConnectionPending(Network::Socket* pSocket);
@@ -149,7 +140,7 @@ namespace dicom
         
         //!Our own thread collection type.
         /*!
-            We don't use boost::thread_group here, because we need to be able to clean up threads as we go 
+            We do not use a thread group here, because we need to be able to clean up threads as we go
             along, not just at the end of the program.
             This in turn requires us to carefully manage a boolean 'thread finished' flag, that is set in the client
             thread and detected in the main thread.
@@ -157,7 +148,7 @@ namespace dicom
 
         */
 
-        typedef std::map<boost::shared_ptr<boost::thread>,bool> ThreadGroup;
+        typedef std::map<std::shared_ptr<std::thread>,bool> ThreadGroup;
         
         //!Each thread owns an open socket connection to a client
         ThreadGroup clientThreads_;

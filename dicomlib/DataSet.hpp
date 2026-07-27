@@ -2,10 +2,6 @@
 #define DATA_SET_HPP_INCLUDE_GUARD_35758581243
 
 #include <iostream>
-#include <boost/any.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/utility.hpp>
-#include <boost/type_traits.hpp>
 #include <exception>
 #include <map>
 #include "VR.hpp"

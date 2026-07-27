@@ -1,8 +1,8 @@
 #ifndef VALUE_HPP_INCLUDE_GUARD_5790364856093
 #define VALUE_HPP_INCLUDE_GUARD_5790364856093
 #include "VR.hpp"
-#include "boost/any.hpp"
-#include "boost/shared_ptr.hpp"
+#include <any>
+#include <memory>
 
 
 namespace dicom
@@ -13,7 +13,7 @@ namespace dicom
 		See 3.5, section 7.1.
 		dicom::Value represents a DataElement, excluding the Tag.
 
-		Data is internally managed using a boost::shared_ptr.  This means
+		Data is internally managed using a std::shared_ptr.  This means
 		that copying Value objects is not expensive.  Access to the underlying
 		data is only permitted via the const Get function, and you cannot modify
 		a Value object once it has been constructed, i.e. it's immutable.  This way
@@ -47,7 +47,7 @@ namespace dicom
 			:vr_(vr)
 		{
 			DynamicVRCheck<T>(vr);
-			data_=boost::shared_ptr<boost::any>(new boost::any(data));
+			data_=std::shared_ptr<std::any>(new std::any(data));
 		}
 
 		//!Constructor
@@ -56,7 +56,7 @@ namespace dicom
 		Value(VR vr)
 			:vr_(vr)
 		{
-			data_=boost::shared_ptr<boost::any>(new boost::any());
+			data_=std::shared_ptr<std::any>(new std::any());
 		}
 
 		//!Query
@@ -82,6 +82,8 @@ namespace dicom
 				case VR_SH:
 				case VR_ST:
 				case VR_TM:
+				case VR_UC:
+				case VR_UR:
 				case VR_UT:
 					Get(s);
 					is_empty=(s.length()==0);
@@ -92,7 +94,7 @@ namespace dicom
 					is_empty=(s.length()==0);
 					break;
 				default:
-					is_empty=data_->empty();
+					is_empty=!data_->has_value();
 			}
 			return is_empty;
 		}
@@ -109,7 +111,7 @@ namespace dicom
 		void Get(T& t) const
 		{
  			DynamicVRCheck<T>(vr_);	//check we have the right value representation.
-			t=boost::any_cast<T>(*(data_));
+			t=std::any_cast<T>(*(data_));
 		}
 
 		//!Another Get function
@@ -124,8 +126,8 @@ namespace dicom
 		const T& Get() const
 		{
 			DynamicVRCheck<T>(vr_);
-			const boost::any& a = *data_;
-			const T* pT=boost::any_cast<T>(&a);//this form returns a pointer, see 'any' documentation.
+			const std::any& a = *data_;
+			const T* pT=std::any_cast<T>(&a);//this form returns a pointer, see 'any' documentation.
 			return *pT;
 		}
 
@@ -146,7 +148,7 @@ namespace dicom
 
 	private:
 		//!The data itself, implemented using BOOST utilities.
-		boost::shared_ptr<boost::any> data_;
+		std::shared_ptr<std::any> data_;
 
 	};
 }

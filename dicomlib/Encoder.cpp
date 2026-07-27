@@ -6,6 +6,7 @@
 *	See LICENSE.txt for copyright and licensing info.
 *************************************************************************/
 #include <iostream>
+#include <type_traits>
 #include "Encoder.hpp"
 #include "Exceptions.hpp"
 #include "iso646.h"
@@ -35,7 +36,7 @@ namespace dicom
 		{
 			UINT32 sentlength=0;
 			typedef typename TypeFromVR<vr>::Type Type;
-			BOOST_STATIC_ASSERT(boost::is_fundamental<Type>::value);
+			static_assert(std::is_fundamental<Type>::value, "SendFundamentalType requires a fundamental type");
 			std::vector<Value> vv;
 			for(;Begin!=End;Begin++)
 			{
@@ -173,6 +174,23 @@ namespace dicom
 			}
 			return sentlength;
 		}
+
+		template <VR vr>
+		UINT32 SendVector(DataSet::const_iterator Begin, DataSet::const_iterator End)
+		{
+			UINT32 sentlength=0;
+			typedef typename TypeFromVR<vr>::Type VectorType;
+			typedef typename VectorType::value_type ItemType;
+			const VectorType& Vector = Begin->second.Get<VectorType>();
+
+			UINT32 ByteLength=(UINT32)(Vector.size()*sizeof(ItemType));
+			sentlength += WriteLengthAndVR(ByteLength,vr);
+
+			for(size_t i=0;i<Vector.size();++i)
+				buffer_ << Vector[i];
+			sentlength += ByteLength;
+			return sentlength;
+		}
 	};
 
 	UINT32 Encoder::SendRange(DataSet::const_iterator Begin,DataSet::const_iterator End)
@@ -227,6 +245,15 @@ namespace dicom
 		case VR_OB:
 			sentlength += SendOB(Begin,End);
 			break;
+		case VR_OD:
+			sentlength += SendVector<VR_OD>(Begin,End);
+			break;
+		case VR_OF:
+			sentlength += SendVector<VR_OF>(Begin,End);
+			break;
+		case VR_OL:
+			sentlength += SendVector<VR_OL>(Begin,End);
+			break;
 		case VR_OW:
 			{
 				typedef TypeFromVR<VR_OW>::Type Type;
@@ -239,6 +266,9 @@ namespace dicom
 				sentlength += ByteLength;
 			break;
 			}
+		case VR_OV:
+			sentlength += SendVector<VR_OV>(Begin,End);
+			break;
 		case VR_PN:
 			sentlength +=  SendString<VR_PN>(Begin,End);
 			break;
@@ -260,8 +290,14 @@ namespace dicom
 		case VR_ST:
 			sentlength +=  SendString<VR_ST>(Begin,End);
 			break;
+		case VR_SV:
+			sentlength +=  SendFundamentalType<VR_SV>(Begin,End);
+			break;
 		case VR_TM:
 			sentlength +=  SendString<VR_TM>(Begin,End);
+			break;
+		case VR_UC:
+			sentlength +=  SendString<VR_UC>(Begin,End);
 			break;
 		case VR_UI:
 			sentlength +=  SendUID(Begin,End);
@@ -278,11 +314,17 @@ namespace dicom
 				sentlength += ByteVector.size();
 			break;
 			}
+		case VR_UR:
+			sentlength += SendString<VR_UR>(Begin,End);
+			break;
 		case VR_US:
 			sentlength += SendFundamentalType<VR_US>(Begin,End);
 			break;
 		case VR_UT:
 			sentlength += SendString<VR_UT>(Begin,End);
+			break;
+		case VR_UV:
+			sentlength += SendFundamentalType<VR_UV>(Begin,End);
 			break;
 		default:
 			cout << "Unknown VR: " << vr  << " in EncodeElement()" << endl;
@@ -300,7 +342,7 @@ namespace dicom
 			buffer_ << BYTE(vr>>8);//byte 2 -Sam
 			sentlength +=2;
 			//buffer_ << UINT16(vr);
-			if( VR_UN == vr || VR_SQ == vr || VR_OW == vr || VR_OB == vr || VR_UT == vr)
+			if( VR_UN == vr || VR_SQ == vr || VR_OW == vr || VR_OB == vr || VR_OD == vr || VR_OF == vr || VR_OL == vr || VR_OV == vr || VR_UC == vr || VR_UR == vr || VR_UT == vr)
 			{
 
 				buffer_ << UINT16(0);	//reserved

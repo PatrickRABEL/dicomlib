@@ -1,3 +1,0 @@
-libraries=['dicom','boost_python','boost_date_time'] 
-env=Environment(CPPPATH='..',LIBS=libraries,LIBPATH='../dicomlib')
-env.Program('main.cpp')

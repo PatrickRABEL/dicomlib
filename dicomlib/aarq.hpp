@@ -324,7 +324,7 @@ namespace dicom
 			UINT32		Size();
 		};
 	}//namespace primitive
-	//this should be replaceable with bind2nd and mem_fun?  or boost function objects?
+	//this should be replaceable with bind2nd and mem_fun?
 	struct WriteToSocket
 	{
 		Network::Socket& socket_;

@@ -12,13 +12,11 @@
 #include <list>
 #include <sstream>
 
-#include <boost/utility.hpp>
-#include <boost/type_traits.hpp>
-#include <boost/static_assert.hpp>
-#include <boost/any.hpp>
 #include <algorithm>
+#include <any>
+#include <type_traits>
 /*
-	re-implementation of ODBC layer using boost::any 
+	re-implementation of ODBC layer using std::any
 	and standard containers.
 */
 /*
@@ -63,7 +61,7 @@ namespace ODBC
 
 
 
-	typedef boost::any Field;
+	typedef std::any Field;
 
 	struct CaseInsensitiveStringCompare : public std::binary_function <std::string, std::string, bool> 
 	{
@@ -78,10 +76,12 @@ namespace ODBC
 
 	typedef std::map<std::string,Field,CaseInsensitiveStringCompare> Row;
 	
-	class Environment:boost::noncopyable
+	class Environment
 	{
 		SQLHENV EnvironmentHandle_;
 	public:
+		Environment(const Environment&) = delete;
+		Environment& operator=(const Environment&) = delete;
 		operator SQLHENV () const {	return EnvironmentHandle_;}
 
 
@@ -103,7 +103,7 @@ namespace ODBC
 		}
 	};
 
-	class Connection:boost::noncopyable
+	class Connection
 	{
 		SQLHDBC ConnectionHandle_;
 		Environment Environment_;
@@ -114,6 +114,8 @@ namespace ODBC
 		}
 
 	public:
+		Connection(const Connection&) = delete;
+		Connection& operator=(const Connection&) = delete;
 		operator SQLHDBC()const	{return ConnectionHandle_;}
 
 		Connection(std::string DSN, std::string User="", std::string Password="", LONG LoginTimeout=5)
@@ -157,10 +159,12 @@ namespace ODBC
 		}
 	};
 
-	class Statement:boost::noncopyable
+	class Statement
 	{
 		SQLHSTMT StatementHandle_;
 	public:
+		Statement(const Statement&) = delete;
+		Statement& operator=(const Statement&) = delete;
 		operator SQLHSTMT(){return StatementHandle_;}
 
 		void CheckSuccess(SQLRETURN ret)
@@ -221,7 +225,7 @@ namespace ODBC
 		Field ExtractValue2(Statement& statement,SQLSMALLINT type,int field)
 		{
 			T t;
-			BOOST_STATIC_ASSERT((::boost::is_fundamental<T>::value));
+			static_assert((std::is_fundamental<T>::value), "ODBC extraction requires a fundamental type");
 
 			SQLINTEGER len_or_null_indicator;
 			SQLRETURN ret = SQLGetData(statement,field+1,type,&t,sizeof(T),&len_or_null_indicator);
@@ -407,7 +411,7 @@ namespace ODBC
 		ExtractValue(std::string field):field_(field){}
 		T operator()(Row row)
 		{
-			return boost::any_cast<T>(row[field_]);
+			return std::any_cast<T>(row[field_]);
 		}
 	};
 

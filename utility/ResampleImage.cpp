@@ -105,7 +105,7 @@ namespace utility
 			try
 			{
 				std::replace_if(tokenized.begin(), tokenized.end(), std::bind2nd(std::equal_to<char>(), ','), '.');
-				pixel_size=boost::lexical_cast<double,std::string>(tokenized);
+				pixel_size=std::stod(tokenized);
 			}
 			catch(std::exception&)
 			{
@@ -207,8 +207,10 @@ namespace utility
 
 		std::list<std::string> pixel_spacing;
 
-		pixel_spacing.push_back(boost::lexical_cast<string, double>(pixel_size * factor));
-		pixel_spacing.push_back(boost::lexical_cast<string, double>(pixel_size * factor));
+		std::ostringstream spacing_stream;
+		spacing_stream << (pixel_size * factor);
+		pixel_spacing.push_back(spacing_stream.str());
+		pixel_spacing.push_back(spacing_stream.str());
 
 		if(data.exists(dicom::TAG_PIXEL_SPACING))
 		{

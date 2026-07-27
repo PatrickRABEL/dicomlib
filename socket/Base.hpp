@@ -3,7 +3,7 @@
 
 /*
 	Operating-system specific definitions go here.
-	Currently we support windows, linux (x86) and solaris.
+	Supported targets are Linux and macOS on x86/x86_64 and ARM 32/64-bit.
 	Mostly this file is used for detecting host endian-ness.
 	If there's a cleaner way of doing this, please let me know
 
@@ -12,48 +12,27 @@
 	__LITTLE_ENDIAN, __BIG_ENDIAN, and __BYTE_ORDER
 */
 
-#if defined( __unix__)
-
-	#if(defined(__sun__))
-		#if(defined(__sparc))
-			#include <sys/byteorder.h>
-			#define __LITTLE_ENDIAN 1234
-			#define __BIG_ENDIAN 4321
-			#ifdef _BIG_ENDIAN
-				#define __BYTE_ORDER __BIG_ENDIAN
-			#elif
-				#error "unrecognized sparc architecture."
-			#endif
-		#elif
-			#error "Unsupported architecture"
-		#endif
-	#elif(defined(__linux__))
-		#include "endian.h"
-		#if(defined(__i386) || defined(__x86_64))    
-			//We support this.
-		#else
-			//this can be fixed by checking for the appropriate architecture
-			//signifier macro - I just don't know off hand what these are.
-			#error "Unsupported architecture."
-		#endif
-	#else
-		#error "Unknown Unix system."
+#if defined(__linux__)
+	#include <endian.h>
+#elif defined(__APPLE__) && defined(__MACH__)
+	#include <machine/endian.h>
+	#ifndef __LITTLE_ENDIAN
+		#define __LITTLE_ENDIAN LITTLE_ENDIAN
 	#endif
-#elif defined(_WIN32)
-	#pragma warning(disable:4290)  // Disable warning about throw specifications
-
-//	#include "iso646.h"//for 'bitand' etc.
-//	#if(defined(_M_IX86))
-		//Windows doesn't have "Endian.h", so we declare these manually.
-		#define __LITTLE_ENDIAN 1234
-		#define __BIG_ENDIAN 4321
-		#define __BYTE_ORDER __LITTLE_ENDIAN
-
-//	#else
-//		#error "Unsupported architecture."
-//	#endif
+	#ifndef __BIG_ENDIAN
+		#define __BIG_ENDIAN BIG_ENDIAN
+	#endif
+	#ifndef __BYTE_ORDER
+		#define __BYTE_ORDER BYTE_ORDER
+	#endif
 #else
-	#error "Unknown operating system"
+	#error "Unsupported operating system. Supported targets are Linux and macOS."
+#endif
+
+#if defined(__i386__) || defined(__i386) || defined(__x86_64__) || defined(__x86_64) || defined(__arm__) || defined(__aarch64__) || defined(__arm64__)
+	// Supported CPU architecture.
+#else
+	#error "Unsupported architecture. Supported targets are x86, x86_64, ARM 32-bit and ARM 64-bit."
 #endif
 
 

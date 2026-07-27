@@ -2,8 +2,6 @@
 #define UTILITY_HPP_INCLUDE_GUARD_45475351328
 #include <string>
 #include <limits>
-#include <boost/type_traits.hpp>
-#include <boost/static_assert.hpp>
 #include "Types.hpp"
 
 //these should be in dicom namespace

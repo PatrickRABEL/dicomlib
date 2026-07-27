@@ -12,8 +12,8 @@
 #include "DataSet.hpp"
 #include "UIDs.hpp"
 
+#include <functional>
 #include <string>
-#include <boost/function.hpp>
 #include "ServiceBase.hpp"
 #include "CommandSets.hpp"
 
@@ -30,25 +30,17 @@ namespace dicom
 
 	See comments in Server.hpp
 
-	We use boost::function to specify function signatures.  Note that due to limitations
-	in Microsoft Visual C++ 7.0, we need to provide two alternative syntaxes.
+	We use std::function to specify function signatures.
 
 	We should probably create a Callbacks.hpp file for these typedefs.
 */
 
 
 
-#if defined(_MSC_VER)														//MSVC v7.1 and above may not need this workaround.
-		typedef boost::function3<void,ServiceBase&,const DataSet&,DataSet&>	//msvc needs this non-standard syntax.  See the boost::function tutorial for reasoning.
-			HandlerFunction;												//see boost::function documentation for rationale of alternative syntax.
-		typedef boost::function3<void,ServiceBase&,DataSet&,Sequence&>
-			CFindFunction;
-#else
-		typedef boost::function<void(ServiceBase& ,const DataSet& , DataSet&)>
+		typedef std::function<void(ServiceBase& ,const DataSet& , DataSet&)>
 			HandlerFunction;
-		typedef boost::function<void(ServiceBase&,DataSet&,Sequence&)>
+		typedef std::function<void(ServiceBase&,DataSet&,Sequence&)>
 			CFindFunction;
-#endif
 
 	typedef HandlerFunction CMoveFunction;
 	typedef HandlerFunction CStoreFunction;
