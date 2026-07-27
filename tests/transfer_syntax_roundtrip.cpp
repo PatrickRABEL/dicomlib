@@ -68,6 +68,14 @@ namespace
 		return uids;
 	}
 
+	std::vector<dicom::UID> unsupportedJPEG2000Part2TransferSyntaxes()
+	{
+		std::vector<dicom::UID> uids;
+		uids.push_back(dicom::JPEG2000_PART2_MULTI_COMPONENT_LOSSLESS_ONLY);
+		uids.push_back(dicom::JPEG2000_PART2_MULTI_COMPONENT);
+		return uids;
+	}
+
 #if DICOMLIB_WITH_GDCM
 	dicom::TypeFromVR<dicom::VR_OB>::Type makeGDCM8BitJPEGFragment(
 		const dicom::TypeFromVR<dicom::VR_OB>::Type& pixels,
@@ -368,6 +376,43 @@ namespace
 		source.Put<dicom::VR_OB>(dicom::TAG_PIXEL_DATA, fragment);
 
 		const std::vector<dicom::UID> uids = unsupportedRetiredJPEGTransferSyntaxes();
+		for(size_t i=0;i<uids.size();++i)
+		{
+			dicom::TS ts(uids[i]);
+			dicom::Buffer encoded(__LITTLE_ENDIAN);
+			dicom::WriteToBuffer(source, encoded, ts);
+
+			dicom::DataSet decoded;
+			dicom::ReadFromBuffer(encoded, decoded, ts);
+
+			const std::vector<dicom::Value> fragments = decoded.Values(dicom::TAG_PIXEL_DATA);
+			assert(fragments.size() == 1);
+			assert(fragments[0].Get<dicom::TypeFromVR<dicom::VR_OB>::Type>() == fragment);
+		}
+	}
+
+	void assertUnsupportedJPEG2000Part2FragmentPassThrough()
+	{
+		dicom::DataSet source;
+		source.Put<dicom::VR_UI>(dicom::TAG_SOP_CLASS_UID, dicom::SC_IMAGE_STORAGE_SOP_CLASS);
+		source.Put<dicom::VR_UI>(dicom::TAG_SOP_INST_UID, dicom::UID("1.2.826.0.1.3680043.10.22"));
+		source.Put<dicom::VR_US>(dicom::TAG_ROWS, UINT16(2));
+		source.Put<dicom::VR_US>(dicom::TAG_COLUMNS, UINT16(2));
+		source.Put<dicom::VR_US>(dicom::TAG_SAMPLES_PER_PX, UINT16(1));
+		source.Put<dicom::VR_CS>(dicom::TAG_PHOTOMETRIC, std::string("MONOCHROME2"));
+		source.Put<dicom::VR_US>(dicom::TAG_BITS_ALLOC, UINT16(8));
+		source.Put<dicom::VR_US>(dicom::TAG_BITS_STORED, UINT16(8));
+		source.Put<dicom::VR_US>(dicom::TAG_HIGH_BIT, UINT16(7));
+		source.Put<dicom::VR_US>(dicom::TAG_PX_REPRESENT, UINT16(0));
+
+		dicom::TypeFromVR<dicom::VR_OB>::Type fragment;
+		fragment.push_back(0xff);
+		fragment.push_back(0x4f);
+		fragment.push_back(0xff);
+		fragment.push_back(0x51);
+		source.Put<dicom::VR_OB>(dicom::TAG_PIXEL_DATA, fragment);
+
+		const std::vector<dicom::UID> uids = unsupportedJPEG2000Part2TransferSyntaxes();
 		for(size_t i=0;i<uids.size();++i)
 		{
 			dicom::TS ts(uids[i]);
@@ -1258,6 +1303,7 @@ int main()
 	assertEncapsulatedFragmentPassThrough();
 	assertVideoFragmentPassThrough();
 	assertUnsupportedRetiredJPEGFragmentPassThrough();
+	assertUnsupportedJPEG2000Part2FragmentPassThrough();
 #endif
 
 #if DICOMLIB_WITH_JPEG

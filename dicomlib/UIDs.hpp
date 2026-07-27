@@ -134,6 +134,12 @@ namespace dicom
 
     const UID JPEG2000                              = UID("1.2.840.10008.1.2.4.91");
 
+	//!JPEG 2000 Part 2 Multi-component Image Compression (Lossless Only)
+	const UID JPEG2000_PART2_MULTI_COMPONENT_LOSSLESS_ONLY = UID("1.2.840.10008.1.2.4.92");
+
+	//!JPEG 2000 Part 2 Multi-component Image Compression
+	const UID JPEG2000_PART2_MULTI_COMPONENT = UID("1.2.840.10008.1.2.4.93");
+
 	//!JPIP Referenced Transfer Syntax
 	const UID JPIP_REFERENCED_TRANSFER_SYNTAX		= UID("1.2.840.10008.1.2.4.94");
 

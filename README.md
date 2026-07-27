@@ -113,6 +113,10 @@ Optional configuration:
 - `DICOMLIB_WITH_JPEG2000`: disabled by default; when enabled, JPEG 2000 Part 1
   Pixel Data for `1.2.840.10008.1.2.4.90` and `.91` is encoded and decoded in
   lossless mode through OpenJPEG.
+- JPEG 2000 Part 2 Multi-component Transfer Syntaxes `.92` and `.93` have no
+  local decode/recompression path. Already-fragmented `OB` Pixel Data can be
+  passed through only when `DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH` is
+  enabled.
 - `DICOMLIB_WITH_JPEGLS`: disabled by default; when enabled, JPEG-LS Lossless
   Pixel Data for `1.2.840.10008.1.2.4.80` is encoded and decoded through
   CharLS, and JPEG-LS Near-Lossless Pixel Data for `.81` is encoded and decoded

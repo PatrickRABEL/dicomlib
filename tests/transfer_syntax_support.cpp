@@ -57,6 +57,14 @@ namespace
 		return uids;
 	}
 
+	std::vector<dicom::UID> unsupportedJPEG2000Part2TransferSyntaxes()
+	{
+		std::vector<dicom::UID> uids;
+		uids.push_back(dicom::JPEG2000_PART2_MULTI_COMPONENT_LOSSLESS_ONLY);
+		uids.push_back(dicom::JPEG2000_PART2_MULTI_COMPONENT);
+		return uids;
+	}
+
 	bool hasTransferSyntax(const dicom::PresentationContexts& contexts, const dicom::UID& uid)
 	{
 		assert(contexts.size() == 1);
@@ -310,6 +318,16 @@ int main()
 		assert(jpeg.canPassThroughPixelData() == static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH));
 		assert(serverAccepts(server, unsupportedRetiredJPEGUids[i]) == static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH));
 	}
+	const std::vector<dicom::UID> unsupportedJPEG2000Part2Uids = unsupportedJPEG2000Part2TransferSyntaxes();
+	for(size_t i=0;i<unsupportedJPEG2000Part2Uids.size();++i)
+	{
+		dicom::TS jpeg2000Part2(unsupportedJPEG2000Part2Uids[i]);
+		assert(jpeg2000Part2.isEncapsulated());
+		assert(!jpeg2000Part2.canDecodeDataset());
+		assert(!jpeg2000Part2.hasCompiledPixelCodec());
+		assert(jpeg2000Part2.canPassThroughPixelData() == static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH));
+		assert(serverAccepts(server, unsupportedJPEG2000Part2Uids[i]) == static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH));
+	}
 
 	dicom::PresentationContexts contexts;
 	contexts.Add(dicom::CT_IMAGE_STORAGE_SOP_CLASS);
@@ -366,6 +384,8 @@ int main()
 		assert(!hasTransferSyntax(contexts, smpteST2110Uids[i]));
 	for(size_t i=0;i<unsupportedRetiredJPEGUids.size();++i)
 		assert(hasTransferSyntax(contexts, unsupportedRetiredJPEGUids[i]) == static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH));
+	for(size_t i=0;i<unsupportedJPEG2000Part2Uids.size();++i)
+		assert(hasTransferSyntax(contexts, unsupportedJPEG2000Part2Uids[i]) == static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH));
 
 	return 0;
 }
