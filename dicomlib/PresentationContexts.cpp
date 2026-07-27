@@ -22,6 +22,9 @@ namespace dicom
 #if DICOMLIB_WITH_JPEG
 		transfer_syntaxes.push_back(primitive::TransferSyntax(JPEG_BASELINE_TRANSFER_SYNTAX));
 #endif
+#if DICOMLIB_WITH_GDCM
+		transfer_syntaxes.push_back(primitive::TransferSyntax(JPEG_LOSSLESS_NON_HIERARCHICAL));
+#endif
 #if DICOMLIB_WITH_JPEG2000
 		transfer_syntaxes.push_back(primitive::TransferSyntax(JPEG2000_LOSSLESS_ONLY));
 		transfer_syntaxes.push_back(primitive::TransferSyntax(JPEG2000));
@@ -54,6 +57,11 @@ namespace dicom
 #else
 			const bool skipJPEGBaseline = false;
 #endif
+#if DICOMLIB_WITH_GDCM
+			const bool skipGDCMJPEG = encapsulated[i] == JPEG_LOSSLESS_NON_HIERARCHICAL;
+#else
+			const bool skipGDCMJPEG = false;
+#endif
 #if DICOMLIB_WITH_JPEG2000
 			const bool skipJPEG2000 = encapsulated[i] == JPEG2000_LOSSLESS_ONLY || encapsulated[i] == JPEG2000;
 #else
@@ -82,7 +90,7 @@ namespace dicom
 #else
 			const bool skipJPEGXL = false;
 #endif
-			if(!skipRLE && !skipJPEGBaseline && !skipJPEG2000 && !skipHTJ2K && !skipJPEGLS && !skipJPEGXL)
+			if(!skipRLE && !skipJPEGBaseline && !skipGDCMJPEG && !skipJPEG2000 && !skipHTJ2K && !skipJPEGLS && !skipJPEGXL)
 				transfer_syntaxes.push_back(primitive::TransferSyntax(encapsulated[i]));
 		}
 #endif

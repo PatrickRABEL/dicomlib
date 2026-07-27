@@ -41,6 +41,12 @@ namespace dicom
 	*/
 	const UID JPEG_BASELINE_TRANSFER_SYNTAX 		= UID("1.2.840.10008.1.2.4.50");
 
+	//!JPEG Extended compression (coding processes 2 and 4)
+	const UID JPEG_EXTENDED_PROCESS_2_4_TRANSFER_SYNTAX = UID("1.2.840.10008.1.2.4.51");
+
+	//!JPEG Lossless compression (coding process 14)
+	const UID JPEG_LOSSLESS_PROCESS_14_TRANSFER_SYNTAX = UID("1.2.840.10008.1.2.4.57");
+
 	//!Lossless JPEG compression (coding process 14, first-order horizontal prediction)
 	/*!
 		This must be supported by an implementation that supports any lossless compression.

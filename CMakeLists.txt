@@ -70,8 +70,8 @@ if(DICOMLIB_WITH_HTJ2K)
     endif()
 endif()
 
-if(DICOMLIB_WITH_FFMPEG OR DICOMLIB_WITH_GDCM)
-    message(FATAL_ERROR "Pixel codec options are declared and their dependencies can be detected, but pixel codec integration is not implemented yet. Leave pixel codec options OFF to remain standards-accurate.")
+if(DICOMLIB_WITH_FFMPEG)
+    message(FATAL_ERROR "FFmpeg pixel codec dependencies can be detected, but MPEG/video pixel codec integration is not implemented yet. Leave DICOMLIB_WITH_FFMPEG OFF to remain standards-accurate.")
 endif()
 
 if(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
@@ -117,6 +117,7 @@ add_library(dicom STATIC
     dicomlib/Exceptions.cpp
     dicomlib/File.cpp
     dicomlib/FileMetaInformation.cpp
+    dicomlib/GDCMJPEGCodec.cpp
     dicomlib/GroupLength.cpp
     dicomlib/HTJ2KCodec.cpp
     dicomlib/JPEG2000Codec.cpp
@@ -173,7 +174,17 @@ if(DICOMLIB_WITH_JPEG OR DICOMLIB_PREPARE_EXTERNAL_CODECS)
 endif()
 
 if(DICOMLIB_REQUIRE_GDCM)
-    target_link_libraries(dicom PUBLIC ${GDCM_LIBRARIES})
+    target_include_directories(dicom PUBLIC ${GDCM_INCLUDE_DIRS})
+    target_link_libraries(dicom PUBLIC
+        gdcmMSFF
+        gdcmDSED
+        gdcmDICT
+        gdcmIOD
+        gdcmCommon
+        gdcmjpeg8
+        gdcmjpeg12
+        gdcmjpeg16
+    )
 endif()
 
 if(DICOMLIB_REQUIRE_CHARLS)

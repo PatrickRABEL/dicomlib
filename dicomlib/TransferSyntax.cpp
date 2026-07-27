@@ -99,6 +99,10 @@ namespace dicom
 		if(uid_ == JPEG_BASELINE_TRANSFER_SYNTAX)
 			return true;
 #endif
+#if DICOMLIB_WITH_GDCM
+		if(uid_ == JPEG_LOSSLESS_NON_HIERARCHICAL)
+			return true;
+#endif
 #if DICOMLIB_WITH_JPEG2000
 		if(uid_ == JPEG2000_LOSSLESS_ONLY || uid_ == JPEG2000)
 			return true;
