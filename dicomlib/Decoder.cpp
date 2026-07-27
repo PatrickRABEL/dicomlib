@@ -700,6 +700,8 @@ namespace dicom{
 #if DICOMLIB_WITH_JPEGLS
 		if(transfer_syntax.getUID() == JPEG_LS_LOSSLESS_TRANSFER_SYNTAX)
 			DecodeJPEGLSLosslessPixelData(data);
+		if(transfer_syntax.getUID() == JPEG_LS_NEAR_LOSSLESS_TRANSFER_SYNTAX)
+			DecodeJPEGLSNearLosslessPixelData(data);
 #endif
 	}
 

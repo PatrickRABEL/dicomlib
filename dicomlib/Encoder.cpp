@@ -553,6 +553,16 @@ namespace dicom
 			throw exception("JPEG-LS requires DICOMLIB_WITH_JPEGLS");
 #endif
 		}
+		if(transfer_syntax.getUID() == JPEG_LS_NEAR_LOSSLESS_TRANSFER_SYNTAX)
+		{
+#if DICOMLIB_WITH_JPEGLS
+			DataSet encodedData = EncodeJPEGLSNearLosslessPixelData(data);
+			Encoder E(buffer,encodedData,transfer_syntax);
+			return E.Encode();
+#else
+			throw exception("JPEG-LS requires DICOMLIB_WITH_JPEGLS");
+#endif
+		}
 		Encoder E(buffer,data,transfer_syntax);
 		return E.Encode();
 	}

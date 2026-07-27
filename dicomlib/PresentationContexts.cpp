@@ -28,6 +28,7 @@ namespace dicom
 #endif
 #if DICOMLIB_WITH_JPEGLS
 		transfer_syntaxes.push_back(primitive::TransferSyntax(JPEG_LS_LOSSLESS_TRANSFER_SYNTAX));
+		transfer_syntaxes.push_back(primitive::TransferSyntax(JPEG_LS_NEAR_LOSSLESS_TRANSFER_SYNTAX));
 #endif
 #if DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH
 		std::vector<UID> encapsulated = GetEncapsulatedTransferSyntaxUIDs();
@@ -49,7 +50,9 @@ namespace dicom
 			const bool skipJPEG2000 = false;
 #endif
 #if DICOMLIB_WITH_JPEGLS
-			const bool skipJPEGLS = encapsulated[i] == JPEG_LS_LOSSLESS_TRANSFER_SYNTAX;
+			const bool skipJPEGLS =
+				encapsulated[i] == JPEG_LS_LOSSLESS_TRANSFER_SYNTAX ||
+				encapsulated[i] == JPEG_LS_NEAR_LOSSLESS_TRANSFER_SYNTAX;
 #else
 			const bool skipJPEGLS = false;
 #endif

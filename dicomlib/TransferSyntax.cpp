@@ -104,7 +104,7 @@ namespace dicom
 			return true;
 #endif
 #if DICOMLIB_WITH_JPEGLS
-		if(uid_ == JPEG_LS_LOSSLESS_TRANSFER_SYNTAX)
+		if(uid_ == JPEG_LS_LOSSLESS_TRANSFER_SYNTAX || uid_ == JPEG_LS_NEAR_LOSSLESS_TRANSFER_SYNTAX)
 			return true;
 #endif
 		return false;

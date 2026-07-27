@@ -8,6 +8,8 @@
 
 #if DICOMLIB_WITH_JPEGLS
 #include <charls/charls.h>
+#include <iomanip>
+#include <sstream>
 #include <string>
 #endif
 
@@ -75,6 +77,25 @@ namespace dicom
 			return copy;
 		}
 
+		void PutSingleStringValue(DataSet& data, Tag tag, VR vr, const std::string& value)
+		{
+			data.erase(tag);
+			if(vr == VR_CS)
+				data.Put<VR_CS>(tag, value);
+			else if(vr == VR_DS)
+				data.Put<VR_DS>(tag, value);
+			else
+				throw exception("Unsupported JPEG-LS metadata VR");
+		}
+
+		std::string CompressionRatioString(size_t nativeSize, size_t encodedSize)
+		{
+			Enforce(encodedSize != 0, "JPEG-LS encoded Pixel Data is empty");
+			std::ostringstream ratio;
+			ratio << std::setprecision(6) << (double(nativeSize) / double(encodedSize));
+			return ratio.str();
+		}
+
 		std::vector<BYTE> NativePixelBytes(const DataSet& data, const ImageGeometry& geometry)
 		{
 			if(geometry.bitsAllocated == 8)
@@ -101,23 +122,31 @@ namespace dicom
 			return geometry.samplesPerPixel == 1 ? charls::interleave_mode::none : charls::interleave_mode::sample;
 		}
 
-		std::vector<BYTE> EncodeJPEGLS(const std::vector<BYTE>& pixels, const ImageGeometry& geometry)
+		std::vector<BYTE> EncodeJPEGLS(
+			const std::vector<BYTE>& pixels,
+			const ImageGeometry& geometry,
+			int nearLossless)
 		{
 			const size_t bytesPerSample = geometry.bitsAllocated / 8;
 			const size_t expectedSize = size_t(geometry.rows) * size_t(geometry.columns) *
 				size_t(geometry.samplesPerPixel) * bytesPerSample;
 			Enforce(pixels.size() == expectedSize,
 				"Native Pixel Data size is inconsistent with JPEG-LS image attributes");
+			Enforce(nearLossless >= 0, "JPEG-LS NEAR must be non-negative");
 
 			charls::frame_info frame = {geometry.columns, geometry.rows, geometry.bitsStored, geometry.samplesPerPixel};
 			std::vector<BYTE> encoded;
 			try
 			{
-				encoded = charls::jpegls_encoder::encode(
-					pixels,
-					frame,
-					InterleaveMode(geometry),
-					charls::encoding_options::even_destination_size);
+				charls::jpegls_encoder encoder;
+				encoder.frame_info(frame)
+					.near_lossless(nearLossless)
+					.interleave_mode(InterleaveMode(geometry))
+					.encoding_options(charls::encoding_options::even_destination_size);
+				encoded.resize(encoder.estimated_destination_size());
+				encoder.destination(encoded);
+				const size_t bytesWritten = encoder.encode(pixels);
+				encoded.resize(bytesWritten);
 			}
 			catch(const charls::jpegls_error& error)
 			{
@@ -126,7 +155,10 @@ namespace dicom
 			return encoded;
 		}
 
-		std::vector<BYTE> DecodeJPEGLS(const std::vector<BYTE>& codestream, const ImageGeometry& geometry)
+		std::vector<BYTE> DecodeJPEGLS(
+			const std::vector<BYTE>& codestream,
+			const ImageGeometry& geometry,
+			bool requireLossless)
 		{
 			Enforce(!codestream.empty(), "JPEG-LS codestream is empty");
 			std::vector<BYTE> pixels;
@@ -140,8 +172,13 @@ namespace dicom
 					"JPEG-LS component count does not match Samples per Pixel");
 				Enforce(frame.bits_per_sample <= geometry.bitsAllocated,
 					"JPEG-LS component precision exceeds DICOM Bits Allocated");
-				Enforce(decoder.near_lossless() == 0,
-					"JPEG-LS Lossless Transfer Syntax requires NEAR 0");
+				const int nearLossless = decoder.near_lossless();
+				if(requireLossless)
+					Enforce(nearLossless == 0,
+						"JPEG-LS Lossless Transfer Syntax requires NEAR 0");
+				else
+					Enforce(nearLossless > 0,
+						"JPEG-LS Near-Lossless Transfer Syntax requires NEAR greater than 0");
 				Enforce(decoder.interleave_mode() == InterleaveMode(geometry),
 					"JPEG-LS interleave mode is not supported for the DICOM image layout");
 				pixels.resize(decoder.destination_size());
@@ -161,7 +198,29 @@ namespace dicom
 #if DICOMLIB_WITH_JPEGLS
 		const ImageGeometry geometry = ReadImageGeometry(data);
 		const std::vector<BYTE> codestream = ConcatenateFragments(data);
-		const std::vector<BYTE> pixels = DecodeJPEGLS(codestream, geometry);
+		const std::vector<BYTE> pixels = DecodeJPEGLS(codestream, geometry, true);
+		data.erase(TAG_PIXEL_DATA);
+		if(geometry.bitsAllocated == 8)
+			data.Put<VR_OB>(TAG_PIXEL_DATA, pixels);
+		else
+		{
+			std::vector<UINT16> words(pixels.size() / 2, 0);
+			for(size_t i=0;i<words.size();++i)
+				words[i] = UINT16(pixels[i * 2]) | (UINT16(pixels[i * 2 + 1]) << 8);
+			data.Put<VR_OW>(TAG_PIXEL_DATA, words);
+		}
+#else
+		(void)data;
+		throw exception("JPEG-LS requires DICOMLIB_WITH_JPEGLS");
+#endif
+	}
+
+	void DecodeJPEGLSNearLosslessPixelData(DataSet& data)
+	{
+#if DICOMLIB_WITH_JPEGLS
+		const ImageGeometry geometry = ReadImageGeometry(data);
+		const std::vector<BYTE> codestream = ConcatenateFragments(data);
+		const std::vector<BYTE> pixels = DecodeJPEGLS(codestream, geometry, false);
 		data.erase(TAG_PIXEL_DATA);
 		if(geometry.bitsAllocated == 8)
 			data.Put<VR_OB>(TAG_PIXEL_DATA, pixels);
@@ -184,7 +243,26 @@ namespace dicom
 		const ImageGeometry geometry = ReadImageGeometry(data);
 		const std::vector<BYTE> pixels = NativePixelBytes(data, geometry);
 		DataSet encodedData = CopyWithoutPixelData(data);
-		const std::vector<BYTE> encoded = EncodeJPEGLS(pixels, geometry);
+		const std::vector<BYTE> encoded = EncodeJPEGLS(pixels, geometry, 0);
+		encodedData.Put<VR_OB>(TAG_PIXEL_DATA, encoded);
+		return encodedData;
+#else
+		(void)data;
+		throw exception("JPEG-LS requires DICOMLIB_WITH_JPEGLS");
+#endif
+	}
+
+	DataSet EncodeJPEGLSNearLosslessPixelData(const DataSet& data)
+	{
+#if DICOMLIB_WITH_JPEGLS
+		const ImageGeometry geometry = ReadImageGeometry(data);
+		const std::vector<BYTE> pixels = NativePixelBytes(data, geometry);
+		DataSet encodedData = CopyWithoutPixelData(data);
+		const std::vector<BYTE> encoded = EncodeJPEGLS(pixels, geometry, DICOMLIB_JPEGLS_NEAR_LOSSLESS);
+		PutSingleStringValue(encodedData, TAG_LOSSY_IMAGE_COMPRESSION, VR_CS, "01");
+		PutSingleStringValue(encodedData, TAG_LOSSY_IMAGE_COMPRESSION_RATIO, VR_DS,
+			CompressionRatioString(pixels.size(), encoded.size()));
+		PutSingleStringValue(encodedData, TAG_LOSSY_IMAGE_COMPRESSION_METHOD, VR_CS, "ISO_14495_1");
 		encodedData.Put<VR_OB>(TAG_PIXEL_DATA, encoded);
 		return encodedData;
 #else

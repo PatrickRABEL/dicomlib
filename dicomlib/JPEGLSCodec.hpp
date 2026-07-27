@@ -6,7 +6,9 @@
 namespace dicom
 {
 	void DecodeJPEGLSLosslessPixelData(DataSet& data);
+	void DecodeJPEGLSNearLosslessPixelData(DataSet& data);
 	DataSet EncodeJPEGLSLosslessPixelData(const DataSet& data);
+	DataSet EncodeJPEGLSNearLosslessPixelData(const DataSet& data);
 }
 
 #endif

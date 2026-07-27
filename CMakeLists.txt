@@ -8,6 +8,7 @@ option(DICOMLIB_WITH_ZLIB "Enable Deflated Explicit VR Little Endian codec suppo
 option(DICOMLIB_WITH_RLE "Enable RLE Lossless pixel codec support" OFF)
 option(DICOMLIB_WITH_JPEG "Enable JPEG pixel codec support" OFF)
 option(DICOMLIB_WITH_JPEGLS "Enable JPEG-LS pixel codec support" OFF)
+set(DICOMLIB_JPEGLS_NEAR_LOSSLESS "1" CACHE STRING "NEAR value used when encoding JPEG-LS Near-Lossless transfer syntax")
 option(DICOMLIB_WITH_JPEG2000 "Enable JPEG 2000 pixel codec support" OFF)
 option(DICOMLIB_WITH_HTJ2K "Enable High-Throughput JPEG 2000 pixel codec support" OFF)
 option(DICOMLIB_WITH_JPEGXL "Enable JPEG XL pixel codec support" OFF)
@@ -48,6 +49,12 @@ if(DICOMLIB_WITH_FFMPEG OR DICOMLIB_PREPARE_EXTERNAL_CODECS)
 endif()
 
 include(cmake/DicomlibCodecDependencies.cmake)
+
+if(DICOMLIB_WITH_JPEGLS)
+    if(DICOMLIB_JPEGLS_NEAR_LOSSLESS LESS 1)
+        message(FATAL_ERROR "DICOMLIB_JPEGLS_NEAR_LOSSLESS must be greater than or equal to 1")
+    endif()
+endif()
 
 if(DICOMLIB_WITH_HTJ2K OR DICOMLIB_WITH_JPEGXL OR DICOMLIB_WITH_FFMPEG OR
    DICOMLIB_WITH_GDCM)
