@@ -9,12 +9,50 @@ option(DICOMLIB_WITH_RLE "Enable RLE Lossless pixel codec support" OFF)
 option(DICOMLIB_WITH_JPEG "Enable JPEG pixel codec support" OFF)
 option(DICOMLIB_WITH_JPEGLS "Enable JPEG-LS pixel codec support" OFF)
 option(DICOMLIB_WITH_JPEG2000 "Enable JPEG 2000 pixel codec support" OFF)
+option(DICOMLIB_WITH_HTJ2K "Enable High-Throughput JPEG 2000 pixel codec support" OFF)
 option(DICOMLIB_WITH_JPEGXL "Enable JPEG XL pixel codec support" OFF)
 option(DICOMLIB_WITH_FFMPEG "Enable MPEG/video pixel codec support" OFF)
+option(DICOMLIB_WITH_GDCM "Enable GDCM-backed DICOM pixel codec support" OFF)
+option(DICOMLIB_PREPARE_EXTERNAL_CODECS "Require all external libraries needed for future pixel-compressed transfer syntax support" OFF)
+
+set(DICOMLIB_REQUIRE_GDCM OFF)
+set(DICOMLIB_REQUIRE_CHARLS OFF)
+set(DICOMLIB_REQUIRE_OPENJPEG OFF)
+set(DICOMLIB_REQUIRE_OPENJPH OFF)
+set(DICOMLIB_REQUIRE_JPEGXL OFF)
+set(DICOMLIB_REQUIRE_FFMPEG_AVCODEC OFF)
+set(DICOMLIB_REQUIRE_FFMPEG_AVFORMAT OFF)
+set(DICOMLIB_REQUIRE_FFMPEG_AVUTIL OFF)
+set(DICOMLIB_REQUIRE_FFMPEG_SWSCALE OFF)
+
+if(DICOMLIB_WITH_GDCM OR DICOMLIB_PREPARE_EXTERNAL_CODECS)
+    set(DICOMLIB_REQUIRE_GDCM ON)
+endif()
+if(DICOMLIB_WITH_JPEGLS OR DICOMLIB_PREPARE_EXTERNAL_CODECS)
+    set(DICOMLIB_REQUIRE_CHARLS ON)
+endif()
+if(DICOMLIB_WITH_JPEG2000 OR DICOMLIB_PREPARE_EXTERNAL_CODECS)
+    set(DICOMLIB_REQUIRE_OPENJPEG ON)
+endif()
+if(DICOMLIB_WITH_HTJ2K OR DICOMLIB_PREPARE_EXTERNAL_CODECS)
+    set(DICOMLIB_REQUIRE_OPENJPH ON)
+endif()
+if(DICOMLIB_WITH_JPEGXL OR DICOMLIB_PREPARE_EXTERNAL_CODECS)
+    set(DICOMLIB_REQUIRE_JPEGXL ON)
+endif()
+if(DICOMLIB_WITH_FFMPEG OR DICOMLIB_PREPARE_EXTERNAL_CODECS)
+    set(DICOMLIB_REQUIRE_FFMPEG_AVCODEC ON)
+    set(DICOMLIB_REQUIRE_FFMPEG_AVFORMAT ON)
+    set(DICOMLIB_REQUIRE_FFMPEG_AVUTIL ON)
+    set(DICOMLIB_REQUIRE_FFMPEG_SWSCALE ON)
+endif()
+
+include(cmake/DicomlibCodecDependencies.cmake)
 
 if(DICOMLIB_WITH_RLE OR DICOMLIB_WITH_JPEG OR DICOMLIB_WITH_JPEGLS OR
-   DICOMLIB_WITH_JPEG2000 OR DICOMLIB_WITH_JPEGXL OR DICOMLIB_WITH_FFMPEG)
-    message(FATAL_ERROR "Codec options are declared but not implemented yet. Leave codec options OFF to remain standards-accurate.")
+   DICOMLIB_WITH_JPEG2000 OR DICOMLIB_WITH_HTJ2K OR DICOMLIB_WITH_JPEGXL OR
+   DICOMLIB_WITH_FFMPEG OR DICOMLIB_WITH_GDCM)
+    message(FATAL_ERROR "Pixel codec options are declared and their dependencies can be detected, but pixel codec integration is not implemented yet. Leave pixel codec options OFF to remain standards-accurate.")
 endif()
 
 if(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
@@ -101,9 +139,41 @@ target_compile_options(dicom PRIVATE
 find_package(Threads REQUIRED)
 target_link_libraries(dicom PUBLIC Threads::Threads)
 
-if(DICOMLIB_WITH_ZLIB)
-    find_package(ZLIB REQUIRED)
+if(DICOMLIB_WITH_ZLIB OR DICOMLIB_PREPARE_EXTERNAL_CODECS)
     target_link_libraries(dicom PUBLIC ZLIB::ZLIB)
+endif()
+
+if(DICOMLIB_WITH_JPEG OR DICOMLIB_PREPARE_EXTERNAL_CODECS)
+    target_link_libraries(dicom PUBLIC JPEG::JPEG)
+endif()
+
+if(DICOMLIB_REQUIRE_GDCM)
+    target_link_libraries(dicom PUBLIC ${GDCM_LIBRARIES})
+endif()
+
+if(DICOMLIB_REQUIRE_CHARLS)
+    target_link_libraries(dicom PUBLIC PkgConfig::DICOMLIB_CHARLS)
+endif()
+
+if(DICOMLIB_REQUIRE_OPENJPEG)
+    target_link_libraries(dicom PUBLIC PkgConfig::DICOMLIB_OPENJPEG)
+endif()
+
+if(DICOMLIB_REQUIRE_OPENJPH)
+    target_link_libraries(dicom PUBLIC PkgConfig::DICOMLIB_OPENJPH)
+endif()
+
+if(DICOMLIB_REQUIRE_JPEGXL)
+    target_link_libraries(dicom PUBLIC PkgConfig::DICOMLIB_JPEGXL)
+endif()
+
+if(DICOMLIB_WITH_FFMPEG OR DICOMLIB_PREPARE_EXTERNAL_CODECS)
+    target_link_libraries(dicom PUBLIC
+        PkgConfig::DICOMLIB_FFMPEG_AVCODEC
+        PkgConfig::DICOMLIB_FFMPEG_AVFORMAT
+        PkgConfig::DICOMLIB_FFMPEG_AVUTIL
+        PkgConfig::DICOMLIB_FFMPEG_SWSCALE
+    )
 endif()
 
 include(CTest)
