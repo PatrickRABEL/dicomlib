@@ -11,6 +11,7 @@
 #include "DataSet.hpp"
 #include "Types.hpp"
 #include "Decoder.hpp"
+#include "DeflatedImageFrameCodec.hpp"
 #include "VR.hpp"
 #include "Exceptions.hpp"
 #include "DataDictionary.hpp"
@@ -691,6 +692,10 @@ namespace dicom{
 		d.Decode();
 		if(transfer_syntax.getUID() == ENCAPSULATED_UNCOMPRESSED_EXPL_VR_LE_TRANSFER_SYNTAX)
 			DecodeEncapsulatedUncompressedPixelData(data);
+#if DICOMLIB_WITH_ZLIB
+		if(transfer_syntax.getUID() == DEFLATED_IMAGE_FRAME_COMPRESSION_TRANSFER_SYNTAX)
+			DecodeDeflatedImageFramePixelData(data);
+#endif
 #if DICOMLIB_WITH_RLE
 		if(transfer_syntax.getUID() == RLE_LOSSLESS_TRANSFER_SYNTAX)
 			DecodeRLELosslessPixelData(data);

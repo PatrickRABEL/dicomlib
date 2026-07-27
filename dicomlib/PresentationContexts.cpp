@@ -15,6 +15,7 @@ namespace dicom
 #endif
 #if DICOMLIB_WITH_ZLIB
 		transfer_syntaxes.push_back(primitive::TransferSyntax(DEFLATED_EXPL_VR_LE_TRANSFER_SYNTAX));
+		transfer_syntaxes.push_back(primitive::TransferSyntax(DEFLATED_IMAGE_FRAME_COMPRESSION_TRANSFER_SYNTAX));
 #endif
 #if DICOMLIB_WITH_RLE
 		transfer_syntaxes.push_back(primitive::TransferSyntax(RLE_LOSSLESS_TRANSFER_SYNTAX));
@@ -57,6 +58,12 @@ namespace dicom
 			const bool skipRLE = encapsulated[i] == RLE_LOSSLESS_TRANSFER_SYNTAX;
 #else
 			const bool skipRLE = false;
+#endif
+#if DICOMLIB_WITH_ZLIB
+			const bool skipDeflatedImageFrame =
+				encapsulated[i] == DEFLATED_IMAGE_FRAME_COMPRESSION_TRANSFER_SYNTAX;
+#else
+			const bool skipDeflatedImageFrame = false;
 #endif
 			const bool skipEncapsulatedUncompressed =
 				encapsulated[i] == ENCAPSULATED_UNCOMPRESSED_EXPL_VR_LE_TRANSFER_SYNTAX;
@@ -104,7 +111,7 @@ namespace dicom
 #else
 			const bool skipJPEGXL = false;
 #endif
-			if(!skipRLE && !skipEncapsulatedUncompressed && !skipJPEGBaseline && !skipGDCMJPEG && !skipJPEG2000 && !skipHTJ2K && !skipJPEGLS && !skipJPEGXL)
+			if(!skipRLE && !skipDeflatedImageFrame && !skipEncapsulatedUncompressed && !skipJPEGBaseline && !skipGDCMJPEG && !skipJPEG2000 && !skipHTJ2K && !skipJPEGLS && !skipJPEGXL)
 				transfer_syntaxes.push_back(primitive::TransferSyntax(encapsulated[i]));
 		}
 #endif

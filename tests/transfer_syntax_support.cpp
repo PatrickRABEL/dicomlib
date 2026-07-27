@@ -34,6 +34,7 @@ int main()
 	dicom::TS explicitBig(dicom::EXPL_VR_BE_TRANSFER_SYNTAX);
 	dicom::TS encapsulatedUncompressed(dicom::ENCAPSULATED_UNCOMPRESSED_EXPL_VR_LE_TRANSFER_SYNTAX);
 	dicom::TS deflated(dicom::DEFLATED_EXPL_VR_LE_TRANSFER_SYNTAX);
+	dicom::TS deflatedImageFrame(dicom::DEFLATED_IMAGE_FRAME_COMPRESSION_TRANSFER_SYNTAX);
 	dicom::TS jpegBaseline(dicom::JPEG_BASELINE_TRANSFER_SYNTAX);
 	dicom::TS jpegExtendedProcess24(dicom::JPEG_EXTENDED_PROCESS_2_4_TRANSFER_SYNTAX);
 	dicom::TS jpegExtendedProcess35(dicom::JPEG_EXTENDED_PROCESS_3_5_TRANSFER_SYNTAX);
@@ -57,6 +58,7 @@ int main()
 	assert(explicitLittle.canDecodeDataset());
 	assert(encapsulatedUncompressed.isEncapsulated());
 	assert(encapsulatedUncompressed.hasCompiledPixelCodec());
+	assert(deflatedImageFrame.isEncapsulated());
 	assert(!jpegBaseline.canDecodeDataset());
 	assert(jpegBaseline.isEncapsulated());
 	assert(jpegExtendedProcess24.isEncapsulated());
@@ -142,8 +144,10 @@ int main()
 
 #if DICOMLIB_WITH_ZLIB
 	assert(deflated.canDecodeDataset());
+	assert(deflatedImageFrame.hasCompiledPixelCodec());
 #else
 	assert(!deflated.canDecodeDataset());
+	assert(!deflatedImageFrame.hasCompiledPixelCodec());
 #endif
 
 #if DICOMLIB_ENABLE_EXPLICIT_VR_BIG_ENDIAN
@@ -164,6 +168,8 @@ int main()
 	assert(serverAccepts(server, dicom::EXPL_VR_BE_TRANSFER_SYNTAX) == static_cast<bool>(DICOMLIB_ENABLE_EXPLICIT_VR_BIG_ENDIAN));
 	assert(serverAccepts(server, dicom::ENCAPSULATED_UNCOMPRESSED_EXPL_VR_LE_TRANSFER_SYNTAX));
 	assert(serverAccepts(server, dicom::DEFLATED_EXPL_VR_LE_TRANSFER_SYNTAX) == static_cast<bool>(DICOMLIB_WITH_ZLIB));
+	assert(serverAccepts(server, dicom::DEFLATED_IMAGE_FRAME_COMPRESSION_TRANSFER_SYNTAX) ==
+		(static_cast<bool>(DICOMLIB_WITH_ZLIB) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));
 	assert(serverAccepts(server, dicom::RLE_LOSSLESS_TRANSFER_SYNTAX) ==
 		(static_cast<bool>(DICOMLIB_WITH_RLE) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));
 	assert(serverAccepts(server, dicom::JPEG_BASELINE_TRANSFER_SYNTAX) ==
@@ -208,6 +214,8 @@ int main()
 	assert(hasTransferSyntax(contexts, dicom::EXPL_VR_BE_TRANSFER_SYNTAX) == static_cast<bool>(DICOMLIB_ENABLE_EXPLICIT_VR_BIG_ENDIAN));
 	assert(hasTransferSyntax(contexts, dicom::ENCAPSULATED_UNCOMPRESSED_EXPL_VR_LE_TRANSFER_SYNTAX));
 	assert(hasTransferSyntax(contexts, dicom::DEFLATED_EXPL_VR_LE_TRANSFER_SYNTAX) == static_cast<bool>(DICOMLIB_WITH_ZLIB));
+	assert(hasTransferSyntax(contexts, dicom::DEFLATED_IMAGE_FRAME_COMPRESSION_TRANSFER_SYNTAX) ==
+		(static_cast<bool>(DICOMLIB_WITH_ZLIB) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));
 	assert(hasTransferSyntax(contexts, dicom::RLE_LOSSLESS_TRANSFER_SYNTAX) ==
 		(static_cast<bool>(DICOMLIB_WITH_RLE) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));
 	assert(hasTransferSyntax(contexts, dicom::JPEG_BASELINE_TRANSFER_SYNTAX) ==

@@ -111,6 +111,7 @@ add_library(dicom STATIC
     dicomlib/ClientConnection.cpp
     dicomlib/CommandSets.cpp
     dicomlib/DataDictionary.cpp
+    dicomlib/DeflatedImageFrameCodec.cpp
     dicomlib/Decoder.cpp
     dicomlib/Dumper.cpp
     dicomlib/EncapsulatedUncompressedCodec.cpp

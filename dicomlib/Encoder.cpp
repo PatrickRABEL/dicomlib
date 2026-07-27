@@ -7,6 +7,7 @@
 *************************************************************************/
 #include <iostream>
 #include <type_traits>
+#include "DeflatedImageFrameCodec.hpp"
 #include "EncapsulatedUncompressedCodec.hpp"
 #include "Encoder.hpp"
 #include "Exceptions.hpp"
@@ -530,6 +531,16 @@ namespace dicom
 			return E.Encode();
 #else
 			throw exception("RLE Lossless requires DICOMLIB_WITH_RLE");
+#endif
+		}
+		if(transfer_syntax.getUID() == DEFLATED_IMAGE_FRAME_COMPRESSION_TRANSFER_SYNTAX)
+		{
+#if DICOMLIB_WITH_ZLIB
+			DataSet encodedData = EncodeDeflatedImageFramePixelData(data);
+			Encoder E(buffer,encodedData,transfer_syntax);
+			return E.Encode();
+#else
+			throw exception("Deflated Image Frame Compression requires DICOMLIB_WITH_ZLIB");
 #endif
 		}
 		if(transfer_syntax.getUID() == JPEG_BASELINE_TRANSFER_SYNTAX)

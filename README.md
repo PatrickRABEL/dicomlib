@@ -82,7 +82,9 @@ Optional configuration:
   `1.2.840.10008.1.2.1.98` is always enabled; Pixel Data is encoded and decoded
   as one uncompressed OB fragment per frame.
 - `DICOMLIB_WITH_ZLIB`: disabled by default; when enabled, Deflated Explicit VR
-  Little Endian is encoded and decoded through zlib raw DEFLATE.
+  Little Endian is encoded and decoded through zlib raw DEFLATE, and Deflated
+  Image Frame Compression `1.2.840.10008.1.2.8.1` Pixel Data is encoded and
+  decoded as one RFC1951 deflated fragment per frame.
 - `DICOMLIB_WITH_RLE`: disabled by default; when enabled, RLE Lossless Pixel
   Data is encoded and decoded by the built-in DICOM RLE codec.
 - `DICOMLIB_WITH_JPEG`: disabled by default; when enabled, JPEG Baseline 8-bit
@@ -110,7 +112,7 @@ Optional configuration:
 
 External dependency mapping:
 
-- Deflated Explicit VR Little Endian: zlib
+- Deflated Explicit VR Little Endian and Deflated Image Frame Compression: zlib
 - Encapsulated Uncompressed Explicit VR Little Endian: no external library
   required
 - RLE Lossless: no external library required

@@ -13,6 +13,7 @@ corresponding encode/decode path is implemented and covered by tests.
 | Encapsulated Uncompressed Explicit VR Little Endian | `1.2.840.10008.1.2.1.98` | Uncompressed Pixel Data encode/decode as one OB fragment per frame | Always on | `transfer_syntax_roundtrip` |
 | Explicit VR Big Endian | `1.2.840.10008.1.2.2` | Native dataset encode/decode | `DICOMLIB_ENABLE_EXPLICIT_VR_BIG_ENDIAN` | `transfer_syntax_roundtrip` |
 | Deflated Explicit VR Little Endian | `1.2.840.10008.1.2.1.99` | Dataset encode/decode through zlib raw DEFLATE | `DICOMLIB_WITH_ZLIB` | `transfer_syntax_roundtrip` with zlib |
+| Deflated Image Frame Compression | `1.2.840.10008.1.2.8.1` | Pixel Data encode/decode through zlib raw DEFLATE as one fragment per frame | `DICOMLIB_WITH_ZLIB` | `transfer_syntax_roundtrip` with zlib |
 | RLE Lossless | `1.2.840.10008.1.2.5` | Pixel Data encode/decode through built-in DICOM RLE codec | `DICOMLIB_WITH_RLE` | `rle_codec`, `transfer_syntax_roundtrip` with RLE |
 | JPEG Baseline | `1.2.840.10008.1.2.4.50` | 8-bit Pixel Data encode/decode through libjpeg/libjpeg-turbo, with lossy compression attributes written on encode | `DICOMLIB_WITH_JPEG` | `transfer_syntax_roundtrip` with JPEG |
 | JPEG Extended Process 2 & 4 | `1.2.840.10008.1.2.4.51` | 12-bit Pixel Data decode through GDCM; already-fragmented OB Pixel Data can be written for pass-through, but native recompression is not implemented | `DICOMLIB_WITH_GDCM` | `transfer_syntax_roundtrip` with GDCM |
