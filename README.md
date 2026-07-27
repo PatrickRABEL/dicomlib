@@ -144,6 +144,9 @@ External dependency mapping:
 - MPEG2, MPEG-4 AVC/H.264, and HEVC/H.265 video Transfer Syntaxes: fragment
   pass-through only with `DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH`; no local
   FFmpeg decode/encode is advertised
+- SMPTE ST 2110 Transfer Syntaxes are recognized by UID but are not accepted
+  through Pixel Data fragment pass-through; DICOM-RTV flow support is not
+  implemented.
 - General DICOM pixel codec backend: GDCM through CMake `find_package(GDCM)`
 
 The external pixel codec option below is declared but intentionally blocked

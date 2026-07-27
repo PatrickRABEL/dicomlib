@@ -63,6 +63,13 @@ namespace dicom
 			uid_ == JPIP_HTJ2K_REFERENCED_DEFLATE_TRANSFER_SYNTAX;
 	}
 
+	bool TS::isSMPTEST2110() const
+	{
+		return uid_ == SMPTE_ST_2110_20_UNCOMPRESSED_PROGRESSIVE_ACTIVE_VIDEO_TRANSFER_SYNTAX ||
+			uid_ == SMPTE_ST_2110_20_UNCOMPRESSED_INTERLACED_ACTIVE_VIDEO_TRANSFER_SYNTAX ||
+			uid_ == SMPTE_ST_2110_30_PCM_DIGITAL_AUDIO_TRANSFER_SYNTAX;
+	}
+
 	/*!
 		Does this transfer syntax indicate that pixel data is stored
 		in encapsulated encoded form, as described in Part 5 annex 4?
@@ -99,7 +106,7 @@ namespace dicom
 	bool TS::canPassThroughPixelData() const
 	{
 #if DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH
-		if(isEncapsulated() && !isDeflated() && !isJPIPReferenced())
+		if(isEncapsulated() && !isDeflated() && !isJPIPReferenced() && !isSMPTEST2110())
 			return true;
 #endif
 		return false;

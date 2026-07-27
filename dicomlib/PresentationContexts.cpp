@@ -76,6 +76,10 @@ namespace dicom
 				encapsulated[i] == JPIP_REFERENCED_DEFLATE_TRANSFER_SYNTAX ||
 				encapsulated[i] == JPIP_HTJ2K_REFERENCED_TRANSFER_SYNTAX ||
 				encapsulated[i] == JPIP_HTJ2K_REFERENCED_DEFLATE_TRANSFER_SYNTAX;
+			const bool skipSMPTEST2110 =
+				encapsulated[i] == SMPTE_ST_2110_20_UNCOMPRESSED_PROGRESSIVE_ACTIVE_VIDEO_TRANSFER_SYNTAX ||
+				encapsulated[i] == SMPTE_ST_2110_20_UNCOMPRESSED_INTERLACED_ACTIVE_VIDEO_TRANSFER_SYNTAX ||
+				encapsulated[i] == SMPTE_ST_2110_30_PCM_DIGITAL_AUDIO_TRANSFER_SYNTAX;
 #if DICOMLIB_WITH_JPEG
 			const bool skipJPEGBaseline = encapsulated[i] == JPEG_BASELINE_TRANSFER_SYNTAX;
 #else
@@ -120,7 +124,7 @@ namespace dicom
 #else
 			const bool skipJPEGXL = false;
 #endif
-			if(!skipRLE && !skipDeflatedImageFrame && !skipEncapsulatedUncompressed && !skipJPIPReferenced && !skipJPEGBaseline && !skipGDCMJPEG && !skipJPEG2000 && !skipHTJ2K && !skipJPEGLS && !skipJPEGXL)
+			if(!skipRLE && !skipDeflatedImageFrame && !skipEncapsulatedUncompressed && !skipJPIPReferenced && !skipSMPTEST2110 && !skipJPEGBaseline && !skipGDCMJPEG && !skipJPEG2000 && !skipHTJ2K && !skipJPEGLS && !skipJPEGXL)
 				transfer_syntaxes.push_back(primitive::TransferSyntax(encapsulated[i]));
 		}
 #endif

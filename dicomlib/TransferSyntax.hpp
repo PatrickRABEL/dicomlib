@@ -23,6 +23,7 @@ namespace dicom
 		bool isEncapsulated() const;
 		bool isJPIPReferenced() const;
 		bool isJPIPReferencedDeflated() const;
+		bool isSMPTEST2110() const;
 		bool isNativeUncompressed() const;
 		bool canDecodeDataset() const;
 		bool canPassThroughPixelData() const;

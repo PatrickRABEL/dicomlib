@@ -29,6 +29,7 @@ corresponding encode/decode path is implemented and covered by tests.
 | SCU presentation context proposal | Implemented syntaxes only | `PresentationContexts::Add()` proposes enabled native, Deflated, RLE, or pass-through syntaxes | Build options above | `transfer_syntax_support` |
 | Encapsulated fragment pass-through | UIDs listed by generated `IsEncapsulatedTransferSyntaxUID()` | Fragment-level read/write without pixel decode | `DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH` | `transfer_syntax_support`, `transfer_syntax_roundtrip` |
 | MPEG/video fragment pass-through | `1.2.840.10008.1.2.4.100`, `.100.1`, `.101`, `.101.1`, `.102`, `.102.1`, `.103`, `.103.1`, `.104`, `.104.1`, `.105`, `.105.1`, `.106`, `.106.1`, `.107`, `.108` | Encapsulated Pixel Data fragments can be read/written unchanged; no FFmpeg decode/encode is advertised | `DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH` | `transfer_syntax_support`, `transfer_syntax_roundtrip` with pass-through |
+| SMPTE ST 2110 recognition | `1.2.840.10008.1.2.7.1`, `.7.2`, `.7.3` | Public UID constants and explicit rejection from encapsulated Pixel Data pass-through; no DICOM-RTV flow support is advertised | Always on | `transfer_syntax_support` |
 | External dependency discovery | zlib, JPEG, GDCM, CharLS, OpenJPEG, OpenJPH, libjxl, FFmpeg | CMake detection and missing dependency reporting | `DICOMLIB_PREPARE_EXTERNAL_CODECS` | Configure-time checks |
 
 ## Remaining
@@ -38,6 +39,7 @@ corresponding encode/decode path is implemented and covered by tests.
 | Other retired JPEG process UIDs | `1.2.840.10008.1.2.4.54`, `.56`, `.58`-`.66` | GDCM and/or libjpeg/libjpeg-turbo, depending on process | Not implemented; local GDCM 3.2.7 does not expose direct Transfer Syntax enum values for these UIDs |
 | JPEG 2000 Part 2 Multi-component | `1.2.840.10008.1.2.4.92`, `.93` | OpenJPEG Part 2 support or GDCM | Not implemented; local GDCM 3.2.7 exposes Part 2 Transfer Syntax identifiers but `ImageChangeTransferSyntax` cannot generate a verified Part 2 fixture in this workspace |
 | MPEG/video local decode/encode | MPEG and video UIDs in the generated transfer syntax registry | FFmpeg | Dependencies declared; codec integration not implemented |
+| DICOM-RTV SMPTE ST 2110 flows | `1.2.840.10008.1.2.7.1`, `.7.2`, `.7.3` | DICOM-RTV metadata/audio flow implementation | Not implemented; these UIDs are not accepted through Pixel Data fragment pass-through |
 | JPIP network retrieval | JPIP URLs referenced by `1.2.840.10008.1.2.4.94`, `.95`, `.204`, `.205` | JPIP client implementation and retrieval policy | Not implemented; local encode/decode validates and preserves the DICOM Data Set reference only |
 
 ## Execution Order

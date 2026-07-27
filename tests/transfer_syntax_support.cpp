@@ -31,6 +31,15 @@ namespace
 		return uids;
 	}
 
+	std::vector<dicom::UID> smpteST2110TransferSyntaxes()
+	{
+		std::vector<dicom::UID> uids;
+		uids.push_back(dicom::SMPTE_ST_2110_20_UNCOMPRESSED_PROGRESSIVE_ACTIVE_VIDEO_TRANSFER_SYNTAX);
+		uids.push_back(dicom::SMPTE_ST_2110_20_UNCOMPRESSED_INTERLACED_ACTIVE_VIDEO_TRANSFER_SYNTAX);
+		uids.push_back(dicom::SMPTE_ST_2110_30_PCM_DIGITAL_AUDIO_TRANSFER_SYNTAX);
+		return uids;
+	}
+
 	bool hasTransferSyntax(const dicom::PresentationContexts& contexts, const dicom::UID& uid)
 	{
 		assert(contexts.size() == 1);
@@ -263,6 +272,17 @@ int main()
 		assert(video.canPassThroughPixelData() == static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH));
 		assert(serverAccepts(server, videoUids[i]) == static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH));
 	}
+	const std::vector<dicom::UID> smpteST2110Uids = smpteST2110TransferSyntaxes();
+	for(size_t i=0;i<smpteST2110Uids.size();++i)
+	{
+		dicom::TS smpteST2110(smpteST2110Uids[i]);
+		assert(smpteST2110.isEncapsulated());
+		assert(smpteST2110.isSMPTEST2110());
+		assert(!smpteST2110.canDecodeDataset());
+		assert(!smpteST2110.hasCompiledPixelCodec());
+		assert(!smpteST2110.canPassThroughPixelData());
+		assert(!serverAccepts(server, smpteST2110Uids[i]));
+	}
 
 	dicom::PresentationContexts contexts;
 	contexts.Add(dicom::CT_IMAGE_STORAGE_SOP_CLASS);
@@ -315,6 +335,8 @@ int main()
 		(static_cast<bool>(DICOMLIB_WITH_JPEGXL) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));
 	for(size_t i=0;i<videoUids.size();++i)
 		assert(hasTransferSyntax(contexts, videoUids[i]) == static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH));
+	for(size_t i=0;i<smpteST2110Uids.size();++i)
+		assert(!hasTransferSyntax(contexts, smpteST2110Uids[i]));
 
 	return 0;
 }
