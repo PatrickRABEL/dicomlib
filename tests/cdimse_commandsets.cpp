@@ -1,5 +1,7 @@
 #include "dicomlib/Cdimse.hpp"
+#include "dicomlib/aaac.hpp"
 #include "dicomlib/CommandSets.hpp"
+#include "dicomlib/ImplementationUID.hpp"
 #include "dicomlib/PresentationContexts.hpp"
 
 #include <cassert>
@@ -76,6 +78,87 @@ namespace
 			return &socket_;
 		}
 	};
+
+	void configureAssociation(
+		PairedService& service,
+		const dicom::PresentationContexts& contexts,
+		const std::vector<dicom::primitive::PresentationContextAccept>& accepted)
+	{
+		service.AAssociateRQ_.ProposedPresentationContexts_ = contexts;
+		service.AAssociateRQ_.UserInfo_.MaxSubLength_.Set(16384);
+		service.AcceptedPresentationContexts_ = accepted;
+	}
+
+	void configureAssociation(
+		PairedService& service,
+		const dicom::PresentationContexts& contexts,
+		const dicom::primitive::AAssociateAC& acknowledgement)
+	{
+		configureAssociation(service, contexts, acknowledgement.PresContextAccepts_);
+	}
+
+	dicom::primitive::PresentationContextAccept acceptFirstContext(
+		const dicom::PresentationContexts& contexts,
+		const dicom::UID& transferSyntax)
+	{
+		dicom::primitive::PresentationContextAccept accepted;
+		accepted.PresentationContextID_ = contexts.at(0).ID_;
+		accepted.Result_ = 0;
+		accepted.TrnSyntax_ = dicom::primitive::TransferSyntax(transferSyntax);
+		return accepted;
+	}
+
+	void negotiateAssociation(
+		PairedService& scuSide,
+		PairedService& scpSide,
+		const dicom::UID& classUID)
+	{
+		dicom::PresentationContexts contexts;
+		contexts.Add(classUID, dicom::TS(dicom::IMPL_VR_LE_TRANSFER_SYNTAX));
+
+		dicom::primitive::MaximumSubLength maxSubLength;
+		maxSubLength.Set(16384);
+
+		dicom::primitive::UserInformation userInfo;
+		userInfo.ImpClass_.UID_ = dicom::ImplementationClassUID;
+		userInfo.ImpVersion_.Name = dicom::ImplementationVersionName;
+		userInfo.SetMax(maxSubLength);
+
+		scuSide.AAssociateRQ_.CalledAppTitle_ = "SCP_AE";
+		scuSide.AAssociateRQ_.CallingAppTitle_ = "SCU_AE";
+		scuSide.AAssociateRQ_.ProposedPresentationContexts_ = contexts;
+		scuSide.AAssociateRQ_.SetUserInformation(userInfo);
+		scuSide.AAssociateRQ_.Write(*scuSide.GetSocket());
+
+		dicom::primitive::AAssociateRQ request;
+		request.Read(*scpSide.GetSocket());
+		assert(request.CalledAppTitle_ == "SCP_AE");
+		assert(request.CallingAppTitle_ == "SCU_AE");
+		assert(request.ProposedPresentationContexts_.size() == 1);
+		assert(request.ProposedPresentationContexts_.at(0).AbsSyntax_.UID_ == classUID);
+
+		dicom::primitive::PresentationContextAccept accepted =
+			acceptFirstContext(contexts, dicom::IMPL_VR_LE_TRANSFER_SYNTAX);
+
+		dicom::primitive::AAssociateAC acknowledgement;
+		acknowledgement.CalledAppTitle_ = request.CalledAppTitle_;
+		acknowledgement.CallingAppTitle_ = request.CallingAppTitle_;
+		acknowledgement.AppContext_ = request.AppContext_;
+		acknowledgement.PresContextAccepts_.push_back(accepted);
+		acknowledgement.SetUserInformation(userInfo);
+		acknowledgement.Write(*scpSide.GetSocket());
+
+		dicom::primitive::AAssociateAC readAcknowledgement;
+		readAcknowledgement.Read(*scuSide.GetSocket());
+		assert(readAcknowledgement.PresContextAccepts_.size() == 1);
+		assert(readAcknowledgement.PresContextAccepts_.at(0).Result_ == 0);
+		assert(readAcknowledgement.PresContextAccepts_.at(0).TrnSyntax_.UID_ == dicom::IMPL_VR_LE_TRANSFER_SYNTAX);
+
+		std::vector<dicom::primitive::PresentationContextAccept> acceptedContexts;
+		acceptedContexts.push_back(accepted);
+		configureAssociation(scpSide, contexts, acceptedContexts);
+		configureAssociation(scuSide, contexts, readAcknowledgement);
+	}
 
 	struct TestCFindSCU : public dicom::CFindSCU
 	{
@@ -265,6 +348,31 @@ namespace
 		assert(rejected);
 	}
 
+	void checkAssociationNegotiationAndCEcho()
+	{
+		const dicom::UID classUID("1.2.840.10008.1.1");
+		int sockets[2];
+		makeSocketPair(sockets);
+		PairedService scuSide(sockets[0], classUID);
+		PairedService scpSide(sockets[1], classUID);
+
+		negotiateAssociation(scuSide, scpSide, classUID);
+
+		dicom::CEchoSCU echoSCU(scuSide);
+		echoSCU.writeRQ();
+
+		dicom::DataSet command;
+		const bool readEcho = scpSide.Read(command);
+		assert(readEcho);
+		assert(get<UINT16>(command, dicom::TAG_CMD_FIELD) == dicom::Command::C_ECHO_RQ);
+		dicom::HandleCEcho(scpSide, command, classUID);
+
+		UINT16 status = 0;
+		dicom::DataSet response;
+		echoSCU.readRSP(status, response);
+		assert(status == dicom::Status::SUCCESS);
+	}
+
 	void checkCMove()
 	{
 		const dicom::UID classUID("1.2.840.10008.5.1.4.1.2.2.2");
@@ -292,6 +400,7 @@ int main()
 	checkCCancel();
 	checkCCancelOverPData();
 	checkSCUResponseValidationOverPData();
+	checkAssociationNegotiationAndCEcho();
 	checkCMove();
 	return 0;
 }
