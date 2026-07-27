@@ -116,7 +116,6 @@ namespace dicom
 			//	that never gets read.
 			
 			BYTE tmpBYTE;
-			UINT32 tmpUINT32;
 			UINT16 tmpUINT16;
 		}
 
@@ -529,8 +528,8 @@ namespace dicom
 		************************************************************************/
 
 		UserInformation::UserInformation()
-			:ImpClass_(UID(""))
-			,UserInfoBaggage_ (0)
+			:UserInfoBaggage_ (0)
+			,ImpClass_(UID(""))
 		{
 			
 		}

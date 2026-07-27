@@ -45,7 +45,6 @@ namespace dicom
 		//UID absUID(as);
 		UID tsUID(ts.getUID());
 
-		BYTE PresentationContextID;
 		//this maybe wrong -Sam Shen
 
 

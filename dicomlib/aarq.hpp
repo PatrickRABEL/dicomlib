@@ -239,7 +239,7 @@ namespace dicom
 		{
 		public	 :
 			static const BYTE			ItemType_ = 0x51;
-			static const BYTE			Reserved1_=0x00;;
+			static const BYTE			Reserved1_=0x00;
 			static const UINT16			Length_ = 0x04;
 			UINT32						MaximumLength_;
 		public:
@@ -298,7 +298,7 @@ namespace dicom
 			static const BYTE		Reserved1_ = 0x00;
 			//UINT32	Length_;		//length to end of object.
 			static const UINT16	ProtocolVersion_=0x01;
-			static const UINT16	Reserved2_=0x00;;
+			static const UINT16	Reserved2_=0x00;
 
 
 			std::string CalledAppTitle_;

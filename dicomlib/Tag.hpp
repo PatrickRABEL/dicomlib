@@ -509,6 +509,7 @@ namespace dicom
 	struct TagNotFound:public dicom::exception
 	{
 		Tag tag_;
+		mutable std::string WhatCache_;
 		TagNotFound(Tag tag):dicom::exception("Tag not found."),tag_(tag)
 		{
 

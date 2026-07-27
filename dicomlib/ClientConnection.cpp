@@ -161,7 +161,8 @@ namespace dicom
         
         AcceptedPresentationContexts_ = acknowledgement.PresContextAccepts_;
 
-        int unaccepted = std::count_if(acknowledgement.PresContextAccepts_.begin(),acknowledgement.PresContextAccepts_.end(),IsBad);
+        std::vector<primitive::PresentationContextAccept>::size_type unaccepted =
+            std::count_if(acknowledgement.PresContextAccepts_.begin(),acknowledgement.PresContextAccepts_.end(),IsBad);
         return (AcceptedPresentationContexts_.size()>unaccepted);
 
 	}

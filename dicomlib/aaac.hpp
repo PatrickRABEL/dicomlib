@@ -50,7 +50,7 @@ namespace dicom
 		{
 		private:
 			static const BYTE		ItemType_= 0x02;
-			static const BYTE		Reserved1_=0x00;;
+			static const BYTE		Reserved1_=0x00;
 			static const UINT16	ProtocolVersion_	= 0x01;
 			static const UINT16	Reserved2_		=0x00;
 		public:

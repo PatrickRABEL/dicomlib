@@ -15,6 +15,7 @@ namespace dicom
     const char* TagNotFound::what() const throw(){
     	std::ostringstream os;
     	os << "Tag Not Found: " << GetName(tag_);
-    	return os.str().c_str();
+    	WhatCache_ = os.str();
+    	return WhatCache_.c_str();
     }
 }

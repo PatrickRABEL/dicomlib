@@ -41,7 +41,7 @@ class SystemError : public std::exception
 	std::string What_;//used to manage char* returned from what()
 public:
 
-	SystemError(std::string Description):Description_(Description),Error_(errno)
+	SystemError(std::string Description):Error_(errno),Description_(Description)
 	{
 		std::stringstream s;
 		s<< Description_.c_str() << ", " << strerror(Error_) << "." << std::endl;
@@ -49,7 +49,7 @@ public:
 	}
 
 
-	SystemError(std::string Description,int ErrorNumber):Description_(Description),Error_(ErrorNumber)
+	SystemError(std::string Description,int ErrorNumber):Error_(ErrorNumber),Description_(Description)
 	{
 
 

@@ -178,6 +178,7 @@ namespace dicom
 		template <VR vr>
 		UINT32 SendVector(DataSet::const_iterator Begin, DataSet::const_iterator End)
 		{
+			(void)End;
 			UINT32 sentlength=0;
 			typedef typename TypeFromVR<vr>::Type VectorType;
 			typedef typename VectorType::value_type ItemType;

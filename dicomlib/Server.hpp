@@ -177,7 +177,7 @@ namespace dicom
 			//!Defaults to writing to cout
 			virtual void LogMessage				(std::string Message);
 			//!Defaults to zero
-			virtual void  AssociationNegotiated	(const primitive::AAssociateRQ& request){}
+			virtual void  AssociationNegotiated	(const primitive::AAssociateRQ& request){(void)request;}
 			//!Defaults to nothing
 			virtual void AssociationTerminated	(){}
 

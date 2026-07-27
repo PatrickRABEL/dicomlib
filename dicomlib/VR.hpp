@@ -87,6 +87,7 @@ namespace dicom
 	{
 		//Tag tag_;
 		VR vr_;
+		mutable std::string WhatCache_;
 		//BadVR(Tag tag): dicom::exception("Bad VR"),tag_(tag){}
 		BadVR(VR vr):dicom::exception("Bad VR"),vr_(vr){}
 
@@ -95,7 +96,8 @@ namespace dicom
 		{
 			std::ostringstream out;
 			out << "VR " << std::hex << vr_ << "  is not valid in the given context";
-			return out.str().c_str();
+			WhatCache_ = out.str();
+			return WhatCache_.c_str();
 		}
 	};
 	//!System got passed a value that isn't a valid VR or we don't know how to handle...

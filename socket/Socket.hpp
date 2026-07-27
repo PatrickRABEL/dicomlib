@@ -108,8 +108,8 @@ namespace Network
 
 		const int ExternalByteOrder_;//will generally be BIG_ENDIAN, but in some dicom cases will be LITTLE_ENDIAN
 
-		virtual const SOCKET GetSocketDescriptor() const =0;
-		virtual const std::string get_remote_ip() const =0;
+		virtual SOCKET GetSocketDescriptor() const =0;
+		virtual std::string get_remote_ip() const =0;
 
 
 		//!Virtual destructor because we expect to have derived classes.
@@ -348,7 +348,7 @@ namespace Network
 	{
 		const SOCKET socket_descriptor_;
 	public:
-		virtual const SOCKET GetSocketDescriptor()const
+		virtual SOCKET GetSocketDescriptor()const
 		{
 			return socket_descriptor_;
 		}
@@ -358,7 +358,7 @@ namespace Network
 			if(socket_descriptor_<0)
 				throw SystemError("Couldn't allocate socket",GetLastError());
 		}
-		virtual const std::string get_remote_ip()const
+		virtual std::string get_remote_ip()const
 		{
 			return std::string("");
 		}
@@ -443,7 +443,7 @@ namespace Network
 		SOCKET socket_descriptor_;
 		sockaddr_in remote_addr_;
 	public:
-		virtual const SOCKET GetSocketDescriptor()const 
+		virtual SOCKET GetSocketDescriptor()const
 		{
 			return socket_descriptor_;
 		}
@@ -461,7 +461,7 @@ namespace Network
 			if(socket_descriptor_<=0)
 				throw SystemError("Accept error.");
 		}
-		virtual const std::string get_remote_ip()const
+		virtual std::string get_remote_ip()const
 		{
 			return std::string(inet_ntoa(remote_addr_.sin_addr));
 		}

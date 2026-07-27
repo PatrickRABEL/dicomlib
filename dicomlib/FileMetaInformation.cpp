@@ -47,6 +47,8 @@ namespace dicom
 
 	void VerifyAcceptable(Tag tag,UID uid)
 	{
+		(void)tag;
+		(void)uid;
 		//verification code goes here.
 	}
 
@@ -104,6 +106,7 @@ namespace dicom
 */
 	FileMetaInformation::FileMetaInformation(const DataSet& data,TS ts,long BytesToWrite)
 	{
+		(void)BytesToWrite;
 		const UID& classUID=data(TAG_SOP_CLASS_UID).Get<UID>();
 		const UID& instUID=data(TAG_SOP_INST_UID).Get<UID>();
 		VerifyAcceptable(TAG_MEDIA_SOP_CLASS_UID,classUID);//table 7.1-1 of part 10 implies some checking should occur here...

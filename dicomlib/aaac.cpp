@@ -54,7 +54,6 @@ namespace dicom
 			BYTE tmpBYTE;
 
 			UINT16 tmpUINT16;
-			UINT32 tmpUINT32;
 		}
 
 		PresentationContextAccept::PresentationContextAccept()

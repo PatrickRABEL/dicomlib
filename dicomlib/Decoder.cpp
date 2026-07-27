@@ -79,7 +79,6 @@ namespace dicom{
 		void GetElementValue(Tag tag, size_t length)
 		{
 			StaticMultiplicityCheck<vr>();
-			typedef typename TypeFromVR<vr>::Type DataType;
 
 			if(length==0)
 			{

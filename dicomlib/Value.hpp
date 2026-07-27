@@ -26,7 +26,7 @@ namespace dicom
 		//!Value Representation, see Part 5 section 6.2
 		VR vr_;
     public:
-        const VR vr()const
+        VR vr()const
         {
             return vr_;
         }
