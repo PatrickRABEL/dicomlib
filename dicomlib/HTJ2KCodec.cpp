@@ -121,6 +121,18 @@ namespace dicom
 			return resolutions;
 		}
 
+		int RPCLResolutionCount(const ImageGeometry& geometry)
+		{
+			UINT16 dimension = std::max(geometry.rows, geometry.columns);
+			int resolutions = 1;
+			while(dimension > 64)
+			{
+				dimension = UINT16((dimension + 1) / 2);
+				++resolutions;
+			}
+			return resolutions;
+		}
+
 		int ReadSample(const std::vector<BYTE>& pixels, const ImageGeometry& geometry, size_t row, size_t column, size_t component)
 		{
 			const size_t sampleIndex =
@@ -145,13 +157,18 @@ namespace dicom
 			pixels[offset + 1] = BYTE((value >> 8) & 0xff);
 		}
 
-		std::vector<BYTE> EncodeHTJ2K(const std::vector<BYTE>& pixels, const ImageGeometry& geometry)
+		std::vector<BYTE> EncodeHTJ2K(const std::vector<BYTE>& pixels, const ImageGeometry& geometry, bool rpcl)
 		{
 			Enforce(pixels.size() == ExpectedNativeSize(geometry),
 				"Native Pixel Data size is inconsistent with HTJ2K image attributes");
 
 			ojph::codestream codestream;
 			codestream.set_planar(true);
+			if(rpcl)
+			{
+				codestream.request_tlm_marker(true);
+				codestream.set_tilepart_divisions(true, false);
+			}
 			ojph::param_siz siz = codestream.access_siz();
 			siz.set_image_extent(ojph::point(geometry.columns, geometry.rows));
 			siz.set_image_offset(ojph::point(0, 0));
@@ -162,9 +179,10 @@ namespace dicom
 				siz.set_component(component, ojph::point(1, 1), geometry.bitsStored, false);
 
 			ojph::param_cod cod = codestream.access_cod();
-			cod.set_num_decomposition(static_cast<ojph::ui32>(ResolutionCount(geometry) - 1));
+			cod.set_num_decomposition(static_cast<ojph::ui32>(
+				(rpcl ? RPCLResolutionCount(geometry) : ResolutionCount(geometry)) - 1));
 			cod.set_block_dims(64, 64);
-			cod.set_progression_order("LRCP");
+			cod.set_progression_order(rpcl ? "RPCL" : "LRCP");
 			cod.set_color_transform(false);
 			cod.set_reversible(true);
 
@@ -207,7 +225,7 @@ namespace dicom
 			return encoded;
 		}
 
-		std::vector<BYTE> DecodeHTJ2K(const std::vector<BYTE>& encoded, const ImageGeometry& geometry)
+		std::vector<BYTE> DecodeHTJ2K(const std::vector<BYTE>& encoded, const ImageGeometry& geometry, bool requireRPCL)
 		{
 			Enforce(!encoded.empty(), "HTJ2K codestream is empty");
 			ojph::mem_infile input;
@@ -232,6 +250,16 @@ namespace dicom
 				}
 				ojph::param_cod cod = codestream.access_cod();
 				Enforce(cod.is_reversible(), "HTJ2K Lossless Transfer Syntax requires reversible coding");
+				if(requireRPCL)
+				{
+					Enforce(std::string(cod.get_progression_order_as_string()) == "RPCL",
+						"HTJ2K Lossless RPCL Transfer Syntax requires RPCL progression order");
+					const ojph::ui32 decompositions = cod.get_num_decompositions();
+					const size_t dimension = std::max<UINT16>(geometry.rows, geometry.columns);
+					const size_t divisor = size_t(1) << decompositions;
+					Enforce(((dimension + divisor - 1) / divisor) <= 64,
+						"HTJ2K Lossless RPCL Transfer Syntax requires base resolution width or height <= 64");
+				}
 
 				codestream.create();
 				std::vector<size_t> rows(geometry.samplesPerPixel, 0);
@@ -268,7 +296,29 @@ namespace dicom
 #if DICOMLIB_WITH_HTJ2K
 		const ImageGeometry geometry = ReadImageGeometry(data);
 		const std::vector<BYTE> codestream = ConcatenateFragments(data);
-		const std::vector<BYTE> pixels = DecodeHTJ2K(codestream, geometry);
+		const std::vector<BYTE> pixels = DecodeHTJ2K(codestream, geometry, false);
+		data.erase(TAG_PIXEL_DATA);
+		if(geometry.bitsAllocated == 8)
+			data.Put<VR_OB>(TAG_PIXEL_DATA, pixels);
+		else
+		{
+			std::vector<UINT16> words(pixels.size() / 2, 0);
+			for(size_t i=0;i<words.size();++i)
+				words[i] = UINT16(pixels[i * 2]) | (UINT16(pixels[i * 2 + 1]) << 8);
+			data.Put<VR_OW>(TAG_PIXEL_DATA, words);
+		}
+#else
+		(void)data;
+		throw exception("HTJ2K requires DICOMLIB_WITH_HTJ2K");
+#endif
+	}
+
+	void DecodeHTJ2KRPCLLosslessPixelData(DataSet& data)
+	{
+#if DICOMLIB_WITH_HTJ2K
+		const ImageGeometry geometry = ReadImageGeometry(data);
+		const std::vector<BYTE> codestream = ConcatenateFragments(data);
+		const std::vector<BYTE> pixels = DecodeHTJ2K(codestream, geometry, true);
 		data.erase(TAG_PIXEL_DATA);
 		if(geometry.bitsAllocated == 8)
 			data.Put<VR_OB>(TAG_PIXEL_DATA, pixels);
@@ -291,7 +341,22 @@ namespace dicom
 		const ImageGeometry geometry = ReadImageGeometry(data);
 		const std::vector<BYTE> pixels = NativePixelBytes(data, geometry);
 		DataSet encodedData = CopyWithoutPixelData(data);
-		const std::vector<BYTE> encoded = EncodeHTJ2K(pixels, geometry);
+		const std::vector<BYTE> encoded = EncodeHTJ2K(pixels, geometry, false);
+		encodedData.Put<VR_OB>(TAG_PIXEL_DATA, encoded);
+		return encodedData;
+#else
+		(void)data;
+		throw exception("HTJ2K requires DICOMLIB_WITH_HTJ2K");
+#endif
+	}
+
+	DataSet EncodeHTJ2KRPCLLosslessPixelData(const DataSet& data)
+	{
+#if DICOMLIB_WITH_HTJ2K
+		const ImageGeometry geometry = ReadImageGeometry(data);
+		const std::vector<BYTE> pixels = NativePixelBytes(data, geometry);
+		DataSet encodedData = CopyWithoutPixelData(data);
+		const std::vector<BYTE> encoded = EncodeHTJ2K(pixels, geometry, true);
 		encodedData.Put<VR_OB>(TAG_PIXEL_DATA, encoded);
 		return encodedData;
 #else

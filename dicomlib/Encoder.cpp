@@ -555,6 +555,16 @@ namespace dicom
 			throw exception("HTJ2K requires DICOMLIB_WITH_HTJ2K");
 #endif
 		}
+		if(transfer_syntax.getUID() == HTJ2K_RPCL_LOSSLESS_TRANSFER_SYNTAX)
+		{
+#if DICOMLIB_WITH_HTJ2K
+			DataSet encodedData = EncodeHTJ2KRPCLLosslessPixelData(data);
+			Encoder E(buffer,encodedData,transfer_syntax);
+			return E.Encode();
+#else
+			throw exception("HTJ2K requires DICOMLIB_WITH_HTJ2K");
+#endif
+		}
 		if(transfer_syntax.getUID() == JPEG_LS_LOSSLESS_TRANSFER_SYNTAX)
 		{
 #if DICOMLIB_WITH_JPEGLS

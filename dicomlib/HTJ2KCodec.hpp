@@ -6,7 +6,9 @@
 namespace dicom
 {
 	void DecodeHTJ2KLosslessPixelData(DataSet& data);
+	void DecodeHTJ2KRPCLLosslessPixelData(DataSet& data);
 	DataSet EncodeHTJ2KLosslessPixelData(const DataSet& data);
+	DataSet EncodeHTJ2KRPCLLosslessPixelData(const DataSet& data);
 }
 
 #endif

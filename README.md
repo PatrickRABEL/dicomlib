@@ -108,8 +108,8 @@ External dependency mapping:
 - JPEG-LS Lossless and Near-Lossless: CharLS through `pkg-config` module
   `charls`
 - JPEG 2000 Part 1: OpenJPEG through `pkg-config` module `libopenjp2`
-- High-Throughput JPEG 2000 Lossless: OpenJPH through `pkg-config` module
-  `openjph`
+- High-Throughput JPEG 2000 Lossless and Lossless RPCL: OpenJPH through
+  `pkg-config` module `openjph`
 - JPEG XL Lossless and general JPEG XL: libjxl through `pkg-config` module
   `libjxl`
 - MPEG and video transfer syntaxes: FFmpeg libraries `libavcodec`,
