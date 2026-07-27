@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.16)
 project(dicomlib VERSION 0.9.5 LANGUAGES CXX)
 
 option(DICOMLIB_ENABLE_EXPLICIT_VR_BIG_ENDIAN "Accept Explicit VR Big Endian transfer syntax for native dataset encode/decode" ON)
-option(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH "Accept encapsulated transfer syntaxes only for byte-exact Pixel Data pass-through" OFF)
+option(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH "Accept encapsulated transfer syntaxes only for fragment pass-through without pixel decoding" OFF)
 option(DICOMLIB_WITH_ZLIB "Enable Deflated Explicit VR Little Endian codec support" OFF)
 option(DICOMLIB_WITH_RLE "Enable RLE Lossless pixel codec support" OFF)
 option(DICOMLIB_WITH_JPEG "Enable JPEG pixel codec support" OFF)

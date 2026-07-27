@@ -2,31 +2,49 @@ include(FindPackageHandleStandardArgs)
 
 find_package(PkgConfig QUIET)
 
-function(dicomlib_find_pkg_config_dependency option_name target_name module_name display_name)
+set(DICOMLIB_MISSING_CODEC_DEPENDENCIES "")
+
+macro(dicomlib_note_missing_dependency display_name)
+    list(APPEND DICOMLIB_MISSING_CODEC_DEPENDENCIES "${display_name}")
+endmacro()
+
+macro(dicomlib_find_pkg_config_dependency option_name target_name module_name display_name)
     if(NOT ${option_name})
-        set(${option_name}_FOUND FALSE PARENT_SCOPE)
-        return()
+        set(${option_name}_FOUND FALSE)
+    elseif(NOT PkgConfig_FOUND)
+        dicomlib_note_missing_dependency("${display_name}: pkg-config")
+        set(${option_name}_FOUND FALSE)
+    else()
+        pkg_check_modules(${target_name} QUIET IMPORTED_TARGET ${module_name})
+        if(${target_name}_FOUND)
+            set(${option_name}_FOUND TRUE)
+        else()
+            dicomlib_note_missing_dependency("${display_name}: ${module_name}")
+            set(${option_name}_FOUND FALSE)
+        endif()
     endif()
-
-    if(NOT PkgConfig_FOUND)
-        message(FATAL_ERROR "${display_name} requires pkg-config for dependency discovery")
-    endif()
-
-    pkg_check_modules(${target_name} REQUIRED IMPORTED_TARGET ${module_name})
-    set(${option_name}_FOUND TRUE PARENT_SCOPE)
-endfunction()
+endmacro()
 
 if(DICOMLIB_WITH_ZLIB OR DICOMLIB_PREPARE_EXTERNAL_CODECS)
-    find_package(ZLIB REQUIRED)
+    find_package(ZLIB QUIET)
+    if(NOT ZLIB_FOUND)
+        dicomlib_note_missing_dependency("Deflated Explicit VR Little Endian support: zlib")
+    endif()
 endif()
 
 if(DICOMLIB_WITH_JPEG OR DICOMLIB_PREPARE_EXTERNAL_CODECS)
-    find_package(JPEG REQUIRED)
+    find_package(JPEG QUIET)
+    if(NOT JPEG_FOUND)
+        dicomlib_note_missing_dependency("Legacy JPEG support: libjpeg or libjpeg-turbo")
+    endif()
 endif()
 
 if(DICOMLIB_REQUIRE_GDCM)
     message(STATUS "GDCM is required for DICOM-specific legacy JPEG/RLE/JPEG-LS/JPEG 2000 codec preparation")
-    find_package(GDCM REQUIRED)
+    find_package(GDCM QUIET)
+    if(NOT GDCM_FOUND)
+        dicomlib_note_missing_dependency("DICOM pixel codec backend: GDCM")
+    endif()
 endif()
 
 dicomlib_find_pkg_config_dependency(
@@ -84,3 +102,8 @@ dicomlib_find_pkg_config_dependency(
     libswscale
     "MPEG/video support"
 )
+
+if(DICOMLIB_MISSING_CODEC_DEPENDENCIES)
+    list(JOIN DICOMLIB_MISSING_CODEC_DEPENDENCIES "\n  - " DICOMLIB_MISSING_CODEC_DEPENDENCIES_TEXT)
+    message(FATAL_ERROR "Missing external codec dependencies:\n  - ${DICOMLIB_MISSING_CODEC_DEPENDENCIES_TEXT}")
+endif()

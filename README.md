@@ -77,7 +77,7 @@ Optional configuration:
 
 - `DICOMLIB_ENABLE_EXPLICIT_VR_BIG_ENDIAN`: enabled by default.
 - `DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH`: disabled by default; when enabled,
-  encapsulated Pixel Data can be accepted as byte-exact pass-through data.
+  encapsulated Pixel Data fragments can be accepted without pixel decoding.
 - `DICOMLIB_WITH_ZLIB`: disabled by default; when enabled, Deflated Explicit VR
   Little Endian is encoded and decoded through zlib raw DEFLATE.
 - `DICOMLIB_WITH_RLE`: disabled by default; when enabled, RLE Lossless Pixel
@@ -113,6 +113,9 @@ implementations are added:
 
 This prevents the library from advertising support for pixel-compressed transfer
 syntaxes that it cannot actually decode or encode.
+
+The detailed implementation plan and current completion state are maintained in
+[`docs/TRANSFER_SYNTAX_PLAN.md`](docs/TRANSFER_SYNTAX_PLAN.md).
 
 ## C-DIMSE Status
 
