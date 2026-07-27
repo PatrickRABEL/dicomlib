@@ -31,7 +31,7 @@ corresponding encode/decode path is implemented and covered by tests.
 | Transfer Syntax family | UID(s) | Required backend | Current status |
 | --- | --- | --- | --- |
 | Retired JPEG process UIDs | Retired JPEG process UIDs in the generated UID registry | GDCM and/or libjpeg/libjpeg-turbo, depending on process | Dependencies declared; codec integration not implemented |
-| JPEG 2000 Part 2 Multi-component | `1.2.840.10008.1.2.4.92`, `.93` | OpenJPEG Part 2 support or GDCM | Dependencies declared; codec integration not implemented |
+| JPEG 2000 Part 2 Multi-component | `1.2.840.10008.1.2.4.92`, `.93` | OpenJPEG Part 2 support or GDCM | Not implemented; local GDCM 3.2.7 exposes Part 2 Transfer Syntax identifiers but `ImageChangeTransferSyntax` cannot generate a verified Part 2 fixture in this workspace |
 | MPEG/video | MPEG and video UIDs in the generated transfer syntax registry | FFmpeg | Dependencies declared; codec integration not implemented |
 | JPIP referenced | `1.2.840.10008.1.2.4.94`, `.95`, `.204`, `.205` | JPIP retrieval policy and parser | UID recognition only; no local pixel codec behavior claimed |
 
