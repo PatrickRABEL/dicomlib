@@ -101,6 +101,18 @@ namespace dicom
 			return codestream;
 		}
 
+		void EnforceJPEGCodestream(const std::vector<BYTE>& codestream)
+		{
+			Enforce(codestream.size() >= 4, "JPEG XL JPEG Recompression source is too short");
+			Enforce(codestream[0] == 0xff && codestream[1] == 0xd8,
+				"JPEG XL JPEG Recompression source is not a JPEG codestream");
+			size_t end = codestream.size();
+			while(end > 0 && codestream[end - 1] == 0)
+				--end;
+			Enforce(end >= 2 && codestream[end - 2] == 0xff && codestream[end - 1] == 0xd9,
+				"JPEG XL JPEG Recompression source is not a complete JPEG codestream");
+		}
+
 		DataSet CopyWithoutPixelData(const DataSet& data)
 		{
 			DataSet copy;
@@ -247,6 +259,44 @@ namespace dicom
 			return encoded;
 		}
 
+		std::vector<BYTE> EncodeJPEGXLJPEGRecompression(const std::vector<BYTE>& jpeg)
+		{
+			EnforceJPEGCodestream(jpeg);
+
+			EncoderPtr encoder(JxlEncoderCreate(0));
+			Enforce(encoder.get() != 0, "Failed to create JPEG XL encoder");
+			EnforceJxlEncoder(JxlEncoderUseContainer(encoder.get(), JXL_TRUE),
+				"Failed to configure JPEG XL container output");
+			EnforceJxlEncoder(JxlEncoderStoreJPEGMetadata(encoder.get(), JXL_TRUE),
+				"Failed to enable JPEG XL JPEG reconstruction metadata");
+
+			JxlEncoderFrameSettings* settings = JxlEncoderFrameSettingsCreate(encoder.get(), 0);
+			Enforce(settings != 0, "Failed to create JPEG XL frame settings");
+			EnforceJxlEncoder(JxlEncoderAddJPEGFrame(settings, jpeg.data(), jpeg.size()),
+				"Failed to encode JPEG XL JPEG Recompression frame");
+			JxlEncoderCloseInput(encoder.get());
+
+			std::vector<BYTE> encoded(16384, 0);
+			BYTE* next = encoded.data();
+			size_t available = encoded.size();
+			for(;;)
+			{
+				const JxlEncoderStatus status =
+					JxlEncoderProcessOutput(encoder.get(), reinterpret_cast<uint8_t**>(&next), &available);
+				if(status == JXL_ENC_SUCCESS)
+					break;
+				Enforce(status == JXL_ENC_NEED_MORE_OUTPUT, "Failed to process JPEG XL JPEG Recompression output");
+				const size_t offset = encoded.size() - available;
+				encoded.resize(encoded.size() * 2);
+				next = encoded.data() + offset;
+				available = encoded.size() - offset;
+			}
+			encoded.resize(encoded.size() - available);
+			if(encoded.size() & 1)
+				encoded.push_back(0);
+			return encoded;
+		}
+
 		std::vector<BYTE> DecodeJPEGXL(const std::vector<BYTE>& codestream, const ImageGeometry& geometry)
 		{
 			Enforce(!codestream.empty(), "JPEG XL codestream is empty");
@@ -331,6 +381,28 @@ namespace dicom
 #endif
 	}
 
+	void DecodeJPEGXLJPEGRecompressionPixelData(DataSet& data)
+	{
+#if DICOMLIB_WITH_JPEGXL
+		const ImageGeometry geometry = ReadImageGeometry(data);
+		const std::vector<BYTE> codestream = ConcatenateFragments(data);
+		const std::vector<BYTE> pixels = DecodeJPEGXL(codestream, geometry);
+		data.erase(TAG_PIXEL_DATA);
+		if(geometry.bitsAllocated == 8)
+			data.Put<VR_OB>(TAG_PIXEL_DATA, pixels);
+		else
+		{
+			std::vector<UINT16> words(pixels.size() / 2, 0);
+			for(size_t i=0;i<words.size();++i)
+				words[i] = UINT16(pixels[i * 2]) | (UINT16(pixels[i * 2 + 1]) << 8);
+			data.Put<VR_OW>(TAG_PIXEL_DATA, words);
+		}
+#else
+		(void)data;
+		throw exception("JPEG XL requires DICOMLIB_WITH_JPEGXL");
+#endif
+	}
+
 	void DecodeJPEGXLPixelData(DataSet& data)
 	{
 #if DICOMLIB_WITH_JPEGXL
@@ -360,6 +432,20 @@ namespace dicom
 		const std::vector<BYTE> pixels = NativePixelBytes(data, geometry);
 		DataSet encodedData = CopyWithoutPixelData(data);
 		const std::vector<BYTE> encoded = EncodeJPEGXL(pixels, geometry, true, 0.0f);
+		encodedData.Put<VR_OB>(TAG_PIXEL_DATA, encoded);
+		return encodedData;
+#else
+		(void)data;
+		throw exception("JPEG XL requires DICOMLIB_WITH_JPEGXL");
+#endif
+	}
+
+	DataSet EncodeJPEGXLJPEGRecompressionPixelData(const DataSet& data)
+	{
+#if DICOMLIB_WITH_JPEGXL
+		const std::vector<BYTE> jpeg = ConcatenateFragments(data);
+		DataSet encodedData = CopyWithoutPixelData(data);
+		const std::vector<BYTE> encoded = EncodeJPEGXLJPEGRecompression(jpeg);
 		encodedData.Put<VR_OB>(TAG_PIXEL_DATA, encoded);
 		return encodedData;
 #else

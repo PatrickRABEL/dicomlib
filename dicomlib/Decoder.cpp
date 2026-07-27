@@ -716,6 +716,8 @@ namespace dicom{
 #if DICOMLIB_WITH_JPEGXL
 		if(transfer_syntax.getUID() == JPEG_XL_LOSSLESS_TRANSFER_SYNTAX)
 			DecodeJPEGXLLosslessPixelData(data);
+		if(transfer_syntax.getUID() == JPEG_XL_JPEG_RECOMPRESSION_TRANSFER_SYNTAX)
+			DecodeJPEGXLJPEGRecompressionPixelData(data);
 		if(transfer_syntax.getUID() == JPEG_XL_TRANSFER_SYNTAX)
 			DecodeJPEGXLPixelData(data);
 #endif

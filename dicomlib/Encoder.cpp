@@ -615,6 +615,16 @@ namespace dicom
 			throw exception("JPEG XL requires DICOMLIB_WITH_JPEGXL");
 #endif
 		}
+		if(transfer_syntax.getUID() == JPEG_XL_JPEG_RECOMPRESSION_TRANSFER_SYNTAX)
+		{
+#if DICOMLIB_WITH_JPEGXL
+			DataSet encodedData = EncodeJPEGXLJPEGRecompressionPixelData(data);
+			Encoder E(buffer,encodedData,transfer_syntax);
+			return E.Encode();
+#else
+			throw exception("JPEG XL requires DICOMLIB_WITH_JPEGXL");
+#endif
+		}
 		Encoder E(buffer,data,transfer_syntax);
 		return E.Encode();
 	}

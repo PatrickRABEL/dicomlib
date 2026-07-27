@@ -42,6 +42,7 @@ int main()
 	dicom::TS htj2kRPCLLossless(dicom::HTJ2K_RPCL_LOSSLESS_TRANSFER_SYNTAX);
 	dicom::TS htj2k(dicom::HTJ2K_TRANSFER_SYNTAX);
 	dicom::TS jpegXLLossless(dicom::JPEG_XL_LOSSLESS_TRANSFER_SYNTAX);
+	dicom::TS jpegXLJPEGRecompression(dicom::JPEG_XL_JPEG_RECOMPRESSION_TRANSFER_SYNTAX);
 	dicom::TS jpegXL(dicom::JPEG_XL_TRANSFER_SYNTAX);
 	dicom::TS rle(dicom::RLE_LOSSLESS_TRANSFER_SYNTAX);
 
@@ -57,6 +58,7 @@ int main()
 	assert(htj2kRPCLLossless.isEncapsulated());
 	assert(htj2k.isEncapsulated());
 	assert(jpegXLLossless.isEncapsulated());
+	assert(jpegXLJPEGRecompression.isEncapsulated());
 	assert(jpegXL.isEncapsulated());
 
 #if DICOMLIB_WITH_JPEG
@@ -93,9 +95,11 @@ int main()
 
 #if DICOMLIB_WITH_JPEGXL
 	assert(jpegXLLossless.hasCompiledPixelCodec());
+	assert(jpegXLJPEGRecompression.hasCompiledPixelCodec());
 	assert(jpegXL.hasCompiledPixelCodec());
 #else
 	assert(!jpegXLLossless.hasCompiledPixelCodec());
+	assert(!jpegXLJPEGRecompression.hasCompiledPixelCodec());
 	assert(!jpegXL.hasCompiledPixelCodec());
 #endif
 
@@ -148,6 +152,8 @@ int main()
 		(static_cast<bool>(DICOMLIB_WITH_HTJ2K) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));
 	assert(serverAccepts(server, dicom::JPEG_XL_LOSSLESS_TRANSFER_SYNTAX) ==
 		(static_cast<bool>(DICOMLIB_WITH_JPEGXL) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));
+	assert(serverAccepts(server, dicom::JPEG_XL_JPEG_RECOMPRESSION_TRANSFER_SYNTAX) ==
+		(static_cast<bool>(DICOMLIB_WITH_JPEGXL) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));
 	assert(serverAccepts(server, dicom::JPEG_XL_TRANSFER_SYNTAX) ==
 		(static_cast<bool>(DICOMLIB_WITH_JPEGXL) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));
 
@@ -176,6 +182,8 @@ int main()
 	assert(hasTransferSyntax(contexts, dicom::HTJ2K_TRANSFER_SYNTAX) ==
 		(static_cast<bool>(DICOMLIB_WITH_HTJ2K) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));
 	assert(hasTransferSyntax(contexts, dicom::JPEG_XL_LOSSLESS_TRANSFER_SYNTAX) ==
+		(static_cast<bool>(DICOMLIB_WITH_JPEGXL) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));
+	assert(hasTransferSyntax(contexts, dicom::JPEG_XL_JPEG_RECOMPRESSION_TRANSFER_SYNTAX) ==
 		(static_cast<bool>(DICOMLIB_WITH_JPEGXL) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));
 	assert(hasTransferSyntax(contexts, dicom::JPEG_XL_TRANSFER_SYNTAX) ==
 		(static_cast<bool>(DICOMLIB_WITH_JPEGXL) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));
