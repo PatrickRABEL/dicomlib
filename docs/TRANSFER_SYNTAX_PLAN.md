@@ -13,6 +13,7 @@ corresponding encode/decode path is implemented and covered by tests.
 | Explicit VR Big Endian | `1.2.840.10008.1.2.2` | Native dataset encode/decode | `DICOMLIB_ENABLE_EXPLICIT_VR_BIG_ENDIAN` | `transfer_syntax_roundtrip` |
 | Deflated Explicit VR Little Endian | `1.2.840.10008.1.2.1.99` | Dataset encode/decode through zlib raw DEFLATE | `DICOMLIB_WITH_ZLIB` | `transfer_syntax_roundtrip` with zlib |
 | RLE Lossless | `1.2.840.10008.1.2.5` | Pixel Data encode/decode through built-in DICOM RLE codec | `DICOMLIB_WITH_RLE` | `rle_codec`, `transfer_syntax_roundtrip` with RLE |
+| JPEG Baseline | `1.2.840.10008.1.2.4.50` | 8-bit Pixel Data encode/decode through libjpeg/libjpeg-turbo, with lossy compression attributes written on encode | `DICOMLIB_WITH_JPEG` | `transfer_syntax_roundtrip` with JPEG |
 | SCU presentation context proposal | Implemented syntaxes only | `PresentationContexts::Add()` proposes enabled native, Deflated, RLE, or pass-through syntaxes | Build options above | `transfer_syntax_support` |
 | Encapsulated fragment pass-through | UIDs listed by generated `IsEncapsulatedTransferSyntaxUID()` | Fragment-level read/write without pixel decode | `DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH` | `transfer_syntax_support`, `transfer_syntax_roundtrip` |
 | External dependency discovery | zlib, JPEG, GDCM, CharLS, OpenJPEG, OpenJPH, libjxl, FFmpeg | CMake detection and missing dependency reporting | `DICOMLIB_PREPARE_EXTERNAL_CODECS` | Configure-time checks |
@@ -21,7 +22,7 @@ corresponding encode/decode path is implemented and covered by tests.
 
 | Transfer Syntax family | UID(s) | Required backend | Current status |
 | --- | --- | --- | --- |
-| Legacy JPEG Baseline/Extended/Lossless | `1.2.840.10008.1.2.4.50`, `.51`, `.57`, `.70` and retired JPEG process UIDs in the generated UID registry | GDCM and/or libjpeg/libjpeg-turbo, depending on process | Dependencies declared; codec integration not implemented |
+| Legacy JPEG Extended/Lossless | `1.2.840.10008.1.2.4.51`, `.57`, `.70` and retired JPEG process UIDs in the generated UID registry | GDCM and/or libjpeg/libjpeg-turbo, depending on process | Dependencies declared; codec integration not implemented |
 | JPEG-LS | `1.2.840.10008.1.2.4.80`, `.81` | CharLS or GDCM | Dependencies declared; codec integration not implemented |
 | JPEG 2000 | `1.2.840.10008.1.2.4.90`, `.91`, `.92`, `.93` | OpenJPEG or GDCM | Dependencies declared; codec integration not implemented |
 | High-Throughput JPEG 2000 | `1.2.840.10008.1.2.4.201`, `.202`, `.203` | OpenJPH | Dependencies declared; codec integration not implemented |

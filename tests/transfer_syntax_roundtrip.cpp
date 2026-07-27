@@ -100,6 +100,55 @@ namespace
 		assert(fragments[0].Get<dicom::TypeFromVR<dicom::VR_OB>::Type>() == fragment1);
 		assert(fragments[1].Get<dicom::TypeFromVR<dicom::VR_OB>::Type>() == fragment2);
 	}
+
+	void assertJPEGBaselineRoundTrip()
+	{
+		dicom::DataSet source;
+		source.Put<dicom::VR_UI>(dicom::TAG_SOP_CLASS_UID, dicom::SC_IMAGE_STORAGE_SOP_CLASS);
+		source.Put<dicom::VR_UI>(dicom::TAG_SOP_INST_UID, dicom::UID("1.2.826.0.1.3680043.10.3"));
+		source.Put<dicom::VR_US>(dicom::TAG_ROWS, UINT16(8));
+		source.Put<dicom::VR_US>(dicom::TAG_COLUMNS, UINT16(8));
+		source.Put<dicom::VR_US>(dicom::TAG_SAMPLES_PER_PX, UINT16(1));
+		source.Put<dicom::VR_US>(dicom::TAG_BITS_ALLOC, UINT16(8));
+
+		dicom::TypeFromVR<dicom::VR_OB>::Type pixels(64, 128);
+		source.Put<dicom::VR_OB>(dicom::TAG_PIXEL_DATA, pixels);
+
+		dicom::TS ts(dicom::JPEG_BASELINE_TRANSFER_SYNTAX);
+		dicom::Buffer encoded(__LITTLE_ENDIAN);
+		dicom::WriteToBuffer(source, encoded, ts);
+
+		dicom::DataSet decoded;
+		dicom::ReadFromBuffer(encoded, decoded, ts);
+
+		UINT16 rows = 0;
+		UINT16 columns = 0;
+		UINT16 samplesPerPixel = 0;
+		UINT16 bitsAllocated = 0;
+		std::string lossyCompression;
+		std::string compressionRatio;
+		std::string compressionMethod;
+		dicom::TypeFromVR<dicom::VR_OB>::Type decodedPixels;
+		decoded(dicom::TAG_ROWS) >> rows;
+		decoded(dicom::TAG_COLUMNS) >> columns;
+		decoded(dicom::TAG_SAMPLES_PER_PX) >> samplesPerPixel;
+		decoded(dicom::TAG_BITS_ALLOC) >> bitsAllocated;
+		decoded(dicom::TAG_LOSSY_IMAGE_COMPRESSION) >> lossyCompression;
+		decoded(dicom::TAG_LOSSY_IMAGE_COMPRESSION_RATIO) >> compressionRatio;
+		decoded(dicom::TAG_LOSSY_IMAGE_COMPRESSION_METHOD) >> compressionMethod;
+		decoded(dicom::TAG_PIXEL_DATA) >> decodedPixels;
+
+		assert(rows == 8);
+		assert(columns == 8);
+		assert(samplesPerPixel == 1);
+		assert(bitsAllocated == 8);
+		assert(lossyCompression == "01");
+		assert(!compressionRatio.empty());
+		assert(compressionMethod == "ISO_10918_1");
+		assert(decodedPixels.size() == pixels.size());
+		for(size_t i=0;i<decodedPixels.size();++i)
+			assert(decodedPixels[i] >= 126 && decodedPixels[i] <= 130);
+	}
 }
 
 int main()
@@ -121,6 +170,10 @@ int main()
 
 #if DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH
 	assertEncapsulatedFragmentPassThrough();
+#endif
+
+#if DICOMLIB_WITH_JPEG
+	assertJPEGBaselineRoundTrip();
 #endif
 
 	return 0;

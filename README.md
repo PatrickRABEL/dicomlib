@@ -82,6 +82,9 @@ Optional configuration:
   Little Endian is encoded and decoded through zlib raw DEFLATE.
 - `DICOMLIB_WITH_RLE`: disabled by default; when enabled, RLE Lossless Pixel
   Data is encoded and decoded by the built-in DICOM RLE codec.
+- `DICOMLIB_WITH_JPEG`: disabled by default; when enabled, JPEG Baseline 8-bit
+  lossy Pixel Data is encoded and decoded through libjpeg/libjpeg-turbo, and
+  lossy compression attributes are written during encode.
 - `DICOMLIB_PREPARE_EXTERNAL_CODECS`: disabled by default; when enabled, CMake
   requires the external libraries needed for future pixel-compressed transfer
   syntax support.
@@ -90,8 +93,9 @@ External dependency mapping:
 
 - Deflated Explicit VR Little Endian: zlib
 - RLE Lossless: no external library required
-- Legacy JPEG transfer syntaxes: GDCM for DICOM-specific JPEG handling, with
-  libjpeg or libjpeg-turbo available through the standard CMake `JPEG` package
+- JPEG Baseline: libjpeg or libjpeg-turbo through the standard CMake `JPEG`
+  package
+- Other legacy JPEG transfer syntaxes: GDCM for DICOM-specific JPEG handling
 - JPEG-LS: CharLS through `pkg-config` module `charls`
 - JPEG 2000: OpenJPEG through `pkg-config` module `libopenjp2`
 - High-Throughput JPEG 2000: OpenJPH through `pkg-config` module `openjph`
@@ -103,7 +107,6 @@ External dependency mapping:
 External pixel codec options are declared but intentionally blocked until real codec
 implementations are added:
 
-- `DICOMLIB_WITH_JPEG`
 - `DICOMLIB_WITH_JPEGLS`
 - `DICOMLIB_WITH_JPEG2000`
 - `DICOMLIB_WITH_HTJ2K`

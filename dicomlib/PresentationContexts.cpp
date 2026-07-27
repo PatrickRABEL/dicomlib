@@ -19,6 +19,9 @@ namespace dicom
 #if DICOMLIB_WITH_RLE
 		transfer_syntaxes.push_back(primitive::TransferSyntax(RLE_LOSSLESS_TRANSFER_SYNTAX));
 #endif
+#if DICOMLIB_WITH_JPEG
+		transfer_syntaxes.push_back(primitive::TransferSyntax(JPEG_BASELINE_TRANSFER_SYNTAX));
+#endif
 #if DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH
 		std::vector<UID> encapsulated = GetEncapsulatedTransferSyntaxUIDs();
 		for(size_t i=0;i<encapsulated.size();++i)
@@ -28,7 +31,12 @@ namespace dicom
 #else
 			const bool skipRLE = false;
 #endif
-			if(!skipRLE)
+#if DICOMLIB_WITH_JPEG
+			const bool skipJPEGBaseline = encapsulated[i] == JPEG_BASELINE_TRANSFER_SYNTAX;
+#else
+			const bool skipJPEGBaseline = false;
+#endif
+			if(!skipRLE && !skipJPEGBaseline)
 				transfer_syntaxes.push_back(primitive::TransferSyntax(encapsulated[i]));
 		}
 #endif

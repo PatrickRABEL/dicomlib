@@ -9,6 +9,7 @@
 #include <type_traits>
 #include "Encoder.hpp"
 #include "Exceptions.hpp"
+#include "JPEGCodec.hpp"
 #include "RLECodec.hpp"
 #include "UIDs.hpp"
 #include "dicomlib/Config.hpp"
@@ -518,6 +519,16 @@ namespace dicom
 			return E.Encode();
 #else
 			throw exception("RLE Lossless requires DICOMLIB_WITH_RLE");
+#endif
+		}
+		if(transfer_syntax.getUID() == JPEG_BASELINE_TRANSFER_SYNTAX)
+		{
+#if DICOMLIB_WITH_JPEG
+			DataSet encodedData = EncodeJPEGBaselinePixelData(data);
+			Encoder E(buffer,encodedData,transfer_syntax);
+			return E.Encode();
+#else
+			throw exception("JPEG Baseline requires DICOMLIB_WITH_JPEG");
 #endif
 		}
 		Encoder E(buffer,data,transfer_syntax);

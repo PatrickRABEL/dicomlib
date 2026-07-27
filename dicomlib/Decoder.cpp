@@ -14,6 +14,7 @@
 #include "VR.hpp"
 #include "Exceptions.hpp"
 #include "DataDictionary.hpp"
+#include "JPEGCodec.hpp"
 #include "RLECodec.hpp"
 #include "ValueToStream.hpp"
 #include "UIDs.hpp"
@@ -685,6 +686,10 @@ namespace dicom{
 #if DICOMLIB_WITH_RLE
 		if(transfer_syntax.getUID() == RLE_LOSSLESS_TRANSFER_SYNTAX)
 			DecodeRLELosslessPixelData(data);
+#endif
+#if DICOMLIB_WITH_JPEG
+		if(transfer_syntax.getUID() == JPEG_BASELINE_TRANSFER_SYNTAX)
+			DecodeJPEGBaselinePixelData(data);
 #endif
 	}
 

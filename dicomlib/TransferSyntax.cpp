@@ -95,6 +95,10 @@ namespace dicom
 		if(uid_ == RLE_LOSSLESS_TRANSFER_SYNTAX)
 			return true;
 #endif
+#if DICOMLIB_WITH_JPEG
+		if(uid_ == JPEG_BASELINE_TRANSFER_SYNTAX)
+			return true;
+#endif
 		return false;
 	}
 }//namespace dicom
