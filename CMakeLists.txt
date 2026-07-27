@@ -12,7 +12,7 @@ option(DICOMLIB_WITH_JPEG2000 "Enable JPEG 2000 pixel codec support" OFF)
 option(DICOMLIB_WITH_JPEGXL "Enable JPEG XL pixel codec support" OFF)
 option(DICOMLIB_WITH_FFMPEG "Enable MPEG/video pixel codec support" OFF)
 
-if(DICOMLIB_WITH_ZLIB OR DICOMLIB_WITH_RLE OR DICOMLIB_WITH_JPEG OR DICOMLIB_WITH_JPEGLS OR
+if(DICOMLIB_WITH_RLE OR DICOMLIB_WITH_JPEG OR DICOMLIB_WITH_JPEGLS OR
    DICOMLIB_WITH_JPEG2000 OR DICOMLIB_WITH_JPEGXL OR DICOMLIB_WITH_FFMPEG)
     message(FATAL_ERROR "Codec options are declared but not implemented yet. Leave codec options OFF to remain standards-accurate.")
 endif()
@@ -101,6 +101,11 @@ target_compile_options(dicom PRIVATE
 find_package(Threads REQUIRED)
 target_link_libraries(dicom PUBLIC Threads::Threads)
 
+if(DICOMLIB_WITH_ZLIB)
+    find_package(ZLIB REQUIRED)
+    target_link_libraries(dicom PUBLIC ZLIB::ZLIB)
+endif()
+
 include(CTest)
 
 if(BUILD_TESTING)
@@ -115,4 +120,10 @@ if(BUILD_TESTING)
     )
     target_link_libraries(dicom_transfer_syntax_tests PRIVATE dicom)
     add_test(NAME transfer_syntax_support COMMAND dicom_transfer_syntax_tests)
+
+    add_executable(dicom_transfer_syntax_roundtrip_tests
+        tests/transfer_syntax_roundtrip.cpp
+    )
+    target_link_libraries(dicom_transfer_syntax_roundtrip_tests PRIVATE dicom)
+    add_test(NAME transfer_syntax_roundtrip COMMAND dicom_transfer_syntax_roundtrip_tests)
 endif()

@@ -9,11 +9,52 @@
 #include <type_traits>
 #include "Encoder.hpp"
 #include "Exceptions.hpp"
+#include "UIDs.hpp"
+#include "dicomlib/Config.hpp"
 #include "iso646.h"
+#if DICOMLIB_WITH_ZLIB
+#include <zlib.h>
+#endif
 using namespace std;
 
 namespace dicom
 {
+	namespace
+	{
+#if DICOMLIB_WITH_ZLIB
+		void DeflateBuffer(const Buffer& input, Buffer& output)
+		{
+			z_stream stream;
+			stream.zalloc = Z_NULL;
+			stream.zfree = Z_NULL;
+			stream.opaque = Z_NULL;
+
+			if(deflateInit2(&stream, Z_DEFAULT_COMPRESSION, Z_DEFLATED, -MAX_WBITS, 8, Z_DEFAULT_STRATEGY) != Z_OK)
+				throw exception("Failed to initialize deflate stream");
+
+			stream.next_in = const_cast<Bytef*>(reinterpret_cast<const Bytef*>(input.data()));
+			stream.avail_in = static_cast<uInt>(input.size());
+
+			BYTE out[16384];
+			int status = Z_OK;
+			do
+			{
+				stream.next_out = reinterpret_cast<Bytef*>(out);
+				stream.avail_out = sizeof(out);
+				status = deflate(&stream, Z_FINISH);
+				if(status != Z_OK && status != Z_STREAM_END)
+				{
+					deflateEnd(&stream);
+					throw exception("Failed to deflate DICOM data set");
+				}
+				output.insert(output.end(), out, out + (sizeof(out) - stream.avail_out));
+			}
+			while(status != Z_STREAM_END);
+
+			deflateEnd(&stream);
+		}
+#endif
+	}
 
 	class Encoder
 	{
@@ -455,6 +496,19 @@ namespace dicom
 
 	UINT32 WriteToBuffer(const DataSet& data, Buffer& buffer, TS transfer_syntax)
 	{
+		if(transfer_syntax.getUID() == DEFLATED_EXPL_VR_LE_TRANSFER_SYNTAX)
+		{
+#if DICOMLIB_WITH_ZLIB
+			Buffer explicitLittleEndian(__LITTLE_ENDIAN);
+			Encoder E(explicitLittleEndian,data,TS(EXPL_VR_LE_TRANSFER_SYNTAX));
+			E.Encode();
+			const size_t originalSize = buffer.size();
+			DeflateBuffer(explicitLittleEndian,buffer);
+			return static_cast<UINT32>(buffer.size() - originalSize);
+#else
+			throw exception("Deflated Explicit VR Little Endian requires DICOMLIB_WITH_ZLIB");
+#endif
+		}
 		Encoder E(buffer,data,transfer_syntax);
 		return E.Encode();
 	}

@@ -15,12 +15,54 @@
 #include "Exceptions.hpp"
 #include "DataDictionary.hpp"
 #include "ValueToStream.hpp"
+#include "UIDs.hpp"
+#include "dicomlib/Config.hpp"
 
 #include "Dumper.hpp"
+#if DICOMLIB_WITH_ZLIB
+#include <zlib.h>
+#endif
 
 using namespace std;
 
 namespace dicom{
+	namespace
+	{
+#if DICOMLIB_WITH_ZLIB
+		void InflateBuffer(Buffer& input, Buffer& output)
+		{
+			z_stream stream;
+			stream.zalloc = Z_NULL;
+			stream.zfree = Z_NULL;
+			stream.opaque = Z_NULL;
+
+			if(inflateInit2(&stream, -MAX_WBITS) != Z_OK)
+				throw exception("Failed to initialize inflate stream");
+
+			const size_t offset = input.position() - input.begin();
+			stream.next_in = input.empty() ? Z_NULL : reinterpret_cast<Bytef*>(input.data() + offset);
+			stream.avail_in = static_cast<uInt>(input.size() - offset);
+
+			BYTE out[16384];
+			int status = Z_OK;
+			do
+			{
+				stream.next_out = reinterpret_cast<Bytef*>(out);
+				stream.avail_out = sizeof(out);
+				status = inflate(&stream, Z_NO_FLUSH);
+				if(status != Z_OK && status != Z_STREAM_END)
+				{
+					inflateEnd(&stream);
+					throw exception("Failed to inflate DICOM data set");
+				}
+				output.insert(output.end(), out, out + (sizeof(out) - stream.avail_out));
+			}
+			while(status != Z_STREAM_END);
+
+			inflateEnd(&stream);
+		}
+#endif
+	}
 
 	struct Decoder
 	{
@@ -625,6 +667,18 @@ namespace dicom{
 
 	void ReadFromBuffer(Buffer& buffer, DataSet& data, TS transfer_syntax)
 	{
+		if(transfer_syntax.getUID() == DEFLATED_EXPL_VR_LE_TRANSFER_SYNTAX)
+		{
+#if DICOMLIB_WITH_ZLIB
+			Buffer inflated(__LITTLE_ENDIAN);
+			InflateBuffer(buffer,inflated);
+			Decoder d(inflated,data,TS(EXPL_VR_LE_TRANSFER_SYNTAX));
+			d.Decode();
+			return;
+#else
+			throw exception("Deflated Explicit VR Little Endian requires DICOMLIB_WITH_ZLIB");
+#endif
+		}
 		Decoder d(buffer,data,transfer_syntax);
 		d.Decode();
 	}

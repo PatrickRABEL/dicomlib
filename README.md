@@ -78,11 +78,12 @@ Optional configuration:
 - `DICOMLIB_ENABLE_EXPLICIT_VR_BIG_ENDIAN`: enabled by default.
 - `DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH`: disabled by default; when enabled,
   encapsulated Pixel Data can be accepted as byte-exact pass-through data.
+- `DICOMLIB_WITH_ZLIB`: disabled by default; when enabled, Deflated Explicit VR
+  Little Endian is encoded and decoded through zlib raw DEFLATE.
 
-Codec options are declared but intentionally blocked until real codec
+Pixel codec options are declared but intentionally blocked until real codec
 implementations are added:
 
-- `DICOMLIB_WITH_ZLIB`
 - `DICOMLIB_WITH_RLE`
 - `DICOMLIB_WITH_JPEG`
 - `DICOMLIB_WITH_JPEGLS`
@@ -90,7 +91,7 @@ implementations are added:
 - `DICOMLIB_WITH_JPEGXL`
 - `DICOMLIB_WITH_FFMPEG`
 
-This prevents the library from advertising support for compressed transfer
+This prevents the library from advertising support for pixel-compressed transfer
 syntaxes that it cannot actually decode or encode.
 
 ## C-DIMSE Status

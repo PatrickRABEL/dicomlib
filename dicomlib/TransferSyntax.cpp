@@ -73,6 +73,10 @@ namespace dicom
 		if(uid_ == EXPL_VR_BE_TRANSFER_SYNTAX)
 			return true;
 #endif
+#if DICOMLIB_WITH_ZLIB
+		if(uid_ == DEFLATED_EXPL_VR_LE_TRANSFER_SYNTAX)
+			return true;
+#endif
 		return false;
 	}
 
