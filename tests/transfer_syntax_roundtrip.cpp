@@ -29,7 +29,8 @@ namespace
 	dicom::TypeFromVR<dicom::VR_OB>::Type makeGDCMJPEGLosslessFragment(
 		const dicom::TypeFromVR<dicom::VR_OB>::Type& pixels,
 		UINT16 rows,
-		UINT16 columns)
+		UINT16 columns,
+		gdcm::TransferSyntax::TSType transferSyntax)
 	{
 		gdcm::DataElement native(gdcm::Tag(0x7fe0, 0x0010));
 		native.SetVR(gdcm::VR::OB);
@@ -48,7 +49,7 @@ namespace
 
 		gdcm::ImageChangeTransferSyntax change;
 		change.SetInput(*image);
-		change.SetTransferSyntax(gdcm::TransferSyntax(gdcm::TransferSyntax::JPEGLosslessProcess14_1));
+		change.SetTransferSyntax(gdcm::TransferSyntax(transferSyntax));
 		if(!change.Change())
 			std::abort();
 		const gdcm::DataElement& encoded = change.GetOutput().GetDataElement();
@@ -288,9 +289,9 @@ namespace
 			assert(decodedPixels[i] >= 126 && decodedPixels[i] <= 130);
 	}
 
-	void assertGDCMJPEGLosslessProcess14SV1RoundTrip()
-	{
 #if DICOMLIB_WITH_GDCM
+	void assertGDCMJPEGLosslessRoundTrip(const dicom::UID& transferSyntaxUID, gdcm::TransferSyntax::TSType gdcmTransferSyntax)
+	{
 		dicom::DataSet source;
 		source.Put<dicom::VR_UI>(dicom::TAG_SOP_CLASS_UID, dicom::SC_IMAGE_STORAGE_SOP_CLASS);
 		source.Put<dicom::VR_UI>(dicom::TAG_SOP_INST_UID, dicom::UID("1.2.826.0.1.3680043.10.18"));
@@ -308,9 +309,9 @@ namespace
 			pixels.push_back(BYTE((i * 5) & 0xff));
 		source.Put<dicom::VR_OB>(
 			dicom::TAG_PIXEL_DATA,
-			makeGDCMJPEGLosslessFragment(pixels, 8, 8));
+			makeGDCMJPEGLosslessFragment(pixels, 8, 8, gdcmTransferSyntax));
 
-		dicom::TS ts(dicom::JPEG_LOSSLESS_NON_HIERARCHICAL);
+		dicom::TS ts(transferSyntaxUID);
 		dicom::Buffer encoded(__LITTLE_ENDIAN);
 		dicom::WriteToBuffer(source, encoded, ts);
 
@@ -320,8 +321,22 @@ namespace
 		dicom::TypeFromVR<dicom::VR_OB>::Type decodedPixels;
 		decoded(dicom::TAG_PIXEL_DATA) >> decodedPixels;
 		assert(decodedPixels == pixels);
-#endif
 	}
+
+	void assertGDCMJPEGLosslessProcess14RoundTrip()
+	{
+		assertGDCMJPEGLosslessRoundTrip(
+			dicom::JPEG_LOSSLESS_PROCESS_14_TRANSFER_SYNTAX,
+			gdcm::TransferSyntax::JPEGLosslessProcess14);
+	}
+
+	void assertGDCMJPEGLosslessProcess14SV1RoundTrip()
+	{
+		assertGDCMJPEGLosslessRoundTrip(
+			dicom::JPEG_LOSSLESS_NON_HIERARCHICAL,
+			gdcm::TransferSyntax::JPEGLosslessProcess14_1);
+	}
+#endif
 
 	void assertJPEG2000LosslessRoundTrip()
 	{
@@ -776,6 +791,7 @@ int main()
 #endif
 
 #if DICOMLIB_WITH_GDCM
+	assertGDCMJPEGLosslessProcess14RoundTrip();
 	assertGDCMJPEGLosslessProcess14SV1RoundTrip();
 #endif
 

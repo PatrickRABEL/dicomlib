@@ -700,7 +700,8 @@ namespace dicom{
 			DecodeJPEGBaselinePixelData(data);
 #endif
 #if DICOMLIB_WITH_GDCM
-		if(transfer_syntax.getUID() == JPEG_LOSSLESS_NON_HIERARCHICAL)
+		if(transfer_syntax.getUID() == JPEG_LOSSLESS_PROCESS_14_TRANSFER_SYNTAX ||
+			transfer_syntax.getUID() == JPEG_LOSSLESS_NON_HIERARCHICAL)
 			DecodeGDCMJPEGPixelData(data, transfer_syntax.getUID());
 #endif
 #if DICOMLIB_WITH_JPEG2000

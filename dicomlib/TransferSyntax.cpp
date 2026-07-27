@@ -102,7 +102,8 @@ namespace dicom
 			return true;
 #endif
 #if DICOMLIB_WITH_GDCM
-		if(uid_ == JPEG_LOSSLESS_NON_HIERARCHICAL)
+		if(uid_ == JPEG_LOSSLESS_PROCESS_14_TRANSFER_SYNTAX ||
+			uid_ == JPEG_LOSSLESS_NON_HIERARCHICAL)
 			return true;
 #endif
 #if DICOMLIB_WITH_JPEG2000

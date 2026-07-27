@@ -24,6 +24,7 @@ namespace dicom
 		transfer_syntaxes.push_back(primitive::TransferSyntax(JPEG_BASELINE_TRANSFER_SYNTAX));
 #endif
 #if DICOMLIB_WITH_GDCM
+		transfer_syntaxes.push_back(primitive::TransferSyntax(JPEG_LOSSLESS_PROCESS_14_TRANSFER_SYNTAX));
 		transfer_syntaxes.push_back(primitive::TransferSyntax(JPEG_LOSSLESS_NON_HIERARCHICAL));
 #endif
 #if DICOMLIB_WITH_JPEG2000
@@ -61,7 +62,9 @@ namespace dicom
 			const bool skipJPEGBaseline = false;
 #endif
 #if DICOMLIB_WITH_GDCM
-			const bool skipGDCMJPEG = encapsulated[i] == JPEG_LOSSLESS_NON_HIERARCHICAL;
+			const bool skipGDCMJPEG =
+				encapsulated[i] == JPEG_LOSSLESS_PROCESS_14_TRANSFER_SYNTAX ||
+				encapsulated[i] == JPEG_LOSSLESS_NON_HIERARCHICAL;
 #else
 			const bool skipGDCMJPEG = false;
 #endif

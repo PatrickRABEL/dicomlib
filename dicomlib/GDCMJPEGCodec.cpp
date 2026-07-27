@@ -70,6 +70,8 @@ namespace dicom
 
 		gdcm::TransferSyntax GDCMTransferSyntax(const UID& transferSyntaxUID)
 		{
+			if(transferSyntaxUID == JPEG_LOSSLESS_PROCESS_14_TRANSFER_SYNTAX)
+				return gdcm::TransferSyntax(gdcm::TransferSyntax::JPEGLosslessProcess14);
 			if(transferSyntaxUID == JPEG_LOSSLESS_NON_HIERARCHICAL)
 				return gdcm::TransferSyntax(gdcm::TransferSyntax::JPEGLosslessProcess14_1);
 			throw exception("Unsupported GDCM JPEG Transfer Syntax");
