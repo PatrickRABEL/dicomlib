@@ -241,6 +241,49 @@ namespace
 		assert(bitsStored == 8);
 		assert(decodedPixels == pixels);
 	}
+
+	void assertJPEGLSLosslessRoundTrip()
+	{
+		dicom::DataSet source;
+		source.Put<dicom::VR_UI>(dicom::TAG_SOP_CLASS_UID, dicom::SC_IMAGE_STORAGE_SOP_CLASS);
+		source.Put<dicom::VR_UI>(dicom::TAG_SOP_INST_UID, dicom::UID("1.2.826.0.1.3680043.10.6"));
+		source.Put<dicom::VR_US>(dicom::TAG_ROWS, UINT16(8));
+		source.Put<dicom::VR_US>(dicom::TAG_COLUMNS, UINT16(8));
+		source.Put<dicom::VR_US>(dicom::TAG_SAMPLES_PER_PX, UINT16(1));
+		source.Put<dicom::VR_US>(dicom::TAG_BITS_ALLOC, UINT16(16));
+		source.Put<dicom::VR_US>(dicom::TAG_BITS_STORED, UINT16(12));
+		source.Put<dicom::VR_US>(dicom::TAG_HIGH_BIT, UINT16(11));
+		source.Put<dicom::VR_US>(dicom::TAG_PX_REPRESENT, UINT16(0));
+
+		dicom::TypeFromVR<dicom::VR_OW>::Type pixels;
+		for(size_t i=0;i<64;++i)
+			pixels.push_back(UINT16((i * 31) & 0x0fff));
+		source.Put<dicom::VR_OW>(dicom::TAG_PIXEL_DATA, pixels);
+
+		dicom::TS ts(dicom::JPEG_LS_LOSSLESS_TRANSFER_SYNTAX);
+		dicom::Buffer encoded(__LITTLE_ENDIAN);
+		dicom::WriteToBuffer(source, encoded, ts);
+
+		dicom::DataSet decoded;
+		dicom::ReadFromBuffer(encoded, decoded, ts);
+
+		UINT16 rows = 0;
+		UINT16 columns = 0;
+		UINT16 bitsAllocated = 0;
+		UINT16 bitsStored = 0;
+		dicom::TypeFromVR<dicom::VR_OW>::Type decodedPixels;
+		decoded(dicom::TAG_ROWS) >> rows;
+		decoded(dicom::TAG_COLUMNS) >> columns;
+		decoded(dicom::TAG_BITS_ALLOC) >> bitsAllocated;
+		decoded(dicom::TAG_BITS_STORED) >> bitsStored;
+		decoded(dicom::TAG_PIXEL_DATA) >> decodedPixels;
+
+		assert(rows == 8);
+		assert(columns == 8);
+		assert(bitsAllocated == 16);
+		assert(bitsStored == 12);
+		assert(decodedPixels == pixels);
+	}
 }
 
 int main()
@@ -271,6 +314,10 @@ int main()
 #if DICOMLIB_WITH_JPEG2000
 	assertJPEG2000LosslessRoundTrip();
 	assertJPEG2000RoundTrip();
+#endif
+
+#if DICOMLIB_WITH_JPEGLS
+	assertJPEGLSLosslessRoundTrip();
 #endif
 
 	return 0;

@@ -88,6 +88,9 @@ Optional configuration:
 - `DICOMLIB_WITH_JPEG2000`: disabled by default; when enabled, JPEG 2000 Part 1
   Pixel Data for `1.2.840.10008.1.2.4.90` and `.91` is encoded and decoded in
   lossless mode through OpenJPEG.
+- `DICOMLIB_WITH_JPEGLS`: disabled by default; when enabled, JPEG-LS Lossless
+  Pixel Data for `1.2.840.10008.1.2.4.80` is encoded and decoded through
+  CharLS.
 - `DICOMLIB_PREPARE_EXTERNAL_CODECS`: disabled by default; when enabled, CMake
   requires the external libraries needed for future pixel-compressed transfer
   syntax support.
@@ -99,7 +102,7 @@ External dependency mapping:
 - JPEG Baseline: libjpeg or libjpeg-turbo through the standard CMake `JPEG`
   package
 - Other legacy JPEG transfer syntaxes: GDCM for DICOM-specific JPEG handling
-- JPEG-LS: CharLS through `pkg-config` module `charls`
+- JPEG-LS Lossless: CharLS through `pkg-config` module `charls`
 - JPEG 2000 Part 1: OpenJPEG through `pkg-config` module `libopenjp2`
 - High-Throughput JPEG 2000: OpenJPH through `pkg-config` module `openjph`
 - JPEG XL: libjxl through `pkg-config` module `libjxl`
@@ -110,7 +113,6 @@ External dependency mapping:
 External pixel codec options are declared but intentionally blocked until real codec
 implementations are added:
 
-- `DICOMLIB_WITH_JPEGLS`
 - `DICOMLIB_WITH_HTJ2K`
 - `DICOMLIB_WITH_JPEGXL`
 - `DICOMLIB_WITH_FFMPEG`

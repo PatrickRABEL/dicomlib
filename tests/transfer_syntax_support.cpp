@@ -34,6 +34,8 @@ int main()
 	dicom::TS explicitBig(dicom::EXPL_VR_BE_TRANSFER_SYNTAX);
 	dicom::TS deflated(dicom::DEFLATED_EXPL_VR_LE_TRANSFER_SYNTAX);
 	dicom::TS jpegBaseline(dicom::JPEG_BASELINE_TRANSFER_SYNTAX);
+	dicom::TS jpegLSLossless(dicom::JPEG_LS_LOSSLESS_TRANSFER_SYNTAX);
+	dicom::TS jpegLSNearLossless(dicom::JPEG_LS_NEAR_LOSSLESS_TRANSFER_SYNTAX);
 	dicom::TS jpeg2000Lossless(dicom::JPEG2000_LOSSLESS_ONLY);
 	dicom::TS jpeg2000(dicom::JPEG2000);
 	dicom::TS rle(dicom::RLE_LOSSLESS_TRANSFER_SYNTAX);
@@ -42,6 +44,8 @@ int main()
 	assert(explicitLittle.canDecodeDataset());
 	assert(!jpegBaseline.canDecodeDataset());
 	assert(jpegBaseline.isEncapsulated());
+	assert(jpegLSLossless.isEncapsulated());
+	assert(jpegLSNearLossless.isEncapsulated());
 	assert(jpeg2000Lossless.isEncapsulated());
 	assert(jpeg2000.isEncapsulated());
 
@@ -50,6 +54,13 @@ int main()
 #else
 	assert(!jpegBaseline.hasCompiledPixelCodec());
 #endif
+
+#if DICOMLIB_WITH_JPEGLS
+	assert(jpegLSLossless.hasCompiledPixelCodec());
+#else
+	assert(!jpegLSLossless.hasCompiledPixelCodec());
+#endif
+	assert(!jpegLSNearLossless.hasCompiledPixelCodec());
 
 #if DICOMLIB_WITH_JPEG2000
 	assert(jpeg2000Lossless.hasCompiledPixelCodec());
@@ -92,6 +103,10 @@ int main()
 		(static_cast<bool>(DICOMLIB_WITH_RLE) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));
 	assert(serverAccepts(server, dicom::JPEG_BASELINE_TRANSFER_SYNTAX) ==
 		(static_cast<bool>(DICOMLIB_WITH_JPEG) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));
+	assert(serverAccepts(server, dicom::JPEG_LS_LOSSLESS_TRANSFER_SYNTAX) ==
+		(static_cast<bool>(DICOMLIB_WITH_JPEGLS) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));
+	assert(serverAccepts(server, dicom::JPEG_LS_NEAR_LOSSLESS_TRANSFER_SYNTAX) ==
+		static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH));
 	assert(serverAccepts(server, dicom::JPEG2000_LOSSLESS_ONLY) ==
 		(static_cast<bool>(DICOMLIB_WITH_JPEG2000) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));
 	assert(serverAccepts(server, dicom::JPEG2000) ==
@@ -107,6 +122,10 @@ int main()
 		(static_cast<bool>(DICOMLIB_WITH_RLE) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));
 	assert(hasTransferSyntax(contexts, dicom::JPEG_BASELINE_TRANSFER_SYNTAX) ==
 		(static_cast<bool>(DICOMLIB_WITH_JPEG) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));
+	assert(hasTransferSyntax(contexts, dicom::JPEG_LS_LOSSLESS_TRANSFER_SYNTAX) ==
+		(static_cast<bool>(DICOMLIB_WITH_JPEGLS) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));
+	assert(hasTransferSyntax(contexts, dicom::JPEG_LS_NEAR_LOSSLESS_TRANSFER_SYNTAX) ==
+		static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH));
 	assert(hasTransferSyntax(contexts, dicom::JPEG2000_LOSSLESS_ONLY) ==
 		(static_cast<bool>(DICOMLIB_WITH_JPEG2000) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));
 	assert(hasTransferSyntax(contexts, dicom::JPEG2000) ==

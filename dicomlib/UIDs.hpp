@@ -49,6 +49,12 @@ namespace dicom
 		//has to be supported if we do any lossless jpeg, see note 
 	const UID JPEG_LOSSLESS_NON_HIERARCHICAL		= UID("1.2.840.10008.1.2.4.70");
 
+	//!JPEG-LS Lossless Image Compression
+	const UID JPEG_LS_LOSSLESS_TRANSFER_SYNTAX		= UID("1.2.840.10008.1.2.4.80");
+
+	//!JPEG-LS Lossy (Near-Lossless) Image Compression
+	const UID JPEG_LS_NEAR_LOSSLESS_TRANSFER_SYNTAX	= UID("1.2.840.10008.1.2.4.81");
+
 	//!JPEG2000LosslessOnly (Part5 Annex A.4.4, first type
 	const UID JPEG2000_LOSSLESS_ONLY				= UID("1.2.840.10008.1.2.4.90");
 

@@ -11,6 +11,7 @@
 #include "Exceptions.hpp"
 #include "JPEG2000Codec.hpp"
 #include "JPEGCodec.hpp"
+#include "JPEGLSCodec.hpp"
 #include "RLECodec.hpp"
 #include "UIDs.hpp"
 #include "dicomlib/Config.hpp"
@@ -540,6 +541,16 @@ namespace dicom
 			return E.Encode();
 #else
 			throw exception("JPEG 2000 requires DICOMLIB_WITH_JPEG2000");
+#endif
+		}
+		if(transfer_syntax.getUID() == JPEG_LS_LOSSLESS_TRANSFER_SYNTAX)
+		{
+#if DICOMLIB_WITH_JPEGLS
+			DataSet encodedData = EncodeJPEGLSLosslessPixelData(data);
+			Encoder E(buffer,encodedData,transfer_syntax);
+			return E.Encode();
+#else
+			throw exception("JPEG-LS requires DICOMLIB_WITH_JPEGLS");
 #endif
 		}
 		Encoder E(buffer,data,transfer_syntax);

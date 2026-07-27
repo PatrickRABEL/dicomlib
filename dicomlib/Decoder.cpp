@@ -16,6 +16,7 @@
 #include "DataDictionary.hpp"
 #include "JPEG2000Codec.hpp"
 #include "JPEGCodec.hpp"
+#include "JPEGLSCodec.hpp"
 #include "RLECodec.hpp"
 #include "ValueToStream.hpp"
 #include "UIDs.hpp"
@@ -695,6 +696,10 @@ namespace dicom{
 #if DICOMLIB_WITH_JPEG2000
 		if(transfer_syntax.getUID() == JPEG2000_LOSSLESS_ONLY || transfer_syntax.getUID() == JPEG2000)
 			DecodeJPEG2000PixelData(data);
+#endif
+#if DICOMLIB_WITH_JPEGLS
+		if(transfer_syntax.getUID() == JPEG_LS_LOSSLESS_TRANSFER_SYNTAX)
+			DecodeJPEGLSLosslessPixelData(data);
 #endif
 	}
 
