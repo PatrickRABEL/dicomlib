@@ -1,0 +1,110 @@
+# dicomlib
+
+`dicomlib` is a C++ DICOM library derived from UCDMC99 and earlier work from
+the University of California, Davis, and Karl Franzens University, Graz.
+
+## License
+
+The project uses the historical permissive license included in
+[`dicomlib/License.txt`](dicomlib/License.txt).
+
+The license grants free access to use, copy, and prepare derivative works from
+the software. Source distributions and derivative source distributions must keep
+the copyright notice. The software is provided as-is, without warranty.
+
+This is not currently expressed as a standard SPDX license identifier in the
+repository.
+
+## Current Scope
+
+The maintained build targets are:
+
+- Linux on x86, x86_64, ARM 32-bit, and ARM 64-bit
+- macOS on x86_64 and ARM 64-bit
+
+The library is built with CMake and C++17:
+
+```sh
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --parallel
+ctest --test-dir build --output-on-failure
+```
+
+## Migration to the Current DICOM Standard
+
+The DICOM data dictionary and UID registry were regenerated from the official
+DICOM 2026c DocBook XML published by NEMA.
+
+Generated files:
+
+- `dicomlib/DataDictionary.cpp`
+- `dicomlib/UIDs.cpp`
+
+Generation tool:
+
+- `tools/generate_dicom_standard_tables.py`
+
+The generated tables include modern DICOM value representations and UID entries
+from the current standard source. The generated files should not be edited by
+hand; regenerate them from the official XML source instead.
+
+## Code Simplification
+
+The codebase was simplified for the maintained C++ library build:
+
+- Boost usage was removed from the core library.
+- C++17 standard library facilities replaced Boost equivalents where needed.
+- The old Boost.Python binding and legacy SCons demo build files were removed.
+- The build system was consolidated around CMake.
+- POSIX threads are used through CMake's `Threads::Threads` target.
+
+## Transfer Syntax Policy
+
+Transfer syntax support is configured through CMake and exposed through the
+generated `dicomlib/Config.hpp` header.
+
+Default association support:
+
+- Implicit VR Little Endian
+- Explicit VR Little Endian
+- Explicit VR Big Endian
+
+Optional configuration:
+
+- `DICOMLIB_ENABLE_EXPLICIT_VR_BIG_ENDIAN`: enabled by default.
+- `DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH`: disabled by default; when enabled,
+  encapsulated Pixel Data can be accepted as byte-exact pass-through data.
+
+Codec options are declared but intentionally blocked until real codec
+implementations are added:
+
+- `DICOMLIB_WITH_ZLIB`
+- `DICOMLIB_WITH_RLE`
+- `DICOMLIB_WITH_JPEG`
+- `DICOMLIB_WITH_JPEGLS`
+- `DICOMLIB_WITH_JPEG2000`
+- `DICOMLIB_WITH_JPEGXL`
+- `DICOMLIB_WITH_FFMPEG`
+
+This prevents the library from advertising support for compressed transfer
+syntaxes that it cannot actually decode or encode.
+
+## C-DIMSE Status
+
+C-DIMSE command sets are covered by tests for:
+
+- C-ECHO
+- C-STORE
+- C-FIND
+- C-GET command set structure
+- C-MOVE
+
+SCU response handling validates the response command field and the Message ID
+Being Responded To. SCP dispatch handles C-ECHO, C-STORE, C-FIND, C-MOVE, and
+routes C-GET to an explicit `NotYetImplemented` handler.
+
+## Compatibility Notes
+
+The project currently focuses on the C++ library. The maintained platform scope
+is Linux and macOS only. Windows-specific and legacy build paths are not part of
+the current supported configuration.
