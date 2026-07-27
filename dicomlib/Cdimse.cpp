@@ -30,6 +30,21 @@ using std::string;
 
 namespace dicom
 {
+	namespace
+	{
+		void ValidateCdimseResponse(const DataSet& response, Command::Code expectedCommand, UINT16 expectedMessageID)
+		{
+			UINT16 command = 0;
+			UINT16 responseMessageID = 0;
+			response(TAG_CMD_FIELD) >> command;
+			response(TAG_MSG_ID_RSP) >> responseMessageID;
+
+			if(command != expectedCommand)
+				throw exception("Unexpected C-DIMSE response command field");
+			if(responseMessageID != expectedMessageID)
+				throw exception("Unexpected C-DIMSE response message ID");
+		}
+	}
 
 	/*!
 		Simply write back a success response.
@@ -149,7 +164,8 @@ namespace dicom
 
 	void CEchoSCU::writeRQ()
 	{
-		CommandSet::CEchoRQ rq(uniq16odd(), classUID_);
+		lastMessageID_ = uniq16odd();
+		CommandSet::CEchoRQ rq(lastMessageID_, classUID_);
 		service_.WriteCommand(rq, classUID_) ;
 	}
 
@@ -162,6 +178,7 @@ namespace dicom
 	void CEchoSCU::readRSP(UINT16& status, DataSet& response)
 	{
 		service_.Read(response);
+		ValidateCdimseResponse(response, Command::C_ECHO_RSP, lastMessageID_);
 		response(TAG_STATUS)>>status;
 	}
 
@@ -172,7 +189,8 @@ namespace dicom
 
 	void CStoreSCU::writeRQ(const UID& instUID, const DataSet& data,/*TS ts,*/ UINT16 priority)
 	{
-		CommandSet::CStoreRQ rq(uniq16odd(), classUID_, instUID, priority);
+		lastMessageID_ = uniq16odd();
+		CommandSet::CStoreRQ rq(lastMessageID_, classUID_, instUID, priority);
 		service_.WriteCommand(rq, classUID_);
 		service_.WriteDataSet(data, classUID_/*,ts*/);
 	}
@@ -186,6 +204,7 @@ namespace dicom
 	void CStoreSCU::readRSP(UINT16& status, DataSet& response)
 	{
 		service_.Read(response);
+		ValidateCdimseResponse(response, Command::C_STORE_RSP, lastMessageID_);
 		response(TAG_STATUS) >> status;
 	}
 //I'd prefer:
@@ -200,7 +219,8 @@ namespace dicom
 
 	void CFindSCU::writeRQ(const DataSet& data, UINT16 priority)
 	{
-		CommandSet::CFindRQ rq(uniq16odd(), classUID_, priority);
+		lastMessageID_ = uniq16odd();
+		CommandSet::CFindRQ rq(lastMessageID_, classUID_, priority);
 		service_.WriteCommand(rq, classUID_);
 		service_.WriteDataSet(data, classUID_);
 	}
@@ -220,6 +240,7 @@ namespace dicom
 		UINT16 dstype = 0;
 
 		service_.Read(response);
+		ValidateCdimseResponse(response, Command::C_FIND_RSP, lastMessageID_);
 		response(TAG_DATA_SET_TYPE)	>>	dstype;
 		response(TAG_STATUS)		>>	status;
 		if(dstype!=DataSetStatus::NO_DATA_SET)
@@ -234,7 +255,8 @@ namespace dicom
 
 	void CGetSCU::writeRQ(const DataSet& data, UINT16 priority)
 	{
-		CommandSet::CGetRQ rq(uniq16odd(), classUID_, priority);
+		lastMessageID_ = uniq16odd();
+		CommandSet::CGetRQ rq(lastMessageID_, classUID_, priority);
 		service_.WriteCommand(rq, classUID_);
 		service_.WriteDataSet(data, classUID_);
 	}
@@ -249,6 +271,7 @@ namespace dicom
 	{
 		UINT16 dstype = 0;
 		service_.Read(response);
+		ValidateCdimseResponse(response, Command::C_GET_RSP, lastMessageID_);
 		response(TAG_DATA_SET_TYPE)	>>	dstype;
 		response(TAG_STATUS)		>>	status;
 		if(dstype!=DataSetStatus::NO_DATA_SET)
@@ -264,7 +287,8 @@ namespace dicom
 	void CMoveSCU::writeRQ(const string& destAET,
 							const DataSet& data, UINT16 priority)
 	{
-		CommandSet::CMoveRQ rq(uniq16odd(), classUID_, destAET, priority);
+		lastMessageID_ = uniq16odd();
+		CommandSet::CMoveRQ rq(lastMessageID_, classUID_, destAET, priority);
 		service_.WriteCommand(rq, classUID_);
 		service_.WriteDataSet(data, classUID_);
 	}
@@ -285,6 +309,7 @@ namespace dicom
 		UINT16 dstype = 0;
 
 		service_.Read(response);
+		ValidateCdimseResponse(response, Command::C_MOVE_RSP, lastMessageID_);
 		response(TAG_DATA_SET_TYPE)	>>	dstype;
 		response(TAG_STATUS)		>>	status;
 		if(dstype!=DataSetStatus::NO_DATA_SET)

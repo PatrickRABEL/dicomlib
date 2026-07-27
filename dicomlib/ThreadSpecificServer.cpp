@@ -174,6 +174,13 @@ namespace dicom
 			}
 			break;
 
+			case Command::C_GET_RQ:
+			{
+				HandlerFunction handler=server_.GetHandler(classUID);
+				HandleCGet(handler,*this,command,classUID);
+			}
+			break;
+
 			//case Command::C_CANCEL_RQ:
 			//	return ;	// ignored by this version
 // 			case Command::N_CREATE_RQ:

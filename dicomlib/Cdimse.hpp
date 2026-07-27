@@ -80,8 +80,9 @@ namespace dicom
 	protected:
 		ServiceBase& service_;
 		const UID classUID_;
+		UINT16 lastMessageID_;
 	public:
-		SCU(ServiceBase& service,UID classUID):service_(service),classUID_(classUID){}
+		SCU(ServiceBase& service,UID classUID):service_(service),classUID_(classUID),lastMessageID_(0){}
 	};
 
 
