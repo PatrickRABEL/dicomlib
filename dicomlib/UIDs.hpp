@@ -92,6 +92,12 @@ namespace dicom
 
     const UID JPEG2000                              = UID("1.2.840.10008.1.2.4.91");
 
+	//!JPIP Referenced Transfer Syntax
+	const UID JPIP_REFERENCED_TRANSFER_SYNTAX		= UID("1.2.840.10008.1.2.4.94");
+
+	//!JPIP Referenced Deflate Transfer Syntax
+	const UID JPIP_REFERENCED_DEFLATE_TRANSFER_SYNTAX = UID("1.2.840.10008.1.2.4.95");
+
 	//!JPEG XL Lossless Image Compression
 	const UID JPEG_XL_LOSSLESS_TRANSFER_SYNTAX		= UID("1.2.840.10008.1.2.4.110");
 
@@ -109,6 +115,12 @@ namespace dicom
 
 	//!High-Throughput JPEG 2000 Image Compression
 	const UID HTJ2K_TRANSFER_SYNTAX					= UID("1.2.840.10008.1.2.4.203");
+
+	//!JPIP HTJ2K Referenced Transfer Syntax
+	const UID JPIP_HTJ2K_REFERENCED_TRANSFER_SYNTAX	= UID("1.2.840.10008.1.2.4.204");
+
+	//!JPIP HTJ2K Referenced Deflate Transfer Syntax
+	const UID JPIP_HTJ2K_REFERENCED_DEFLATE_TRANSFER_SYNTAX = UID("1.2.840.10008.1.2.4.205");
 
 	const UID RLE_LOSSLESS_TRANSFER_SYNTAX			= UID("1.2.840.10008.1.2.5");
 

@@ -16,7 +16,11 @@ namespace dicom
 #if DICOMLIB_WITH_ZLIB
 		transfer_syntaxes.push_back(primitive::TransferSyntax(DEFLATED_EXPL_VR_LE_TRANSFER_SYNTAX));
 		transfer_syntaxes.push_back(primitive::TransferSyntax(DEFLATED_IMAGE_FRAME_COMPRESSION_TRANSFER_SYNTAX));
+		transfer_syntaxes.push_back(primitive::TransferSyntax(JPIP_REFERENCED_DEFLATE_TRANSFER_SYNTAX));
+		transfer_syntaxes.push_back(primitive::TransferSyntax(JPIP_HTJ2K_REFERENCED_DEFLATE_TRANSFER_SYNTAX));
 #endif
+		transfer_syntaxes.push_back(primitive::TransferSyntax(JPIP_REFERENCED_TRANSFER_SYNTAX));
+		transfer_syntaxes.push_back(primitive::TransferSyntax(JPIP_HTJ2K_REFERENCED_TRANSFER_SYNTAX));
 #if DICOMLIB_WITH_RLE
 		transfer_syntaxes.push_back(primitive::TransferSyntax(RLE_LOSSLESS_TRANSFER_SYNTAX));
 #endif
@@ -67,6 +71,11 @@ namespace dicom
 #endif
 			const bool skipEncapsulatedUncompressed =
 				encapsulated[i] == ENCAPSULATED_UNCOMPRESSED_EXPL_VR_LE_TRANSFER_SYNTAX;
+			const bool skipJPIPReferenced =
+				encapsulated[i] == JPIP_REFERENCED_TRANSFER_SYNTAX ||
+				encapsulated[i] == JPIP_REFERENCED_DEFLATE_TRANSFER_SYNTAX ||
+				encapsulated[i] == JPIP_HTJ2K_REFERENCED_TRANSFER_SYNTAX ||
+				encapsulated[i] == JPIP_HTJ2K_REFERENCED_DEFLATE_TRANSFER_SYNTAX;
 #if DICOMLIB_WITH_JPEG
 			const bool skipJPEGBaseline = encapsulated[i] == JPEG_BASELINE_TRANSFER_SYNTAX;
 #else
@@ -111,7 +120,7 @@ namespace dicom
 #else
 			const bool skipJPEGXL = false;
 #endif
-			if(!skipRLE && !skipDeflatedImageFrame && !skipEncapsulatedUncompressed && !skipJPEGBaseline && !skipGDCMJPEG && !skipJPEG2000 && !skipHTJ2K && !skipJPEGLS && !skipJPEGXL)
+			if(!skipRLE && !skipDeflatedImageFrame && !skipEncapsulatedUncompressed && !skipJPIPReferenced && !skipJPEGBaseline && !skipGDCMJPEG && !skipJPEG2000 && !skipHTJ2K && !skipJPEGLS && !skipJPEGXL)
 				transfer_syntaxes.push_back(primitive::TransferSyntax(encapsulated[i]));
 		}
 #endif

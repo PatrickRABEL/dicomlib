@@ -18,6 +18,7 @@
 #include "EncapsulatedUncompressedCodec.hpp"
 #include "GDCMJPEGCodec.hpp"
 #include "HTJ2KCodec.hpp"
+#include "JPIPReferencedCodec.hpp"
 #include "JPEG2000Codec.hpp"
 #include "JPEGCodec.hpp"
 #include "JPEGLSCodec.hpp"
@@ -676,6 +677,20 @@ namespace dicom{
 
 	void ReadFromBuffer(Buffer& buffer, DataSet& data, TS transfer_syntax)
 	{
+		if(transfer_syntax.getUID() == JPIP_REFERENCED_DEFLATE_TRANSFER_SYNTAX ||
+			transfer_syntax.getUID() == JPIP_HTJ2K_REFERENCED_DEFLATE_TRANSFER_SYNTAX)
+		{
+#if DICOMLIB_WITH_ZLIB
+			Buffer inflated(__LITTLE_ENDIAN);
+			InflateBuffer(buffer,inflated);
+			Decoder d(inflated,data,TS(EXPL_VR_LE_TRANSFER_SYNTAX));
+			d.Decode();
+			ValidateJPIPReferencedDataSet(data, transfer_syntax.getUID());
+			return;
+#else
+			throw exception("JPIP Referenced Deflate requires DICOMLIB_WITH_ZLIB");
+#endif
+		}
 		if(transfer_syntax.getUID() == DEFLATED_EXPL_VR_LE_TRANSFER_SYNTAX)
 		{
 #if DICOMLIB_WITH_ZLIB
@@ -690,6 +705,9 @@ namespace dicom{
 		}
 		Decoder d(buffer,data,transfer_syntax);
 		d.Decode();
+		if(transfer_syntax.getUID() == JPIP_REFERENCED_TRANSFER_SYNTAX ||
+			transfer_syntax.getUID() == JPIP_HTJ2K_REFERENCED_TRANSFER_SYNTAX)
+			ValidateJPIPReferencedDataSet(data, transfer_syntax.getUID());
 		if(transfer_syntax.getUID() == ENCAPSULATED_UNCOMPRESSED_EXPL_VR_LE_TRANSFER_SYNTAX)
 			DecodeEncapsulatedUncompressedPixelData(data);
 #if DICOMLIB_WITH_ZLIB

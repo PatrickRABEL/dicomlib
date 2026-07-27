@@ -122,6 +122,7 @@ add_library(dicom STATIC
     dicomlib/GDCMJPEGCodec.cpp
     dicomlib/GroupLength.cpp
     dicomlib/HTJ2KCodec.cpp
+    dicomlib/JPIPReferencedCodec.cpp
     dicomlib/JPEG2000Codec.cpp
     dicomlib/JPEGCodec.cpp
     dicomlib/JPEGLSCodec.cpp

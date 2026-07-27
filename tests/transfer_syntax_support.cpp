@@ -52,6 +52,10 @@ int main()
 	dicom::TS jpegXLLossless(dicom::JPEG_XL_LOSSLESS_TRANSFER_SYNTAX);
 	dicom::TS jpegXLJPEGRecompression(dicom::JPEG_XL_JPEG_RECOMPRESSION_TRANSFER_SYNTAX);
 	dicom::TS jpegXL(dicom::JPEG_XL_TRANSFER_SYNTAX);
+	dicom::TS jpipReferenced(dicom::JPIP_REFERENCED_TRANSFER_SYNTAX);
+	dicom::TS jpipReferencedDeflate(dicom::JPIP_REFERENCED_DEFLATE_TRANSFER_SYNTAX);
+	dicom::TS jpipHTJ2KReferenced(dicom::JPIP_HTJ2K_REFERENCED_TRANSFER_SYNTAX);
+	dicom::TS jpipHTJ2KReferencedDeflate(dicom::JPIP_HTJ2K_REFERENCED_DEFLATE_TRANSFER_SYNTAX);
 	dicom::TS rle(dicom::RLE_LOSSLESS_TRANSFER_SYNTAX);
 
 	assert(implicitLittle.canDecodeDataset());
@@ -77,6 +81,18 @@ int main()
 	assert(jpegXLLossless.isEncapsulated());
 	assert(jpegXLJPEGRecompression.isEncapsulated());
 	assert(jpegXL.isEncapsulated());
+	assert(jpipReferenced.isJPIPReferenced());
+	assert(jpipReferencedDeflate.isJPIPReferenced());
+	assert(jpipHTJ2KReferenced.isJPIPReferenced());
+	assert(jpipHTJ2KReferencedDeflate.isJPIPReferenced());
+	assert(jpipReferenced.canDecodeDataset());
+	assert(jpipHTJ2KReferenced.canDecodeDataset());
+	assert(!jpipReferenced.hasCompiledPixelCodec());
+	assert(!jpipReferencedDeflate.hasCompiledPixelCodec());
+	assert(!jpipHTJ2KReferenced.hasCompiledPixelCodec());
+	assert(!jpipHTJ2KReferencedDeflate.hasCompiledPixelCodec());
+	assert(!jpipReferenced.canPassThroughPixelData());
+	assert(!jpipHTJ2KReferenced.canPassThroughPixelData());
 
 #if DICOMLIB_WITH_JPEG
 	assert(jpegBaseline.hasCompiledPixelCodec());
@@ -145,9 +161,13 @@ int main()
 #if DICOMLIB_WITH_ZLIB
 	assert(deflated.canDecodeDataset());
 	assert(deflatedImageFrame.hasCompiledPixelCodec());
+	assert(jpipReferencedDeflate.canDecodeDataset());
+	assert(jpipHTJ2KReferencedDeflate.canDecodeDataset());
 #else
 	assert(!deflated.canDecodeDataset());
 	assert(!deflatedImageFrame.hasCompiledPixelCodec());
+	assert(!jpipReferencedDeflate.canDecodeDataset());
+	assert(!jpipHTJ2KReferencedDeflate.canDecodeDataset());
 #endif
 
 #if DICOMLIB_ENABLE_EXPLICIT_VR_BIG_ENDIAN
@@ -167,6 +187,10 @@ int main()
 	assert(serverAccepts(server, dicom::EXPL_VR_LE_TRANSFER_SYNTAX));
 	assert(serverAccepts(server, dicom::EXPL_VR_BE_TRANSFER_SYNTAX) == static_cast<bool>(DICOMLIB_ENABLE_EXPLICIT_VR_BIG_ENDIAN));
 	assert(serverAccepts(server, dicom::ENCAPSULATED_UNCOMPRESSED_EXPL_VR_LE_TRANSFER_SYNTAX));
+	assert(serverAccepts(server, dicom::JPIP_REFERENCED_TRANSFER_SYNTAX));
+	assert(serverAccepts(server, dicom::JPIP_HTJ2K_REFERENCED_TRANSFER_SYNTAX));
+	assert(serverAccepts(server, dicom::JPIP_REFERENCED_DEFLATE_TRANSFER_SYNTAX) == static_cast<bool>(DICOMLIB_WITH_ZLIB));
+	assert(serverAccepts(server, dicom::JPIP_HTJ2K_REFERENCED_DEFLATE_TRANSFER_SYNTAX) == static_cast<bool>(DICOMLIB_WITH_ZLIB));
 	assert(serverAccepts(server, dicom::DEFLATED_EXPL_VR_LE_TRANSFER_SYNTAX) == static_cast<bool>(DICOMLIB_WITH_ZLIB));
 	assert(serverAccepts(server, dicom::DEFLATED_IMAGE_FRAME_COMPRESSION_TRANSFER_SYNTAX) ==
 		(static_cast<bool>(DICOMLIB_WITH_ZLIB) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));
@@ -213,6 +237,10 @@ int main()
 	assert(hasTransferSyntax(contexts, dicom::EXPL_VR_LE_TRANSFER_SYNTAX));
 	assert(hasTransferSyntax(contexts, dicom::EXPL_VR_BE_TRANSFER_SYNTAX) == static_cast<bool>(DICOMLIB_ENABLE_EXPLICIT_VR_BIG_ENDIAN));
 	assert(hasTransferSyntax(contexts, dicom::ENCAPSULATED_UNCOMPRESSED_EXPL_VR_LE_TRANSFER_SYNTAX));
+	assert(hasTransferSyntax(contexts, dicom::JPIP_REFERENCED_TRANSFER_SYNTAX));
+	assert(hasTransferSyntax(contexts, dicom::JPIP_HTJ2K_REFERENCED_TRANSFER_SYNTAX));
+	assert(hasTransferSyntax(contexts, dicom::JPIP_REFERENCED_DEFLATE_TRANSFER_SYNTAX) == static_cast<bool>(DICOMLIB_WITH_ZLIB));
+	assert(hasTransferSyntax(contexts, dicom::JPIP_HTJ2K_REFERENCED_DEFLATE_TRANSFER_SYNTAX) == static_cast<bool>(DICOMLIB_WITH_ZLIB));
 	assert(hasTransferSyntax(contexts, dicom::DEFLATED_EXPL_VR_LE_TRANSFER_SYNTAX) == static_cast<bool>(DICOMLIB_WITH_ZLIB));
 	assert(hasTransferSyntax(contexts, dicom::DEFLATED_IMAGE_FRAME_COMPRESSION_TRANSFER_SYNTAX) ==
 		(static_cast<bool>(DICOMLIB_WITH_ZLIB) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));

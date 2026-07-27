@@ -84,7 +84,17 @@ Optional configuration:
 - `DICOMLIB_WITH_ZLIB`: disabled by default; when enabled, Deflated Explicit VR
   Little Endian is encoded and decoded through zlib raw DEFLATE, and Deflated
   Image Frame Compression `1.2.840.10008.1.2.8.1` Pixel Data is encoded and
-  decoded as one RFC1951 deflated fragment per frame.
+  decoded as one RFC1951 deflated fragment per frame. It also enables the
+  deflated JPIP Referenced Transfer Syntaxes `1.2.840.10008.1.2.4.95` and
+  `1.2.840.10008.1.2.4.205`.
+- JPIP Referenced Transfer Syntaxes `1.2.840.10008.1.2.4.94` and
+  `1.2.840.10008.1.2.4.204` are always enabled for Data Set encode/decode and
+  validation. The library validates `Pixel Data Provider URL` `(0028,7FE0)`,
+  rejects top-level `Pixel Data`, `Float Pixel Data`, and
+  `Double Float Pixel Data`, and enforces the allowed Photometric
+  Interpretation values. It does not implement JPIP network retrieval or local
+  decoding of the referenced pixel stream. These Transfer Syntaxes are not
+  used for PS3.10 media storage.
 - `DICOMLIB_WITH_RLE`: disabled by default; when enabled, RLE Lossless Pixel
   Data is encoded and decoded by the built-in DICOM RLE codec.
 - `DICOMLIB_WITH_JPEG`: disabled by default; when enabled, JPEG Baseline 8-bit
@@ -113,6 +123,7 @@ Optional configuration:
 External dependency mapping:
 
 - Deflated Explicit VR Little Endian and Deflated Image Frame Compression: zlib
+- JPIP Referenced Deflate: zlib
 - Encapsulated Uncompressed Explicit VR Little Endian: no external library
   required
 - RLE Lossless: no external library required

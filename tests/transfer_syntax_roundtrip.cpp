@@ -5,11 +5,13 @@
 #include "dicomlib/EncapsulatedUncompressedCodec.hpp"
 #include "dicomlib/Encoder.hpp"
 #include "dicomlib/JPEGCodec.hpp"
+#include "dicomlib/JPIPReferencedCodec.hpp"
 #include "dicomlib/TransferSyntax.hpp"
 #include "dicomlib/UIDs.hpp"
 
 #include <cassert>
 #include <cstdlib>
+#include <exception>
 
 #if DICOMLIB_WITH_GDCM
 #include <gdcmByteValue.h>
@@ -1054,6 +1056,62 @@ namespace
 		for(size_t i=0;i<decodedPixels.size();++i)
 			assert(std::abs(int(decodedPixels[i]) - int(pixels[i])) <= 8);
 	}
+
+	dicom::DataSet makeJPIPReferencedDataSet()
+	{
+		dicom::DataSet source;
+		source.Put<dicom::VR_UI>(dicom::TAG_SOP_CLASS_UID, dicom::SC_IMAGE_STORAGE_SOP_CLASS);
+		source.Put<dicom::VR_UI>(dicom::TAG_SOP_INST_UID, dicom::UID("1.2.826.0.1.3680043.10.10"));
+		source.Put<dicom::VR_US>(dicom::TAG_ROWS, UINT16(8));
+		source.Put<dicom::VR_US>(dicom::TAG_COLUMNS, UINT16(8));
+		source.Put<dicom::VR_US>(dicom::TAG_SAMPLES_PER_PX, UINT16(1));
+		source.Put<dicom::VR_CS>(dicom::TAG_PHOTOMETRIC, std::string("MONOCHROME2"));
+		source.Put<dicom::VR_US>(dicom::TAG_BITS_ALLOC, UINT16(8));
+		source.Put<dicom::VR_US>(dicom::TAG_BITS_STORED, UINT16(8));
+		source.Put<dicom::VR_US>(dicom::TAG_HIGH_BIT, UINT16(7));
+		source.Put<dicom::VR_US>(dicom::TAG_PX_REPRESENT, UINT16(0));
+		source.Put<dicom::VR_UR>(
+			dicom::TAG_PIXEL_DATA_PROVIDER_URL,
+			std::string("https://example.test/jpip?target=image.jp2"));
+		return source;
+	}
+
+	void assertJPIPReferencedRoundTrip(const dicom::UID& transferSyntaxUID)
+	{
+		dicom::DataSet source = makeJPIPReferencedDataSet();
+		dicom::TS ts(transferSyntaxUID);
+		dicom::Buffer encoded(__LITTLE_ENDIAN);
+		dicom::WriteToBuffer(source, encoded, ts);
+
+		dicom::DataSet decoded;
+		dicom::ReadFromBuffer(encoded, decoded, ts);
+
+		std::string url;
+		decoded(dicom::TAG_PIXEL_DATA_PROVIDER_URL) >> url;
+		assert(url == "https://example.test/jpip?target=image.jp2");
+		assert(!decoded.exists(dicom::TAG_PIXEL_DATA));
+		assert(!decoded.exists(dicom::TAG_FLOAT_PIXEL_DATA));
+		assert(!decoded.exists(dicom::TAG_DOUBLE_FLOAT_PIXEL_DATA));
+	}
+
+	void assertJPIPReferencedRejectsPixelData()
+	{
+		dicom::DataSet source = makeJPIPReferencedDataSet();
+		dicom::TypeFromVR<dicom::VR_OB>::Type pixels(64, 0);
+		source.Put<dicom::VR_OB>(dicom::TAG_PIXEL_DATA, pixels);
+
+		bool rejected = false;
+		try
+		{
+			dicom::Buffer encoded(__LITTLE_ENDIAN);
+			dicom::WriteToBuffer(source, encoded, dicom::TS(dicom::JPIP_REFERENCED_TRANSFER_SYNTAX));
+		}
+		catch(const std::exception&)
+		{
+			rejected = true;
+		}
+		assert(rejected);
+	}
 }
 
 int main()
@@ -1062,6 +1120,9 @@ int main()
 	assertRoundTrip(dicom::TS(dicom::EXPL_VR_LE_TRANSFER_SYNTAX));
 	assertEncapsulatedUncompressedOddFrameRoundTrip();
 	assertEncapsulatedUncompressedMultiframeRoundTrip();
+	assertJPIPReferencedRoundTrip(dicom::JPIP_REFERENCED_TRANSFER_SYNTAX);
+	assertJPIPReferencedRoundTrip(dicom::JPIP_HTJ2K_REFERENCED_TRANSFER_SYNTAX);
+	assertJPIPReferencedRejectsPixelData();
 
 #if DICOMLIB_ENABLE_EXPLICIT_VR_BIG_ENDIAN
 	assertRoundTrip(dicom::TS(dicom::EXPL_VR_BE_TRANSFER_SYNTAX));
@@ -1069,6 +1130,8 @@ int main()
 
 #if DICOMLIB_WITH_ZLIB
 	assertRoundTrip(dicom::TS(dicom::DEFLATED_EXPL_VR_LE_TRANSFER_SYNTAX));
+	assertJPIPReferencedRoundTrip(dicom::JPIP_REFERENCED_DEFLATE_TRANSFER_SYNTAX);
+	assertJPIPReferencedRoundTrip(dicom::JPIP_HTJ2K_REFERENCED_DEFLATE_TRANSFER_SYNTAX);
 	assertDeflatedImageFrameOneBitRoundTrip();
 	assertDeflatedImageFrameMultiframeRoundTrip();
 #endif

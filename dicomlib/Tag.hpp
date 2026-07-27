@@ -319,6 +319,7 @@ namespace dicom
 		TAG_COLUMNS                   = 0x00280011,
 		TAG_PLANES                    = 0x00280012,
 		TAG_PIXEL_SPACING             = 0x00280030,
+		TAG_PIXEL_DATA_PROVIDER_URL   = 0x00287fe0,
 
 		TAG_BITS_ALLOC                = 0x00280100,
 		TAG_BITS_STORED               = 0x00280101,
@@ -497,6 +498,8 @@ namespace dicom
 		TAG_ROI_MEAN				  = 0x60001302,
 		TAG_ROI_STDDEV				  = 0x60001303,
 
+		TAG_FLOAT_PIXEL_DATA          = 0x7fe00008,
+		TAG_DOUBLE_FLOAT_PIXEL_DATA   = 0x7fe00009,
 		TAG_PIXEL_DATA                = 0x7fe00010,
 
 		TAG_DATA_SET_PADDING          = 0xfffcfffc,

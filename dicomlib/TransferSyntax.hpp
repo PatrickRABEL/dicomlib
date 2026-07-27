@@ -21,6 +21,8 @@ namespace dicom
 		bool isBigEndian() const;
 		bool isDeflated() const;
 		bool isEncapsulated() const;
+		bool isJPIPReferenced() const;
+		bool isJPIPReferencedDeflated() const;
 		bool isNativeUncompressed() const;
 		bool canDecodeDataset() const;
 		bool canPassThroughPixelData() const;

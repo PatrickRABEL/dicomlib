@@ -12,6 +12,7 @@
 #include "Encoder.hpp"
 #include "Exceptions.hpp"
 #include "HTJ2KCodec.hpp"
+#include "JPIPReferencedCodec.hpp"
 #include "JPEG2000Codec.hpp"
 #include "JPEGCodec.hpp"
 #include "JPEGLSCodec.hpp"
@@ -504,6 +505,28 @@ namespace dicom
 
 	UINT32 WriteToBuffer(const DataSet& data, Buffer& buffer, TS transfer_syntax)
 	{
+		if(transfer_syntax.getUID() == JPIP_REFERENCED_TRANSFER_SYNTAX ||
+			transfer_syntax.getUID() == JPIP_HTJ2K_REFERENCED_TRANSFER_SYNTAX)
+		{
+			ValidateJPIPReferencedDataSet(data, transfer_syntax.getUID());
+			Encoder E(buffer,data,TS(EXPL_VR_LE_TRANSFER_SYNTAX));
+			return E.Encode();
+		}
+		if(transfer_syntax.getUID() == JPIP_REFERENCED_DEFLATE_TRANSFER_SYNTAX ||
+			transfer_syntax.getUID() == JPIP_HTJ2K_REFERENCED_DEFLATE_TRANSFER_SYNTAX)
+		{
+#if DICOMLIB_WITH_ZLIB
+			ValidateJPIPReferencedDataSet(data, transfer_syntax.getUID());
+			Buffer explicitLittleEndian(__LITTLE_ENDIAN);
+			Encoder E(explicitLittleEndian,data,TS(EXPL_VR_LE_TRANSFER_SYNTAX));
+			E.Encode();
+			const size_t originalSize = buffer.size();
+			DeflateBuffer(explicitLittleEndian,buffer);
+			return static_cast<UINT32>(buffer.size() - originalSize);
+#else
+			throw exception("JPIP Referenced Deflate requires DICOMLIB_WITH_ZLIB");
+#endif
+		}
 		if(transfer_syntax.getUID() == ENCAPSULATED_UNCOMPRESSED_EXPL_VR_LE_TRANSFER_SYNTAX)
 		{
 			DataSet encodedData = EncodeEncapsulatedUncompressedPixelData(data);

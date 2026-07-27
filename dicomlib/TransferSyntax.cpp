@@ -46,7 +46,21 @@ namespace dicom
 
 	bool TS::isDeflated() const
 	{
-		return (DEFLATED_EXPL_VR_LE_TRANSFER_SYNTAX==uid_);
+		return (DEFLATED_EXPL_VR_LE_TRANSFER_SYNTAX==uid_) || isJPIPReferencedDeflated();
+	}
+
+	bool TS::isJPIPReferenced() const
+	{
+		return uid_ == JPIP_REFERENCED_TRANSFER_SYNTAX ||
+			uid_ == JPIP_REFERENCED_DEFLATE_TRANSFER_SYNTAX ||
+			uid_ == JPIP_HTJ2K_REFERENCED_TRANSFER_SYNTAX ||
+			uid_ == JPIP_HTJ2K_REFERENCED_DEFLATE_TRANSFER_SYNTAX;
+	}
+
+	bool TS::isJPIPReferencedDeflated() const
+	{
+		return uid_ == JPIP_REFERENCED_DEFLATE_TRANSFER_SYNTAX ||
+			uid_ == JPIP_HTJ2K_REFERENCED_DEFLATE_TRANSFER_SYNTAX;
 	}
 
 	/*!
@@ -69,12 +83,14 @@ namespace dicom
 	{
 		if(uid_ == IMPL_VR_LE_TRANSFER_SYNTAX || uid_ == EXPL_VR_LE_TRANSFER_SYNTAX)
 			return true;
+		if(uid_ == JPIP_REFERENCED_TRANSFER_SYNTAX || uid_ == JPIP_HTJ2K_REFERENCED_TRANSFER_SYNTAX)
+			return true;
 #if DICOMLIB_ENABLE_EXPLICIT_VR_BIG_ENDIAN
 		if(uid_ == EXPL_VR_BE_TRANSFER_SYNTAX)
 			return true;
 #endif
 #if DICOMLIB_WITH_ZLIB
-		if(uid_ == DEFLATED_EXPL_VR_LE_TRANSFER_SYNTAX)
+		if(uid_ == DEFLATED_EXPL_VR_LE_TRANSFER_SYNTAX || isJPIPReferencedDeflated())
 			return true;
 #endif
 		return false;
@@ -83,7 +99,7 @@ namespace dicom
 	bool TS::canPassThroughPixelData() const
 	{
 #if DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH
-		if(isEncapsulated() && !isDeflated())
+		if(isEncapsulated() && !isDeflated() && !isJPIPReferenced())
 			return true;
 #endif
 		return false;
