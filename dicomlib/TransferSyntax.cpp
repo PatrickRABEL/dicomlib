@@ -107,6 +107,10 @@ namespace dicom
 		if(uid_ == JPEG_LS_LOSSLESS_TRANSFER_SYNTAX || uid_ == JPEG_LS_NEAR_LOSSLESS_TRANSFER_SYNTAX)
 			return true;
 #endif
+#if DICOMLIB_WITH_JPEGXL
+		if(uid_ == JPEG_XL_LOSSLESS_TRANSFER_SYNTAX)
+			return true;
+#endif
 		return false;
 	}
 }//namespace dicom

@@ -30,6 +30,9 @@ namespace dicom
 		transfer_syntaxes.push_back(primitive::TransferSyntax(JPEG_LS_LOSSLESS_TRANSFER_SYNTAX));
 		transfer_syntaxes.push_back(primitive::TransferSyntax(JPEG_LS_NEAR_LOSSLESS_TRANSFER_SYNTAX));
 #endif
+#if DICOMLIB_WITH_JPEGXL
+		transfer_syntaxes.push_back(primitive::TransferSyntax(JPEG_XL_LOSSLESS_TRANSFER_SYNTAX));
+#endif
 #if DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH
 		std::vector<UID> encapsulated = GetEncapsulatedTransferSyntaxUIDs();
 		for(size_t i=0;i<encapsulated.size();++i)
@@ -56,7 +59,12 @@ namespace dicom
 #else
 			const bool skipJPEGLS = false;
 #endif
-			if(!skipRLE && !skipJPEGBaseline && !skipJPEG2000 && !skipJPEGLS)
+#if DICOMLIB_WITH_JPEGXL
+			const bool skipJPEGXL = encapsulated[i] == JPEG_XL_LOSSLESS_TRANSFER_SYNTAX;
+#else
+			const bool skipJPEGXL = false;
+#endif
+			if(!skipRLE && !skipJPEGBaseline && !skipJPEG2000 && !skipJPEGLS && !skipJPEGXL)
 				transfer_syntaxes.push_back(primitive::TransferSyntax(encapsulated[i]));
 		}
 #endif

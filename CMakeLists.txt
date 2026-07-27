@@ -56,7 +56,7 @@ if(DICOMLIB_WITH_JPEGLS)
     endif()
 endif()
 
-if(DICOMLIB_WITH_HTJ2K OR DICOMLIB_WITH_JPEGXL OR DICOMLIB_WITH_FFMPEG OR
+if(DICOMLIB_WITH_HTJ2K OR DICOMLIB_WITH_FFMPEG OR
    DICOMLIB_WITH_GDCM)
     message(FATAL_ERROR "Pixel codec options are declared and their dependencies can be detected, but pixel codec integration is not implemented yet. Leave pixel codec options OFF to remain standards-accurate.")
 endif()
@@ -108,6 +108,7 @@ add_library(dicom STATIC
     dicomlib/JPEG2000Codec.cpp
     dicomlib/JPEGCodec.cpp
     dicomlib/JPEGLSCodec.cpp
+    dicomlib/JPEGXLCodec.cpp
     dicomlib/Ndimse.cpp
     dicomlib/pdata.cpp
     dicomlib/PresentationContexts.cpp

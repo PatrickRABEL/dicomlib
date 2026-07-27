@@ -71,6 +71,15 @@ namespace dicom
 
     const UID JPEG2000                              = UID("1.2.840.10008.1.2.4.91");
 
+	//!JPEG XL Lossless Image Compression
+	const UID JPEG_XL_LOSSLESS_TRANSFER_SYNTAX		= UID("1.2.840.10008.1.2.4.110");
+
+	//!JPEG XL JPEG Recompression
+	const UID JPEG_XL_JPEG_RECOMPRESSION_TRANSFER_SYNTAX = UID("1.2.840.10008.1.2.4.111");
+
+	//!JPEG XL Image Compression
+	const UID JPEG_XL_TRANSFER_SYNTAX				= UID("1.2.840.10008.1.2.4.112");
+
 	const UID RLE_LOSSLESS_TRANSFER_SYNTAX			= UID("1.2.840.10008.1.2.5");
 
 

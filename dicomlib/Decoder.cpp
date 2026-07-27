@@ -17,6 +17,7 @@
 #include "JPEG2000Codec.hpp"
 #include "JPEGCodec.hpp"
 #include "JPEGLSCodec.hpp"
+#include "JPEGXLCodec.hpp"
 #include "RLECodec.hpp"
 #include "ValueToStream.hpp"
 #include "UIDs.hpp"
@@ -702,6 +703,10 @@ namespace dicom{
 			DecodeJPEGLSLosslessPixelData(data);
 		if(transfer_syntax.getUID() == JPEG_LS_NEAR_LOSSLESS_TRANSFER_SYNTAX)
 			DecodeJPEGLSNearLosslessPixelData(data);
+#endif
+#if DICOMLIB_WITH_JPEGXL
+		if(transfer_syntax.getUID() == JPEG_XL_LOSSLESS_TRANSFER_SYNTAX)
+			DecodeJPEGXLLosslessPixelData(data);
 #endif
 	}
 
