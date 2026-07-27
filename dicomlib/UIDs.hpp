@@ -98,6 +98,54 @@ namespace dicom
 	//!JPIP Referenced Deflate Transfer Syntax
 	const UID JPIP_REFERENCED_DEFLATE_TRANSFER_SYNTAX = UID("1.2.840.10008.1.2.4.95");
 
+	//!MPEG2 Main Profile / Main Level Video Compression
+	const UID MPEG2_MAIN_PROFILE_MAIN_LEVEL_TRANSFER_SYNTAX = UID("1.2.840.10008.1.2.4.100");
+
+	//!Fragmentable MPEG2 Main Profile / Main Level Video Compression
+	const UID FRAGMENTABLE_MPEG2_MAIN_PROFILE_MAIN_LEVEL_TRANSFER_SYNTAX = UID("1.2.840.10008.1.2.4.100.1");
+
+	//!MPEG2 Main Profile / High Level Video Compression
+	const UID MPEG2_MAIN_PROFILE_HIGH_LEVEL_TRANSFER_SYNTAX = UID("1.2.840.10008.1.2.4.101");
+
+	//!Fragmentable MPEG2 Main Profile / High Level Video Compression
+	const UID FRAGMENTABLE_MPEG2_MAIN_PROFILE_HIGH_LEVEL_TRANSFER_SYNTAX = UID("1.2.840.10008.1.2.4.101.1");
+
+	//!MPEG-4 AVC/H.264 High Profile / Level 4.1 Video Compression
+	const UID MPEG4_AVC_H264_HIGH_PROFILE_LEVEL_4_1_TRANSFER_SYNTAX = UID("1.2.840.10008.1.2.4.102");
+
+	//!Fragmentable MPEG-4 AVC/H.264 High Profile / Level 4.1 Video Compression
+	const UID FRAGMENTABLE_MPEG4_AVC_H264_HIGH_PROFILE_LEVEL_4_1_TRANSFER_SYNTAX = UID("1.2.840.10008.1.2.4.102.1");
+
+	//!MPEG-4 AVC/H.264 BD-compatible High Profile / Level 4.1 Video Compression
+	const UID MPEG4_AVC_H264_BD_COMPATIBLE_HIGH_PROFILE_LEVEL_4_1_TRANSFER_SYNTAX = UID("1.2.840.10008.1.2.4.103");
+
+	//!Fragmentable MPEG-4 AVC/H.264 BD-compatible High Profile / Level 4.1 Video Compression
+	const UID FRAGMENTABLE_MPEG4_AVC_H264_BD_COMPATIBLE_HIGH_PROFILE_LEVEL_4_1_TRANSFER_SYNTAX = UID("1.2.840.10008.1.2.4.103.1");
+
+	//!MPEG-4 AVC/H.264 High Profile / Level 4.2 For 2D Video Compression
+	const UID MPEG4_AVC_H264_HIGH_PROFILE_LEVEL_4_2_2D_VIDEO_TRANSFER_SYNTAX = UID("1.2.840.10008.1.2.4.104");
+
+	//!Fragmentable MPEG-4 AVC/H.264 High Profile / Level 4.2 For 2D Video Compression
+	const UID FRAGMENTABLE_MPEG4_AVC_H264_HIGH_PROFILE_LEVEL_4_2_2D_VIDEO_TRANSFER_SYNTAX = UID("1.2.840.10008.1.2.4.104.1");
+
+	//!MPEG-4 AVC/H.264 High Profile / Level 4.2 For 3D Video Compression
+	const UID MPEG4_AVC_H264_HIGH_PROFILE_LEVEL_4_2_3D_VIDEO_TRANSFER_SYNTAX = UID("1.2.840.10008.1.2.4.105");
+
+	//!Fragmentable MPEG-4 AVC/H.264 High Profile / Level 4.2 For 3D Video Compression
+	const UID FRAGMENTABLE_MPEG4_AVC_H264_HIGH_PROFILE_LEVEL_4_2_3D_VIDEO_TRANSFER_SYNTAX = UID("1.2.840.10008.1.2.4.105.1");
+
+	//!MPEG-4 AVC/H.264 Stereo High Profile / Level 4.2 Video Compression
+	const UID MPEG4_AVC_H264_STEREO_HIGH_PROFILE_LEVEL_4_2_TRANSFER_SYNTAX = UID("1.2.840.10008.1.2.4.106");
+
+	//!Fragmentable MPEG-4 AVC/H.264 Stereo High Profile / Level 4.2 Video Compression
+	const UID FRAGMENTABLE_MPEG4_AVC_H264_STEREO_HIGH_PROFILE_LEVEL_4_2_TRANSFER_SYNTAX = UID("1.2.840.10008.1.2.4.106.1");
+
+	//!HEVC/H.265 Main Profile / Level 5.1 Video Compression
+	const UID HEVC_H265_MAIN_PROFILE_LEVEL_5_1_TRANSFER_SYNTAX = UID("1.2.840.10008.1.2.4.107");
+
+	//!HEVC/H.265 Main 10 Profile / Level 5.1 Video Compression
+	const UID HEVC_H265_MAIN_10_PROFILE_LEVEL_5_1_TRANSFER_SYNTAX = UID("1.2.840.10008.1.2.4.108");
+
 	//!JPEG XL Lossless Image Compression
 	const UID JPEG_XL_LOSSLESS_TRANSFER_SYNTAX		= UID("1.2.840.10008.1.2.4.110");
 

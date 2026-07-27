@@ -63,6 +63,19 @@ namespace dicom
 			deflateEnd(&stream);
 		}
 #endif
+
+		bool HasEncapsulatedOBFragments(const DataSet& data)
+		{
+			std::vector<Value> fragments = data.Values(TAG_PIXEL_DATA);
+			if(fragments.empty())
+				return false;
+			for(size_t i=0;i<fragments.size();++i)
+			{
+				if(fragments[i].vr() != VR_OB)
+					return false;
+			}
+			return true;
+		}
 	}
 
 	class Encoder
@@ -526,6 +539,12 @@ namespace dicom
 #else
 			throw exception("JPIP Referenced Deflate requires DICOMLIB_WITH_ZLIB");
 #endif
+		}
+		if(transfer_syntax.canPassThroughPixelData() && !transfer_syntax.hasCompiledPixelCodec())
+		{
+			Enforce(HasEncapsulatedOBFragments(data), "Encapsulated pass-through requires OB Pixel Data fragments");
+			Encoder E(buffer,data,transfer_syntax);
+			return E.Encode();
 		}
 		if(transfer_syntax.getUID() == ENCAPSULATED_UNCOMPRESSED_EXPL_VR_LE_TRANSFER_SYNTAX)
 		{

@@ -5,9 +5,32 @@
 #include "dicomlib/UIDs.hpp"
 
 #include <cassert>
+#include <vector>
 
 namespace
 {
+	std::vector<dicom::UID> videoTransferSyntaxes()
+	{
+		std::vector<dicom::UID> uids;
+		uids.push_back(dicom::MPEG2_MAIN_PROFILE_MAIN_LEVEL_TRANSFER_SYNTAX);
+		uids.push_back(dicom::FRAGMENTABLE_MPEG2_MAIN_PROFILE_MAIN_LEVEL_TRANSFER_SYNTAX);
+		uids.push_back(dicom::MPEG2_MAIN_PROFILE_HIGH_LEVEL_TRANSFER_SYNTAX);
+		uids.push_back(dicom::FRAGMENTABLE_MPEG2_MAIN_PROFILE_HIGH_LEVEL_TRANSFER_SYNTAX);
+		uids.push_back(dicom::MPEG4_AVC_H264_HIGH_PROFILE_LEVEL_4_1_TRANSFER_SYNTAX);
+		uids.push_back(dicom::FRAGMENTABLE_MPEG4_AVC_H264_HIGH_PROFILE_LEVEL_4_1_TRANSFER_SYNTAX);
+		uids.push_back(dicom::MPEG4_AVC_H264_BD_COMPATIBLE_HIGH_PROFILE_LEVEL_4_1_TRANSFER_SYNTAX);
+		uids.push_back(dicom::FRAGMENTABLE_MPEG4_AVC_H264_BD_COMPATIBLE_HIGH_PROFILE_LEVEL_4_1_TRANSFER_SYNTAX);
+		uids.push_back(dicom::MPEG4_AVC_H264_HIGH_PROFILE_LEVEL_4_2_2D_VIDEO_TRANSFER_SYNTAX);
+		uids.push_back(dicom::FRAGMENTABLE_MPEG4_AVC_H264_HIGH_PROFILE_LEVEL_4_2_2D_VIDEO_TRANSFER_SYNTAX);
+		uids.push_back(dicom::MPEG4_AVC_H264_HIGH_PROFILE_LEVEL_4_2_3D_VIDEO_TRANSFER_SYNTAX);
+		uids.push_back(dicom::FRAGMENTABLE_MPEG4_AVC_H264_HIGH_PROFILE_LEVEL_4_2_3D_VIDEO_TRANSFER_SYNTAX);
+		uids.push_back(dicom::MPEG4_AVC_H264_STEREO_HIGH_PROFILE_LEVEL_4_2_TRANSFER_SYNTAX);
+		uids.push_back(dicom::FRAGMENTABLE_MPEG4_AVC_H264_STEREO_HIGH_PROFILE_LEVEL_4_2_TRANSFER_SYNTAX);
+		uids.push_back(dicom::HEVC_H265_MAIN_PROFILE_LEVEL_5_1_TRANSFER_SYNTAX);
+		uids.push_back(dicom::HEVC_H265_MAIN_10_PROFILE_LEVEL_5_1_TRANSFER_SYNTAX);
+		return uids;
+	}
+
 	bool hasTransferSyntax(const dicom::PresentationContexts& contexts, const dicom::UID& uid)
 	{
 		assert(contexts.size() == 1);
@@ -230,6 +253,16 @@ int main()
 		(static_cast<bool>(DICOMLIB_WITH_JPEGXL) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));
 	assert(serverAccepts(server, dicom::JPEG_XL_TRANSFER_SYNTAX) ==
 		(static_cast<bool>(DICOMLIB_WITH_JPEGXL) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));
+	const std::vector<dicom::UID> videoUids = videoTransferSyntaxes();
+	for(size_t i=0;i<videoUids.size();++i)
+	{
+		dicom::TS video(videoUids[i]);
+		assert(video.isEncapsulated());
+		assert(!video.canDecodeDataset());
+		assert(!video.hasCompiledPixelCodec());
+		assert(video.canPassThroughPixelData() == static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH));
+		assert(serverAccepts(server, videoUids[i]) == static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH));
+	}
 
 	dicom::PresentationContexts contexts;
 	contexts.Add(dicom::CT_IMAGE_STORAGE_SOP_CLASS);
@@ -280,6 +313,8 @@ int main()
 		(static_cast<bool>(DICOMLIB_WITH_JPEGXL) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));
 	assert(hasTransferSyntax(contexts, dicom::JPEG_XL_TRANSFER_SYNTAX) ==
 		(static_cast<bool>(DICOMLIB_WITH_JPEGXL) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));
+	for(size_t i=0;i<videoUids.size();++i)
+		assert(hasTransferSyntax(contexts, videoUids[i]) == static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH));
 
 	return 0;
 }
