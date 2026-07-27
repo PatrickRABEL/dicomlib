@@ -20,6 +20,7 @@ corresponding encode/decode path is implemented and covered by tests.
 | Retired non-hierarchical JPEG | `1.2.840.10008.1.2.4.52`, `.53`, `.55` | Pixel Data decode through GDCM; already-fragmented OB Pixel Data can be written for pass-through, but native recompression is not implemented | `DICOMLIB_WITH_GDCM` | `transfer_syntax_roundtrip` with GDCM |
 | JPEG Lossless Process 14 | `1.2.840.10008.1.2.4.57` | Pixel Data decode through GDCM; already-fragmented OB Pixel Data can be written for pass-through, but native recompression is not implemented | `DICOMLIB_WITH_GDCM` | `transfer_syntax_roundtrip` with GDCM |
 | JPEG Lossless Process 14 Selection Value 1 | `1.2.840.10008.1.2.4.70` | Pixel Data decode through GDCM; already-fragmented OB Pixel Data can be written for pass-through, but native recompression is not implemented | `DICOMLIB_WITH_GDCM` | `transfer_syntax_roundtrip` with GDCM |
+| Other retired JPEG process UID fragment pass-through | `1.2.840.10008.1.2.4.54`, `.56`, `.58`-`.66` | Already-fragmented OB Pixel Data can be read/written unchanged; no local JPEG decode/recompression is advertised | `DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH` | `transfer_syntax_support`, `transfer_syntax_roundtrip` with pass-through |
 | JPEG-LS | `1.2.840.10008.1.2.4.80`, `.81` | Lossless and Near-Lossless Pixel Data encode/decode through CharLS; `.81` encode uses configured `DICOMLIB_JPEGLS_NEAR_LOSSLESS` | `DICOMLIB_WITH_JPEGLS` | `transfer_syntax_roundtrip` with JPEG-LS |
 | JPEG 2000 Part 1 | `1.2.840.10008.1.2.4.90`, `.91` | Lossless Pixel Data encode/decode through OpenJPEG J2K codestreams | `DICOMLIB_WITH_JPEG2000` | `transfer_syntax_roundtrip` with JPEG 2000 |
 | JPIP Referenced | `1.2.840.10008.1.2.4.94`, `.204` | Explicit VR Little Endian Data Set encode/decode with validation of `Pixel Data Provider URL` and absence of top-level Pixel Data; no JPIP network retrieval or referenced pixel stream decode | Always on | `transfer_syntax_roundtrip`, `transfer_syntax_support` |
@@ -36,7 +37,7 @@ corresponding encode/decode path is implemented and covered by tests.
 
 | Transfer Syntax family | UID(s) | Required backend | Current status |
 | --- | --- | --- | --- |
-| Other retired JPEG process UIDs | `1.2.840.10008.1.2.4.54`, `.56`, `.58`-`.66` | GDCM and/or libjpeg/libjpeg-turbo, depending on process | Not implemented; local GDCM 3.2.7 does not expose direct Transfer Syntax enum values for these UIDs |
+| Other retired JPEG process UID local decode/recompression | `1.2.840.10008.1.2.4.54`, `.56`, `.58`-`.66` | GDCM and/or libjpeg/libjpeg-turbo, depending on process | Not implemented; local GDCM 3.2.7 does not expose direct Transfer Syntax enum values for these UIDs |
 | JPEG 2000 Part 2 Multi-component | `1.2.840.10008.1.2.4.92`, `.93` | OpenJPEG Part 2 support or GDCM | Not implemented; local GDCM 3.2.7 exposes Part 2 Transfer Syntax identifiers but `ImageChangeTransferSyntax` cannot generate a verified Part 2 fixture in this workspace |
 | MPEG/video local decode/encode | MPEG and video UIDs in the generated transfer syntax registry | FFmpeg | Dependencies declared; codec integration not implemented |
 | DICOM-RTV SMPTE ST 2110 flows | `1.2.840.10008.1.2.7.1`, `.7.2`, `.7.3` | DICOM-RTV metadata/audio flow implementation | Not implemented; these UIDs are not accepted through Pixel Data fragment pass-through |

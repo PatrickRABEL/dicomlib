@@ -51,6 +51,23 @@ namespace
 		return uids;
 	}
 
+	std::vector<dicom::UID> unsupportedRetiredJPEGTransferSyntaxes()
+	{
+		std::vector<dicom::UID> uids;
+		uids.push_back(dicom::JPEG_SPECTRAL_SELECTION_PROCESS_7_9_TRANSFER_SYNTAX);
+		uids.push_back(dicom::JPEG_FULL_PROGRESSION_PROCESS_11_13_TRANSFER_SYNTAX);
+		uids.push_back(dicom::JPEG_LOSSLESS_PROCESS_15_TRANSFER_SYNTAX);
+		uids.push_back(dicom::JPEG_EXTENDED_HIERARCHICAL_PROCESS_16_18_TRANSFER_SYNTAX);
+		uids.push_back(dicom::JPEG_EXTENDED_HIERARCHICAL_PROCESS_17_19_TRANSFER_SYNTAX);
+		uids.push_back(dicom::JPEG_SPECTRAL_SELECTION_HIERARCHICAL_PROCESS_20_22_TRANSFER_SYNTAX);
+		uids.push_back(dicom::JPEG_SPECTRAL_SELECTION_HIERARCHICAL_PROCESS_21_23_TRANSFER_SYNTAX);
+		uids.push_back(dicom::JPEG_FULL_PROGRESSION_HIERARCHICAL_PROCESS_24_26_TRANSFER_SYNTAX);
+		uids.push_back(dicom::JPEG_FULL_PROGRESSION_HIERARCHICAL_PROCESS_25_27_TRANSFER_SYNTAX);
+		uids.push_back(dicom::JPEG_LOSSLESS_HIERARCHICAL_PROCESS_28_TRANSFER_SYNTAX);
+		uids.push_back(dicom::JPEG_LOSSLESS_HIERARCHICAL_PROCESS_29_TRANSFER_SYNTAX);
+		return uids;
+	}
+
 #if DICOMLIB_WITH_GDCM
 	dicom::TypeFromVR<dicom::VR_OB>::Type makeGDCM8BitJPEGFragment(
 		const dicom::TypeFromVR<dicom::VR_OB>::Type& pixels,
@@ -314,6 +331,43 @@ namespace
 		source.Put<dicom::VR_OB>(dicom::TAG_PIXEL_DATA, fragment);
 
 		const std::vector<dicom::UID> uids = videoTransferSyntaxes();
+		for(size_t i=0;i<uids.size();++i)
+		{
+			dicom::TS ts(uids[i]);
+			dicom::Buffer encoded(__LITTLE_ENDIAN);
+			dicom::WriteToBuffer(source, encoded, ts);
+
+			dicom::DataSet decoded;
+			dicom::ReadFromBuffer(encoded, decoded, ts);
+
+			const std::vector<dicom::Value> fragments = decoded.Values(dicom::TAG_PIXEL_DATA);
+			assert(fragments.size() == 1);
+			assert(fragments[0].Get<dicom::TypeFromVR<dicom::VR_OB>::Type>() == fragment);
+		}
+	}
+
+	void assertUnsupportedRetiredJPEGFragmentPassThrough()
+	{
+		dicom::DataSet source;
+		source.Put<dicom::VR_UI>(dicom::TAG_SOP_CLASS_UID, dicom::SC_IMAGE_STORAGE_SOP_CLASS);
+		source.Put<dicom::VR_UI>(dicom::TAG_SOP_INST_UID, dicom::UID("1.2.826.0.1.3680043.10.21"));
+		source.Put<dicom::VR_US>(dicom::TAG_ROWS, UINT16(2));
+		source.Put<dicom::VR_US>(dicom::TAG_COLUMNS, UINT16(2));
+		source.Put<dicom::VR_US>(dicom::TAG_SAMPLES_PER_PX, UINT16(1));
+		source.Put<dicom::VR_CS>(dicom::TAG_PHOTOMETRIC, std::string("MONOCHROME2"));
+		source.Put<dicom::VR_US>(dicom::TAG_BITS_ALLOC, UINT16(8));
+		source.Put<dicom::VR_US>(dicom::TAG_BITS_STORED, UINT16(8));
+		source.Put<dicom::VR_US>(dicom::TAG_HIGH_BIT, UINT16(7));
+		source.Put<dicom::VR_US>(dicom::TAG_PX_REPRESENT, UINT16(0));
+
+		dicom::TypeFromVR<dicom::VR_OB>::Type fragment;
+		fragment.push_back(0xff);
+		fragment.push_back(0xd8);
+		fragment.push_back(0xff);
+		fragment.push_back(0xda);
+		source.Put<dicom::VR_OB>(dicom::TAG_PIXEL_DATA, fragment);
+
+		const std::vector<dicom::UID> uids = unsupportedRetiredJPEGTransferSyntaxes();
 		for(size_t i=0;i<uids.size();++i)
 		{
 			dicom::TS ts(uids[i]);
@@ -1203,6 +1257,7 @@ int main()
 #if DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH
 	assertEncapsulatedFragmentPassThrough();
 	assertVideoFragmentPassThrough();
+	assertUnsupportedRetiredJPEGFragmentPassThrough();
 #endif
 
 #if DICOMLIB_WITH_JPEG

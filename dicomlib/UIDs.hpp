@@ -65,11 +65,44 @@ namespace dicom
 	//!JPEG Spectral Selection, Non-Hierarchical (coding processes 6 and 8) (Retired)
 	const UID JPEG_SPECTRAL_SELECTION_PROCESS_6_8_TRANSFER_SYNTAX = UID("1.2.840.10008.1.2.4.53");
 
+	//!JPEG Spectral Selection, Non-Hierarchical (coding processes 7 and 9) (Retired)
+	const UID JPEG_SPECTRAL_SELECTION_PROCESS_7_9_TRANSFER_SYNTAX = UID("1.2.840.10008.1.2.4.54");
+
 	//!JPEG Full Progression, Non-Hierarchical (coding processes 10 and 12) (Retired)
 	const UID JPEG_FULL_PROGRESSION_PROCESS_10_12_TRANSFER_SYNTAX = UID("1.2.840.10008.1.2.4.55");
 
+	//!JPEG Full Progression, Non-Hierarchical (coding processes 11 and 13) (Retired)
+	const UID JPEG_FULL_PROGRESSION_PROCESS_11_13_TRANSFER_SYNTAX = UID("1.2.840.10008.1.2.4.56");
+
 	//!JPEG Lossless compression (coding process 14)
 	const UID JPEG_LOSSLESS_PROCESS_14_TRANSFER_SYNTAX = UID("1.2.840.10008.1.2.4.57");
+
+	//!JPEG Lossless, Non-Hierarchical (coding process 15) (Retired)
+	const UID JPEG_LOSSLESS_PROCESS_15_TRANSFER_SYNTAX = UID("1.2.840.10008.1.2.4.58");
+
+	//!JPEG Extended, Hierarchical (coding processes 16 and 18) (Retired)
+	const UID JPEG_EXTENDED_HIERARCHICAL_PROCESS_16_18_TRANSFER_SYNTAX = UID("1.2.840.10008.1.2.4.59");
+
+	//!JPEG Extended, Hierarchical (coding processes 17 and 19) (Retired)
+	const UID JPEG_EXTENDED_HIERARCHICAL_PROCESS_17_19_TRANSFER_SYNTAX = UID("1.2.840.10008.1.2.4.60");
+
+	//!JPEG Spectral Selection, Hierarchical (coding processes 20 and 22) (Retired)
+	const UID JPEG_SPECTRAL_SELECTION_HIERARCHICAL_PROCESS_20_22_TRANSFER_SYNTAX = UID("1.2.840.10008.1.2.4.61");
+
+	//!JPEG Spectral Selection, Hierarchical (coding processes 21 and 23) (Retired)
+	const UID JPEG_SPECTRAL_SELECTION_HIERARCHICAL_PROCESS_21_23_TRANSFER_SYNTAX = UID("1.2.840.10008.1.2.4.62");
+
+	//!JPEG Full Progression, Hierarchical (coding processes 24 and 26) (Retired)
+	const UID JPEG_FULL_PROGRESSION_HIERARCHICAL_PROCESS_24_26_TRANSFER_SYNTAX = UID("1.2.840.10008.1.2.4.63");
+
+	//!JPEG Full Progression, Hierarchical (coding processes 25 and 27) (Retired)
+	const UID JPEG_FULL_PROGRESSION_HIERARCHICAL_PROCESS_25_27_TRANSFER_SYNTAX = UID("1.2.840.10008.1.2.4.64");
+
+	//!JPEG Lossless, Hierarchical (coding process 28) (Retired)
+	const UID JPEG_LOSSLESS_HIERARCHICAL_PROCESS_28_TRANSFER_SYNTAX = UID("1.2.840.10008.1.2.4.65");
+
+	//!JPEG Lossless, Hierarchical (coding process 29) (Retired)
+	const UID JPEG_LOSSLESS_HIERARCHICAL_PROCESS_29_TRANSFER_SYNTAX = UID("1.2.840.10008.1.2.4.66");
 
 	//!Lossless JPEG compression (coding process 14, first-order horizontal prediction)
 	/*!

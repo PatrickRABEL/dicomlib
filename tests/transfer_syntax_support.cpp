@@ -40,6 +40,23 @@ namespace
 		return uids;
 	}
 
+	std::vector<dicom::UID> unsupportedRetiredJPEGTransferSyntaxes()
+	{
+		std::vector<dicom::UID> uids;
+		uids.push_back(dicom::JPEG_SPECTRAL_SELECTION_PROCESS_7_9_TRANSFER_SYNTAX);
+		uids.push_back(dicom::JPEG_FULL_PROGRESSION_PROCESS_11_13_TRANSFER_SYNTAX);
+		uids.push_back(dicom::JPEG_LOSSLESS_PROCESS_15_TRANSFER_SYNTAX);
+		uids.push_back(dicom::JPEG_EXTENDED_HIERARCHICAL_PROCESS_16_18_TRANSFER_SYNTAX);
+		uids.push_back(dicom::JPEG_EXTENDED_HIERARCHICAL_PROCESS_17_19_TRANSFER_SYNTAX);
+		uids.push_back(dicom::JPEG_SPECTRAL_SELECTION_HIERARCHICAL_PROCESS_20_22_TRANSFER_SYNTAX);
+		uids.push_back(dicom::JPEG_SPECTRAL_SELECTION_HIERARCHICAL_PROCESS_21_23_TRANSFER_SYNTAX);
+		uids.push_back(dicom::JPEG_FULL_PROGRESSION_HIERARCHICAL_PROCESS_24_26_TRANSFER_SYNTAX);
+		uids.push_back(dicom::JPEG_FULL_PROGRESSION_HIERARCHICAL_PROCESS_25_27_TRANSFER_SYNTAX);
+		uids.push_back(dicom::JPEG_LOSSLESS_HIERARCHICAL_PROCESS_28_TRANSFER_SYNTAX);
+		uids.push_back(dicom::JPEG_LOSSLESS_HIERARCHICAL_PROCESS_29_TRANSFER_SYNTAX);
+		return uids;
+	}
+
 	bool hasTransferSyntax(const dicom::PresentationContexts& contexts, const dicom::UID& uid)
 	{
 		assert(contexts.size() == 1);
@@ -283,6 +300,16 @@ int main()
 		assert(!smpteST2110.canPassThroughPixelData());
 		assert(!serverAccepts(server, smpteST2110Uids[i]));
 	}
+	const std::vector<dicom::UID> unsupportedRetiredJPEGUids = unsupportedRetiredJPEGTransferSyntaxes();
+	for(size_t i=0;i<unsupportedRetiredJPEGUids.size();++i)
+	{
+		dicom::TS jpeg(unsupportedRetiredJPEGUids[i]);
+		assert(jpeg.isEncapsulated());
+		assert(!jpeg.canDecodeDataset());
+		assert(!jpeg.hasCompiledPixelCodec());
+		assert(jpeg.canPassThroughPixelData() == static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH));
+		assert(serverAccepts(server, unsupportedRetiredJPEGUids[i]) == static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH));
+	}
 
 	dicom::PresentationContexts contexts;
 	contexts.Add(dicom::CT_IMAGE_STORAGE_SOP_CLASS);
@@ -337,6 +364,8 @@ int main()
 		assert(hasTransferSyntax(contexts, videoUids[i]) == static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH));
 	for(size_t i=0;i<smpteST2110Uids.size();++i)
 		assert(!hasTransferSyntax(contexts, smpteST2110Uids[i]));
+	for(size_t i=0;i<unsupportedRetiredJPEGUids.size();++i)
+		assert(hasTransferSyntax(contexts, unsupportedRetiredJPEGUids[i]) == static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH));
 
 	return 0;
 }

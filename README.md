@@ -107,6 +107,9 @@ Optional configuration:
   retired JPEG Process UIDs `1.2.840.10008.1.2.4.52`, `.53`, and `.55` are
   decoded through GDCM. Already-fragmented Pixel Data for those Transfer
   Syntaxes can be written without native recompression.
+- Retired JPEG Process UIDs `.54`, `.56`, and `.58` through `.66` have no local
+  decode/recompression path. Already-fragmented `OB` Pixel Data can be passed
+  through only when `DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH` is enabled.
 - `DICOMLIB_WITH_JPEG2000`: disabled by default; when enabled, JPEG 2000 Part 1
   Pixel Data for `1.2.840.10008.1.2.4.90` and `.91` is encoded and decoded in
   lossless mode through OpenJPEG.
