@@ -109,7 +109,8 @@ External dependency mapping:
   `charls`
 - JPEG 2000 Part 1: OpenJPEG through `pkg-config` module `libopenjp2`
 - High-Throughput JPEG 2000: OpenJPH through `pkg-config` module `openjph`
-- JPEG XL Lossless: libjxl through `pkg-config` module `libjxl`
+- JPEG XL Lossless and general JPEG XL: libjxl through `pkg-config` module
+  `libjxl`
 - MPEG and video transfer syntaxes: FFmpeg libraries `libavcodec`,
   `libavformat`, `libavutil`, and `libswscale`
 - General DICOM pixel codec backend: GDCM through CMake `find_package(GDCM)`

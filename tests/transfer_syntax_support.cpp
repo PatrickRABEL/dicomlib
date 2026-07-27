@@ -39,6 +39,7 @@ int main()
 	dicom::TS jpeg2000Lossless(dicom::JPEG2000_LOSSLESS_ONLY);
 	dicom::TS jpeg2000(dicom::JPEG2000);
 	dicom::TS jpegXLLossless(dicom::JPEG_XL_LOSSLESS_TRANSFER_SYNTAX);
+	dicom::TS jpegXL(dicom::JPEG_XL_TRANSFER_SYNTAX);
 	dicom::TS rle(dicom::RLE_LOSSLESS_TRANSFER_SYNTAX);
 
 	assert(implicitLittle.canDecodeDataset());
@@ -50,6 +51,7 @@ int main()
 	assert(jpeg2000Lossless.isEncapsulated());
 	assert(jpeg2000.isEncapsulated());
 	assert(jpegXLLossless.isEncapsulated());
+	assert(jpegXL.isEncapsulated());
 
 #if DICOMLIB_WITH_JPEG
 	assert(jpegBaseline.hasCompiledPixelCodec());
@@ -75,8 +77,10 @@ int main()
 
 #if DICOMLIB_WITH_JPEGXL
 	assert(jpegXLLossless.hasCompiledPixelCodec());
+	assert(jpegXL.hasCompiledPixelCodec());
 #else
 	assert(!jpegXLLossless.hasCompiledPixelCodec());
+	assert(!jpegXL.hasCompiledPixelCodec());
 #endif
 
 #if DICOMLIB_WITH_RLE
@@ -122,6 +126,8 @@ int main()
 		(static_cast<bool>(DICOMLIB_WITH_JPEG2000) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));
 	assert(serverAccepts(server, dicom::JPEG_XL_LOSSLESS_TRANSFER_SYNTAX) ==
 		(static_cast<bool>(DICOMLIB_WITH_JPEGXL) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));
+	assert(serverAccepts(server, dicom::JPEG_XL_TRANSFER_SYNTAX) ==
+		(static_cast<bool>(DICOMLIB_WITH_JPEGXL) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));
 
 	dicom::PresentationContexts contexts;
 	contexts.Add(dicom::CT_IMAGE_STORAGE_SOP_CLASS);
@@ -142,6 +148,8 @@ int main()
 	assert(hasTransferSyntax(contexts, dicom::JPEG2000) ==
 		(static_cast<bool>(DICOMLIB_WITH_JPEG2000) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));
 	assert(hasTransferSyntax(contexts, dicom::JPEG_XL_LOSSLESS_TRANSFER_SYNTAX) ==
+		(static_cast<bool>(DICOMLIB_WITH_JPEGXL) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));
+	assert(hasTransferSyntax(contexts, dicom::JPEG_XL_TRANSFER_SYNTAX) ==
 		(static_cast<bool>(DICOMLIB_WITH_JPEGXL) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));
 
 	return 0;

@@ -10,7 +10,9 @@
 #include <jxl/decode.h>
 #include <jxl/encode.h>
 
+#include <iomanip>
 #include <memory>
+#include <sstream>
 #include <string>
 #endif
 
@@ -110,6 +112,25 @@ namespace dicom
 			return copy;
 		}
 
+		void PutSingleStringValue(DataSet& data, Tag tag, VR vr, const std::string& value)
+		{
+			data.erase(tag);
+			if(vr == VR_CS)
+				data.Put<VR_CS>(tag, value);
+			else if(vr == VR_DS)
+				data.Put<VR_DS>(tag, value);
+			else
+				throw exception("Unsupported JPEG XL metadata VR");
+		}
+
+		std::string CompressionRatioString(size_t nativeSize, size_t encodedSize)
+		{
+			Enforce(encodedSize != 0, "JPEG XL encoded Pixel Data is empty");
+			std::ostringstream ratio;
+			ratio << std::setprecision(6) << (double(nativeSize) / double(encodedSize));
+			return ratio.str();
+		}
+
 		std::vector<BYTE> NativePixelBytes(const DataSet& data, const ImageGeometry& geometry)
 		{
 			if(geometry.bitsAllocated == 8)
@@ -148,10 +169,17 @@ namespace dicom
 			return format;
 		}
 
-		std::vector<BYTE> EncodeJPEGXL(const std::vector<BYTE>& pixels, const ImageGeometry& geometry)
+		std::vector<BYTE> EncodeJPEGXL(
+			const std::vector<BYTE>& pixels,
+			const ImageGeometry& geometry,
+			bool lossless,
+			float distance)
 		{
 			Enforce(pixels.size() == ExpectedNativeSize(geometry),
 				"Native Pixel Data size is inconsistent with JPEG XL image attributes");
+			if(!lossless)
+				Enforce(distance > 0.0f && distance <= 25.0f,
+					"JPEG XL lossy distance must be greater than 0 and less than or equal to 25");
 
 			EncoderPtr encoder(JxlEncoderCreate(0));
 			Enforce(encoder.get() != 0, "Failed to create JPEG XL encoder");
@@ -180,10 +208,18 @@ namespace dicom
 			const JxlBitDepth bitDepth = {JXL_BIT_DEPTH_FROM_CODESTREAM, 0, 0};
 			EnforceJxlEncoder(JxlEncoderSetFrameBitDepth(settings, &bitDepth),
 				"Failed to set JPEG XL input bit depth");
-			EnforceJxlEncoder(JxlEncoderSetFrameLossless(settings, JXL_TRUE),
-				"Failed to enable JPEG XL lossless mode");
-			EnforceJxlEncoder(JxlEncoderSetFrameDistance(settings, 0.0f),
-				"Failed to set JPEG XL lossless distance");
+			if(lossless)
+			{
+				EnforceJxlEncoder(JxlEncoderSetFrameLossless(settings, JXL_TRUE),
+					"Failed to enable JPEG XL lossless mode");
+				EnforceJxlEncoder(JxlEncoderSetFrameDistance(settings, 0.0f),
+					"Failed to set JPEG XL lossless distance");
+			}
+			else
+			{
+				EnforceJxlEncoder(JxlEncoderSetFrameDistance(settings, distance),
+					"Failed to set JPEG XL lossy distance");
+			}
 
 			const JxlPixelFormat format = PixelFormat(geometry);
 			EnforceJxlEncoder(JxlEncoderAddImageFrame(settings, &format, pixels.data(), pixels.size()),
@@ -295,14 +331,56 @@ namespace dicom
 #endif
 	}
 
+	void DecodeJPEGXLPixelData(DataSet& data)
+	{
+#if DICOMLIB_WITH_JPEGXL
+		const ImageGeometry geometry = ReadImageGeometry(data);
+		const std::vector<BYTE> codestream = ConcatenateFragments(data);
+		const std::vector<BYTE> pixels = DecodeJPEGXL(codestream, geometry);
+		data.erase(TAG_PIXEL_DATA);
+		if(geometry.bitsAllocated == 8)
+			data.Put<VR_OB>(TAG_PIXEL_DATA, pixels);
+		else
+		{
+			std::vector<UINT16> words(pixels.size() / 2, 0);
+			for(size_t i=0;i<words.size();++i)
+				words[i] = UINT16(pixels[i * 2]) | (UINT16(pixels[i * 2 + 1]) << 8);
+			data.Put<VR_OW>(TAG_PIXEL_DATA, words);
+		}
+#else
+		(void)data;
+		throw exception("JPEG XL requires DICOMLIB_WITH_JPEGXL");
+#endif
+	}
+
 	DataSet EncodeJPEGXLLosslessPixelData(const DataSet& data)
 	{
 #if DICOMLIB_WITH_JPEGXL
 		const ImageGeometry geometry = ReadImageGeometry(data);
 		const std::vector<BYTE> pixels = NativePixelBytes(data, geometry);
 		DataSet encodedData = CopyWithoutPixelData(data);
-		const std::vector<BYTE> encoded = EncodeJPEGXL(pixels, geometry);
+		const std::vector<BYTE> encoded = EncodeJPEGXL(pixels, geometry, true, 0.0f);
 		encodedData.Put<VR_OB>(TAG_PIXEL_DATA, encoded);
+		return encodedData;
+#else
+		(void)data;
+		throw exception("JPEG XL requires DICOMLIB_WITH_JPEGXL");
+#endif
+	}
+
+	DataSet EncodeJPEGXLPixelData(const DataSet& data)
+	{
+#if DICOMLIB_WITH_JPEGXL
+		const ImageGeometry geometry = ReadImageGeometry(data);
+		const std::vector<BYTE> pixels = NativePixelBytes(data, geometry);
+		DataSet encodedData = CopyWithoutPixelData(data);
+		const std::vector<BYTE> encoded =
+			EncodeJPEGXL(pixels, geometry, false, static_cast<float>(DICOMLIB_JPEGXL_DISTANCE));
+		encodedData.Put<VR_OB>(TAG_PIXEL_DATA, encoded);
+		PutSingleStringValue(encodedData, TAG_LOSSY_IMAGE_COMPRESSION, VR_CS, "01");
+		PutSingleStringValue(encodedData, TAG_LOSSY_IMAGE_COMPRESSION_RATIO, VR_DS,
+			CompressionRatioString(pixels.size(), encoded.size()));
+		PutSingleStringValue(encodedData, TAG_LOSSY_IMAGE_COMPRESSION_METHOD, VR_CS, "ISO_18181_1");
 		return encodedData;
 #else
 		(void)data;
