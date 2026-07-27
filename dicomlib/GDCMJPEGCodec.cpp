@@ -72,6 +72,12 @@ namespace dicom
 		{
 			if(transferSyntaxUID == JPEG_EXTENDED_PROCESS_2_4_TRANSFER_SYNTAX)
 				return gdcm::TransferSyntax(gdcm::TransferSyntax::JPEGExtendedProcess2_4);
+			if(transferSyntaxUID == JPEG_EXTENDED_PROCESS_3_5_TRANSFER_SYNTAX)
+				return gdcm::TransferSyntax(gdcm::TransferSyntax::JPEGExtendedProcess3_5);
+			if(transferSyntaxUID == JPEG_SPECTRAL_SELECTION_PROCESS_6_8_TRANSFER_SYNTAX)
+				return gdcm::TransferSyntax(gdcm::TransferSyntax::JPEGSpectralSelectionProcess6_8);
+			if(transferSyntaxUID == JPEG_FULL_PROGRESSION_PROCESS_10_12_TRANSFER_SYNTAX)
+				return gdcm::TransferSyntax(gdcm::TransferSyntax::JPEGFullProgressionProcess10_12);
 			if(transferSyntaxUID == JPEG_LOSSLESS_PROCESS_14_TRANSFER_SYNTAX)
 				return gdcm::TransferSyntax(gdcm::TransferSyntax::JPEGLosslessProcess14);
 			if(transferSyntaxUID == JPEG_LOSSLESS_NON_HIERARCHICAL)

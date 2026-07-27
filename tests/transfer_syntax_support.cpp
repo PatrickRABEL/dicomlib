@@ -36,6 +36,9 @@ int main()
 	dicom::TS deflated(dicom::DEFLATED_EXPL_VR_LE_TRANSFER_SYNTAX);
 	dicom::TS jpegBaseline(dicom::JPEG_BASELINE_TRANSFER_SYNTAX);
 	dicom::TS jpegExtendedProcess24(dicom::JPEG_EXTENDED_PROCESS_2_4_TRANSFER_SYNTAX);
+	dicom::TS jpegExtendedProcess35(dicom::JPEG_EXTENDED_PROCESS_3_5_TRANSFER_SYNTAX);
+	dicom::TS jpegSpectralSelectionProcess68(dicom::JPEG_SPECTRAL_SELECTION_PROCESS_6_8_TRANSFER_SYNTAX);
+	dicom::TS jpegFullProgressionProcess1012(dicom::JPEG_FULL_PROGRESSION_PROCESS_10_12_TRANSFER_SYNTAX);
 	dicom::TS jpegLosslessProcess14(dicom::JPEG_LOSSLESS_PROCESS_14_TRANSFER_SYNTAX);
 	dicom::TS jpegLosslessProcess14SV1(dicom::JPEG_LOSSLESS_NON_HIERARCHICAL);
 	dicom::TS jpegLSLossless(dicom::JPEG_LS_LOSSLESS_TRANSFER_SYNTAX);
@@ -57,6 +60,9 @@ int main()
 	assert(!jpegBaseline.canDecodeDataset());
 	assert(jpegBaseline.isEncapsulated());
 	assert(jpegExtendedProcess24.isEncapsulated());
+	assert(jpegExtendedProcess35.isEncapsulated());
+	assert(jpegSpectralSelectionProcess68.isEncapsulated());
+	assert(jpegFullProgressionProcess1012.isEncapsulated());
 	assert(jpegLosslessProcess14.isEncapsulated());
 	assert(jpegLosslessProcess14SV1.isEncapsulated());
 	assert(jpegLSLossless.isEncapsulated());
@@ -78,10 +84,16 @@ int main()
 
 #if DICOMLIB_WITH_GDCM
 	assert(jpegExtendedProcess24.hasCompiledPixelCodec());
+	assert(jpegExtendedProcess35.hasCompiledPixelCodec());
+	assert(jpegSpectralSelectionProcess68.hasCompiledPixelCodec());
+	assert(jpegFullProgressionProcess1012.hasCompiledPixelCodec());
 	assert(jpegLosslessProcess14.hasCompiledPixelCodec());
 	assert(jpegLosslessProcess14SV1.hasCompiledPixelCodec());
 #else
 	assert(!jpegExtendedProcess24.hasCompiledPixelCodec());
+	assert(!jpegExtendedProcess35.hasCompiledPixelCodec());
+	assert(!jpegSpectralSelectionProcess68.hasCompiledPixelCodec());
+	assert(!jpegFullProgressionProcess1012.hasCompiledPixelCodec());
 	assert(!jpegLosslessProcess14.hasCompiledPixelCodec());
 	assert(!jpegLosslessProcess14SV1.hasCompiledPixelCodec());
 #endif
@@ -158,6 +170,12 @@ int main()
 		(static_cast<bool>(DICOMLIB_WITH_JPEG) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));
 	assert(serverAccepts(server, dicom::JPEG_EXTENDED_PROCESS_2_4_TRANSFER_SYNTAX) ==
 		(static_cast<bool>(DICOMLIB_WITH_GDCM) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));
+	assert(serverAccepts(server, dicom::JPEG_EXTENDED_PROCESS_3_5_TRANSFER_SYNTAX) ==
+		(static_cast<bool>(DICOMLIB_WITH_GDCM) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));
+	assert(serverAccepts(server, dicom::JPEG_SPECTRAL_SELECTION_PROCESS_6_8_TRANSFER_SYNTAX) ==
+		(static_cast<bool>(DICOMLIB_WITH_GDCM) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));
+	assert(serverAccepts(server, dicom::JPEG_FULL_PROGRESSION_PROCESS_10_12_TRANSFER_SYNTAX) ==
+		(static_cast<bool>(DICOMLIB_WITH_GDCM) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));
 	assert(serverAccepts(server, dicom::JPEG_LOSSLESS_PROCESS_14_TRANSFER_SYNTAX) ==
 		(static_cast<bool>(DICOMLIB_WITH_GDCM) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));
 	assert(serverAccepts(server, dicom::JPEG_LOSSLESS_NON_HIERARCHICAL) ==
@@ -195,6 +213,12 @@ int main()
 	assert(hasTransferSyntax(contexts, dicom::JPEG_BASELINE_TRANSFER_SYNTAX) ==
 		(static_cast<bool>(DICOMLIB_WITH_JPEG) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));
 	assert(hasTransferSyntax(contexts, dicom::JPEG_EXTENDED_PROCESS_2_4_TRANSFER_SYNTAX) ==
+		(static_cast<bool>(DICOMLIB_WITH_GDCM) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));
+	assert(hasTransferSyntax(contexts, dicom::JPEG_EXTENDED_PROCESS_3_5_TRANSFER_SYNTAX) ==
+		(static_cast<bool>(DICOMLIB_WITH_GDCM) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));
+	assert(hasTransferSyntax(contexts, dicom::JPEG_SPECTRAL_SELECTION_PROCESS_6_8_TRANSFER_SYNTAX) ==
+		(static_cast<bool>(DICOMLIB_WITH_GDCM) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));
+	assert(hasTransferSyntax(contexts, dicom::JPEG_FULL_PROGRESSION_PROCESS_10_12_TRANSFER_SYNTAX) ==
 		(static_cast<bool>(DICOMLIB_WITH_GDCM) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));
 	assert(hasTransferSyntax(contexts, dicom::JPEG_LOSSLESS_PROCESS_14_TRANSFER_SYNTAX) ==
 		(static_cast<bool>(DICOMLIB_WITH_GDCM) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));

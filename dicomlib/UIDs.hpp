@@ -47,6 +47,15 @@ namespace dicom
 	//!JPEG Extended compression (coding processes 2 and 4)
 	const UID JPEG_EXTENDED_PROCESS_2_4_TRANSFER_SYNTAX = UID("1.2.840.10008.1.2.4.51");
 
+	//!JPEG Extended compression (coding processes 3 and 5) (Retired)
+	const UID JPEG_EXTENDED_PROCESS_3_5_TRANSFER_SYNTAX = UID("1.2.840.10008.1.2.4.52");
+
+	//!JPEG Spectral Selection, Non-Hierarchical (coding processes 6 and 8) (Retired)
+	const UID JPEG_SPECTRAL_SELECTION_PROCESS_6_8_TRANSFER_SYNTAX = UID("1.2.840.10008.1.2.4.53");
+
+	//!JPEG Full Progression, Non-Hierarchical (coding processes 10 and 12) (Retired)
+	const UID JPEG_FULL_PROGRESSION_PROCESS_10_12_TRANSFER_SYNTAX = UID("1.2.840.10008.1.2.4.55");
+
 	//!JPEG Lossless compression (coding process 14)
 	const UID JPEG_LOSSLESS_PROCESS_14_TRANSFER_SYNTAX = UID("1.2.840.10008.1.2.4.57");
 

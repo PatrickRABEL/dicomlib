@@ -26,7 +26,7 @@
 namespace
 {
 #if DICOMLIB_WITH_GDCM
-	dicom::TypeFromVR<dicom::VR_OB>::Type makeGDCMJPEGLosslessFragment(
+	dicom::TypeFromVR<dicom::VR_OB>::Type makeGDCM8BitJPEGFragment(
 		const dicom::TypeFromVR<dicom::VR_OB>::Type& pixels,
 		UINT16 rows,
 		UINT16 columns,
@@ -424,6 +424,60 @@ namespace
 			assert(decodedPixels[i] == decodedPixels[0]);
 	}
 
+	void assertGDCMRetiredJPEG8BitRoundTrip(const dicom::UID& transferSyntaxUID, gdcm::TransferSyntax::TSType gdcmTransferSyntax)
+	{
+		dicom::DataSet source;
+		source.Put<dicom::VR_UI>(dicom::TAG_SOP_CLASS_UID, dicom::SC_IMAGE_STORAGE_SOP_CLASS);
+		source.Put<dicom::VR_UI>(dicom::TAG_SOP_INST_UID, dicom::UID("1.2.826.0.1.3680043.10.22"));
+		source.Put<dicom::VR_US>(dicom::TAG_ROWS, UINT16(8));
+		source.Put<dicom::VR_US>(dicom::TAG_COLUMNS, UINT16(8));
+		source.Put<dicom::VR_US>(dicom::TAG_SAMPLES_PER_PX, UINT16(1));
+		source.Put<dicom::VR_CS>(dicom::TAG_PHOTOMETRIC, std::string("MONOCHROME2"));
+		source.Put<dicom::VR_US>(dicom::TAG_BITS_ALLOC, UINT16(8));
+		source.Put<dicom::VR_US>(dicom::TAG_BITS_STORED, UINT16(8));
+		source.Put<dicom::VR_US>(dicom::TAG_HIGH_BIT, UINT16(7));
+		source.Put<dicom::VR_US>(dicom::TAG_PX_REPRESENT, UINT16(0));
+
+		dicom::TypeFromVR<dicom::VR_OB>::Type pixels(64, 128);
+		source.Put<dicom::VR_OB>(
+			dicom::TAG_PIXEL_DATA,
+			makeGDCM8BitJPEGFragment(pixels, 8, 8, gdcmTransferSyntax));
+
+		dicom::TS ts(transferSyntaxUID);
+		dicom::Buffer encoded(__LITTLE_ENDIAN);
+		dicom::WriteToBuffer(source, encoded, ts);
+
+		dicom::DataSet decoded;
+		dicom::ReadFromBuffer(encoded, decoded, ts);
+
+		dicom::TypeFromVR<dicom::VR_OB>::Type decodedPixels;
+		decoded(dicom::TAG_PIXEL_DATA) >> decodedPixels;
+		assert(decodedPixels.size() == pixels.size());
+		for(size_t i=0;i<decodedPixels.size();++i)
+			assert(decodedPixels[i] >= 120 && decodedPixels[i] <= 136);
+	}
+
+	void assertGDCMJPEGExtendedProcess35RoundTrip()
+	{
+		assertGDCMRetiredJPEG8BitRoundTrip(
+			dicom::JPEG_EXTENDED_PROCESS_3_5_TRANSFER_SYNTAX,
+			gdcm::TransferSyntax::JPEGExtendedProcess3_5);
+	}
+
+	void assertGDCMJPEGSpectralSelectionProcess68RoundTrip()
+	{
+		assertGDCMRetiredJPEG8BitRoundTrip(
+			dicom::JPEG_SPECTRAL_SELECTION_PROCESS_6_8_TRANSFER_SYNTAX,
+			gdcm::TransferSyntax::JPEGSpectralSelectionProcess6_8);
+	}
+
+	void assertGDCMJPEGFullProgressionProcess1012RoundTrip()
+	{
+		assertGDCMRetiredJPEG8BitRoundTrip(
+			dicom::JPEG_FULL_PROGRESSION_PROCESS_10_12_TRANSFER_SYNTAX,
+			gdcm::TransferSyntax::JPEGFullProgressionProcess10_12);
+	}
+
 	void assertGDCMJPEGLosslessRoundTrip(const dicom::UID& transferSyntaxUID, gdcm::TransferSyntax::TSType gdcmTransferSyntax)
 	{
 		dicom::DataSet source;
@@ -443,7 +497,7 @@ namespace
 			pixels.push_back(BYTE((i * 5) & 0xff));
 		source.Put<dicom::VR_OB>(
 			dicom::TAG_PIXEL_DATA,
-			makeGDCMJPEGLosslessFragment(pixels, 8, 8, gdcmTransferSyntax));
+			makeGDCM8BitJPEGFragment(pixels, 8, 8, gdcmTransferSyntax));
 
 		dicom::TS ts(transferSyntaxUID);
 		dicom::Buffer encoded(__LITTLE_ENDIAN);
@@ -960,6 +1014,9 @@ int main()
 
 #if DICOMLIB_WITH_GDCM
 	assertGDCMJPEGExtendedProcess24RoundTrip();
+	assertGDCMJPEGExtendedProcess35RoundTrip();
+	assertGDCMJPEGSpectralSelectionProcess68RoundTrip();
+	assertGDCMJPEGFullProgressionProcess1012RoundTrip();
 	assertGDCMJPEGLosslessProcess14RoundTrip();
 	assertGDCMJPEGLosslessProcess14SV1RoundTrip();
 	assertGDCMJPEGLosslessProcess14SV116BitRoundTrip();
