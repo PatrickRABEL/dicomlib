@@ -73,6 +73,105 @@ namespace
 			fragment.push_back(0);
 		return fragment;
 	}
+
+	dicom::TypeFromVR<dicom::VR_OB>::Type makeGDCMJPEGExtended12BitFragment(
+		const dicom::TypeFromVR<dicom::VR_OW>::Type& pixels,
+		UINT16 rows,
+		UINT16 columns)
+	{
+		gdcm::DataElement native(gdcm::Tag(0x7fe0, 0x0010));
+		native.SetVR(gdcm::VR::OW);
+		native.SetByteValue(
+			reinterpret_cast<const char*>(pixels.data()),
+			static_cast<uint32_t>(pixels.size() * sizeof(UINT16)));
+
+		gdcm::SmartPointer<gdcm::Image> image = new gdcm::Image;
+		const unsigned int dimensions[3] = {columns, rows, 1};
+		image->SetNumberOfDimensions(2);
+		image->SetDimensions(dimensions);
+		image->SetPlanarConfiguration(0);
+		image->SetPhotometricInterpretation(
+			gdcm::PhotometricInterpretation(gdcm::PhotometricInterpretation::MONOCHROME2));
+		image->SetPixelFormat(gdcm::PixelFormat(1, 16, 12, 11, 0));
+		image->SetTransferSyntax(gdcm::TransferSyntax(gdcm::TransferSyntax::ExplicitVRLittleEndian));
+		image->SetDataElement(native);
+
+		gdcm::ImageChangeTransferSyntax change;
+		change.SetInput(*image);
+		change.SetTransferSyntax(gdcm::TransferSyntax(gdcm::TransferSyntax::JPEGExtendedProcess2_4));
+		if(!change.Change())
+			std::abort();
+		const gdcm::DataElement& encoded = change.GetOutput().GetDataElement();
+		const gdcm::SequenceOfFragments* fragments = encoded.GetSequenceOfFragments();
+		const gdcm::ByteValue* value = 0;
+		if(fragments != 0 && fragments->GetNumberOfFragments() == 1)
+			value = fragments->GetFragment(0).GetByteValue();
+		else
+			value = encoded.GetByteValue();
+		if(value == 0)
+			std::abort();
+		const size_t length = static_cast<size_t>(value->GetLength());
+		const char* pointer = value->GetPointer();
+		if(length != 0 && pointer == 0)
+			std::abort();
+
+		dicom::TypeFromVR<dicom::VR_OB>::Type fragment(length, 0);
+		for(size_t i=0;i<length;++i)
+			fragment[i] = static_cast<BYTE>(pointer[i]);
+		if(fragment.size() & 1)
+			fragment.push_back(0);
+		return fragment;
+	}
+
+	dicom::TypeFromVR<dicom::VR_OB>::Type makeGDCMJPEGLossless16BitFragment(
+		const dicom::TypeFromVR<dicom::VR_OW>::Type& pixels,
+		UINT16 rows,
+		UINT16 columns,
+		gdcm::TransferSyntax::TSType transferSyntax)
+	{
+		gdcm::DataElement native(gdcm::Tag(0x7fe0, 0x0010));
+		native.SetVR(gdcm::VR::OW);
+		native.SetByteValue(
+			reinterpret_cast<const char*>(pixels.data()),
+			static_cast<uint32_t>(pixels.size() * sizeof(UINT16)));
+
+		gdcm::SmartPointer<gdcm::Image> image = new gdcm::Image;
+		const unsigned int dimensions[3] = {columns, rows, 1};
+		image->SetNumberOfDimensions(2);
+		image->SetDimensions(dimensions);
+		image->SetPlanarConfiguration(0);
+		image->SetPhotometricInterpretation(
+			gdcm::PhotometricInterpretation(gdcm::PhotometricInterpretation::MONOCHROME2));
+		image->SetPixelFormat(gdcm::PixelFormat(1, 16, 16, 15, 0));
+		image->SetTransferSyntax(gdcm::TransferSyntax(gdcm::TransferSyntax::ExplicitVRLittleEndian));
+		image->SetDataElement(native);
+
+		gdcm::ImageChangeTransferSyntax change;
+		change.SetInput(*image);
+		change.SetTransferSyntax(gdcm::TransferSyntax(transferSyntax));
+		if(!change.Change())
+			std::abort();
+		const gdcm::DataElement& encoded = change.GetOutput().GetDataElement();
+		const gdcm::SequenceOfFragments* fragments = encoded.GetSequenceOfFragments();
+		const gdcm::ByteValue* value = 0;
+		if(fragments != 0 && fragments->GetNumberOfFragments() == 1)
+			value = fragments->GetFragment(0).GetByteValue();
+		else
+			value = encoded.GetByteValue();
+		if(value == 0)
+			std::abort();
+		const size_t length = static_cast<size_t>(value->GetLength());
+		const char* pointer = value->GetPointer();
+		if(length != 0 && pointer == 0)
+			std::abort();
+
+		dicom::TypeFromVR<dicom::VR_OB>::Type fragment(length, 0);
+		for(size_t i=0;i<length;++i)
+			fragment[i] = static_cast<BYTE>(pointer[i]);
+		if(fragment.size() & 1)
+			fragment.push_back(0);
+		return fragment;
+	}
 #endif
 
 	dicom::DataSet makeDataSet()
@@ -290,6 +389,41 @@ namespace
 	}
 
 #if DICOMLIB_WITH_GDCM
+	void assertGDCMJPEGExtendedProcess24RoundTrip()
+	{
+		dicom::DataSet source;
+		source.Put<dicom::VR_UI>(dicom::TAG_SOP_CLASS_UID, dicom::SC_IMAGE_STORAGE_SOP_CLASS);
+		source.Put<dicom::VR_UI>(dicom::TAG_SOP_INST_UID, dicom::UID("1.2.826.0.1.3680043.10.19"));
+		source.Put<dicom::VR_US>(dicom::TAG_ROWS, UINT16(8));
+		source.Put<dicom::VR_US>(dicom::TAG_COLUMNS, UINT16(8));
+		source.Put<dicom::VR_US>(dicom::TAG_SAMPLES_PER_PX, UINT16(1));
+		source.Put<dicom::VR_CS>(dicom::TAG_PHOTOMETRIC, std::string("MONOCHROME2"));
+		source.Put<dicom::VR_US>(dicom::TAG_BITS_ALLOC, UINT16(16));
+		source.Put<dicom::VR_US>(dicom::TAG_BITS_STORED, UINT16(12));
+		source.Put<dicom::VR_US>(dicom::TAG_HIGH_BIT, UINT16(11));
+		source.Put<dicom::VR_US>(dicom::TAG_PX_REPRESENT, UINT16(0));
+
+		dicom::TypeFromVR<dicom::VR_OW>::Type pixels(64, 1024);
+		source.Put<dicom::VR_OB>(
+			dicom::TAG_PIXEL_DATA,
+			makeGDCMJPEGExtended12BitFragment(pixels, 8, 8));
+
+		dicom::TS ts(dicom::JPEG_EXTENDED_PROCESS_2_4_TRANSFER_SYNTAX);
+		dicom::Buffer encoded(__LITTLE_ENDIAN);
+		dicom::WriteToBuffer(source, encoded, ts);
+
+		dicom::DataSet decoded;
+		dicom::ReadFromBuffer(encoded, decoded, ts);
+
+		dicom::TypeFromVR<dicom::VR_OW>::Type decodedPixels;
+		decoded(dicom::TAG_PIXEL_DATA) >> decodedPixels;
+		assert(decodedPixels.size() == pixels.size());
+		assert(decodedPixels[0] > 0);
+		assert(decodedPixels[0] <= 0x0fff);
+		for(size_t i=0;i<decodedPixels.size();++i)
+			assert(decodedPixels[i] == decodedPixels[0]);
+	}
+
 	void assertGDCMJPEGLosslessRoundTrip(const dicom::UID& transferSyntaxUID, gdcm::TransferSyntax::TSType gdcmTransferSyntax)
 	{
 		dicom::DataSet source;
@@ -335,6 +469,40 @@ namespace
 		assertGDCMJPEGLosslessRoundTrip(
 			dicom::JPEG_LOSSLESS_NON_HIERARCHICAL,
 			gdcm::TransferSyntax::JPEGLosslessProcess14_1);
+	}
+
+	void assertGDCMJPEGLosslessProcess14SV116BitRoundTrip()
+	{
+		dicom::DataSet source;
+		source.Put<dicom::VR_UI>(dicom::TAG_SOP_CLASS_UID, dicom::SC_IMAGE_STORAGE_SOP_CLASS);
+		source.Put<dicom::VR_UI>(dicom::TAG_SOP_INST_UID, dicom::UID("1.2.826.0.1.3680043.10.20"));
+		source.Put<dicom::VR_US>(dicom::TAG_ROWS, UINT16(8));
+		source.Put<dicom::VR_US>(dicom::TAG_COLUMNS, UINT16(8));
+		source.Put<dicom::VR_US>(dicom::TAG_SAMPLES_PER_PX, UINT16(1));
+		source.Put<dicom::VR_CS>(dicom::TAG_PHOTOMETRIC, std::string("MONOCHROME2"));
+		source.Put<dicom::VR_US>(dicom::TAG_BITS_ALLOC, UINT16(16));
+		source.Put<dicom::VR_US>(dicom::TAG_BITS_STORED, UINT16(16));
+		source.Put<dicom::VR_US>(dicom::TAG_HIGH_BIT, UINT16(15));
+		source.Put<dicom::VR_US>(dicom::TAG_PX_REPRESENT, UINT16(0));
+
+		dicom::TypeFromVR<dicom::VR_OW>::Type pixels;
+		for(size_t i=0;i<64;++i)
+			pixels.push_back(UINT16(0x1000 + i * 17));
+		source.Put<dicom::VR_OB>(
+			dicom::TAG_PIXEL_DATA,
+			makeGDCMJPEGLossless16BitFragment(
+				pixels, 8, 8, gdcm::TransferSyntax::JPEGLosslessProcess14_1));
+
+		dicom::TS ts(dicom::JPEG_LOSSLESS_NON_HIERARCHICAL);
+		dicom::Buffer encoded(__LITTLE_ENDIAN);
+		dicom::WriteToBuffer(source, encoded, ts);
+
+		dicom::DataSet decoded;
+		dicom::ReadFromBuffer(encoded, decoded, ts);
+
+		dicom::TypeFromVR<dicom::VR_OW>::Type decodedPixels;
+		decoded(dicom::TAG_PIXEL_DATA) >> decodedPixels;
+		assert(decodedPixels == pixels);
 	}
 #endif
 
@@ -791,8 +959,10 @@ int main()
 #endif
 
 #if DICOMLIB_WITH_GDCM
+	assertGDCMJPEGExtendedProcess24RoundTrip();
 	assertGDCMJPEGLosslessProcess14RoundTrip();
 	assertGDCMJPEGLosslessProcess14SV1RoundTrip();
+	assertGDCMJPEGLosslessProcess14SV116BitRoundTrip();
 #endif
 
 #if DICOMLIB_WITH_JPEG2000

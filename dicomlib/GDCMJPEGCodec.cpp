@@ -70,6 +70,8 @@ namespace dicom
 
 		gdcm::TransferSyntax GDCMTransferSyntax(const UID& transferSyntaxUID)
 		{
+			if(transferSyntaxUID == JPEG_EXTENDED_PROCESS_2_4_TRANSFER_SYNTAX)
+				return gdcm::TransferSyntax(gdcm::TransferSyntax::JPEGExtendedProcess2_4);
 			if(transferSyntaxUID == JPEG_LOSSLESS_PROCESS_14_TRANSFER_SYNTAX)
 				return gdcm::TransferSyntax(gdcm::TransferSyntax::JPEGLosslessProcess14);
 			if(transferSyntaxUID == JPEG_LOSSLESS_NON_HIERARCHICAL)
@@ -152,7 +154,9 @@ namespace dicom
 			geometry.highBit,
 			geometry.pixelRepresentation));
 		codec.SetLossyFlag(GDCMTransferSyntax(transferSyntaxUID).IsLossy());
-		codec.SetNeedByteSwap(false);
+		codec.SetNeedByteSwap(
+			geometry.bitsAllocated > 8 &&
+			transferSyntaxUID == JPEG_EXTENDED_PROCESS_2_4_TRANSFER_SYNTAX);
 
 		gdcm::DataElement decoded(gdcm::Tag(0x7fe0, 0x0010));
 		Enforce(codec.Decode(GDCMFragmentedPixelData(data), decoded),

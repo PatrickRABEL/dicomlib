@@ -542,18 +542,19 @@ namespace dicom
 			throw exception("JPEG Baseline requires DICOMLIB_WITH_JPEG");
 #endif
 		}
-		if(transfer_syntax.getUID() == JPEG_LOSSLESS_PROCESS_14_TRANSFER_SYNTAX ||
+		if(transfer_syntax.getUID() == JPEG_EXTENDED_PROCESS_2_4_TRANSFER_SYNTAX ||
+			transfer_syntax.getUID() == JPEG_LOSSLESS_PROCESS_14_TRANSFER_SYNTAX ||
 			transfer_syntax.getUID() == JPEG_LOSSLESS_NON_HIERARCHICAL)
 		{
 #if DICOMLIB_WITH_GDCM
 			std::vector<Value> fragments = data.Values(TAG_PIXEL_DATA);
-			Enforce(!fragments.empty(), "GDCM JPEG Lossless Pixel Data has no fragments");
+			Enforce(!fragments.empty(), "GDCM JPEG Pixel Data has no fragments");
 			for(size_t i=0;i<fragments.size();++i)
-				Enforce(fragments[i].vr() == VR_OB, "GDCM JPEG Lossless fragments must be OB");
+				Enforce(fragments[i].vr() == VR_OB, "GDCM JPEG fragments must be OB");
 			Encoder E(buffer,data,transfer_syntax);
 			return E.Encode();
 #else
-			throw exception("GDCM JPEG Lossless requires DICOMLIB_WITH_GDCM");
+			throw exception("GDCM JPEG requires DICOMLIB_WITH_GDCM");
 #endif
 		}
 		if(transfer_syntax.getUID() == JPEG2000_LOSSLESS_ONLY || transfer_syntax.getUID() == JPEG2000)

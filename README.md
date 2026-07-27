@@ -88,8 +88,9 @@ Optional configuration:
 - `DICOMLIB_WITH_JPEG`: disabled by default; when enabled, JPEG Baseline 8-bit
   lossy Pixel Data is encoded and decoded through libjpeg/libjpeg-turbo, and
   lossy compression attributes are written during encode.
-- `DICOMLIB_WITH_GDCM`: disabled by default; when enabled, JPEG Lossless
-  Process 14 Pixel Data for `1.2.840.10008.1.2.4.57` and JPEG Lossless
+- `DICOMLIB_WITH_GDCM`: disabled by default; when enabled, JPEG Extended
+  Process 2 & 4 Pixel Data for `1.2.840.10008.1.2.4.51`, JPEG Lossless
+  Process 14 Pixel Data for `1.2.840.10008.1.2.4.57`, and JPEG Lossless
   Process 14 Selection Value 1 Pixel Data for `1.2.840.10008.1.2.4.70` are
   decoded through GDCM, and already-fragmented Pixel Data for those Transfer
   Syntaxes can be written without native recompression.
@@ -114,8 +115,8 @@ External dependency mapping:
 - RLE Lossless: no external library required
 - JPEG Baseline: libjpeg or libjpeg-turbo through the standard CMake `JPEG`
   package
-- JPEG Lossless Process 14 and Process 14 Selection Value 1: GDCM through CMake
-  `find_package(GDCM)`
+- JPEG Extended Process 2 & 4, JPEG Lossless Process 14, and Process 14
+  Selection Value 1: GDCM through CMake `find_package(GDCM)`
 - JPEG-LS Lossless and Near-Lossless: CharLS through `pkg-config` module
   `charls`
 - JPEG 2000 Part 1: OpenJPEG through `pkg-config` module `libopenjp2`
