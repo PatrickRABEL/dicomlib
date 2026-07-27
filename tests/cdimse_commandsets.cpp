@@ -1,8 +1,12 @@
 #include "dicomlib/Cdimse.hpp"
 #include "dicomlib/CommandSets.hpp"
+#include "dicomlib/PresentationContexts.hpp"
 
 #include <cassert>
 #include <exception>
+#include <string>
+#include <sys/socket.h>
+#include <unistd.h>
 
 namespace
 {
@@ -21,6 +25,76 @@ namespace
 			return 0;
 		}
 	};
+
+	class PairedSocket : public Network::Socket
+	{
+		SOCKET fd_;
+	public:
+		explicit PairedSocket(SOCKET fd)
+		: fd_(fd)
+		{
+		}
+
+		~PairedSocket()
+		{
+			if(fd_ >= 0)
+				::close(fd_);
+		}
+
+		SOCKET GetSocketDescriptor() const
+		{
+			return fd_;
+		}
+
+		std::string get_remote_ip() const
+		{
+			return "";
+		}
+	};
+
+	struct PairedService : public dicom::ServiceBase
+	{
+		PairedSocket socket_;
+
+		PairedService(SOCKET fd, const dicom::UID& classUID)
+		: socket_(fd)
+		{
+			dicom::PresentationContexts contexts;
+			contexts.Add(classUID, dicom::TS(dicom::IMPL_VR_LE_TRANSFER_SYNTAX));
+			AAssociateRQ_.ProposedPresentationContexts_ = contexts;
+			AAssociateRQ_.UserInfo_.MaxSubLength_.Set(16384);
+
+			dicom::primitive::PresentationContextAccept accepted;
+			accepted.PresentationContextID_ = contexts.at(0).ID_;
+			accepted.Result_ = 0;
+			accepted.TrnSyntax_ = dicom::primitive::TransferSyntax(dicom::IMPL_VR_LE_TRANSFER_SYNTAX);
+			AcceptedPresentationContexts_.push_back(accepted);
+		}
+
+		Network::Socket* GetSocket()
+		{
+			return &socket_;
+		}
+	};
+
+	struct TestCFindSCU : public dicom::CFindSCU
+	{
+		TestCFindSCU(dicom::ServiceBase& service, const dicom::UID& classUID)
+		: dicom::CFindSCU(service, classUID)
+		{
+		}
+
+		void setLastMessageID(UINT16 messageID)
+		{
+			lastMessageID_ = messageID;
+		}
+	};
+
+	void makeSocketPair(int sockets[2])
+	{
+		const int result = ::socketpair(AF_UNIX, SOCK_STREAM, 0, sockets);
+		assert(result == 0);
+	}
 
 	void checkCEcho()
 	{
@@ -137,6 +211,60 @@ namespace
 		assert(rejectedDataSetType);
 	}
 
+	void checkCCancelOverPData()
+	{
+		const dicom::UID classUID("1.2.840.10008.5.1.4.1.2.2.1");
+		int sockets[2];
+		makeSocketPair(sockets);
+		PairedService scuSide(sockets[0], classUID);
+		PairedService scpSide(sockets[1], classUID);
+
+		TestCFindSCU scu(scuSide, classUID);
+		scu.setLastMessageID(11);
+		scu.writeCancelRQ();
+
+		dicom::DataSet command;
+		const bool readCancel = scpSide.Read(command);
+		assert(readCancel);
+		assert(get<UINT16>(command, dicom::TAG_CMD_FIELD) == dicom::Command::C_CANCEL_RQ);
+		assert(!scpSide.IsCancelRequested(11));
+		dicom::HandleCCancel(scpSide, command);
+		assert(scpSide.IsCancelRequested(11));
+	}
+
+	void checkSCUResponseValidationOverPData()
+	{
+		const dicom::UID classUID("1.2.840.10008.5.1.4.1.2.2.1");
+		int sockets[2];
+		makeSocketPair(sockets);
+		PairedService scuSide(sockets[0], classUID);
+		PairedService scpSide(sockets[1], classUID);
+
+		TestCFindSCU scu(scuSide, classUID);
+		scu.setLastMessageID(13);
+
+		dicom::CommandSet::CFindRSP wrongMessageID(
+			15,
+			classUID,
+			dicom::Status::SUCCESS,
+			dicom::DataSetStatus::NO_DATA_SET);
+		scpSide.WriteCommand(wrongMessageID, classUID);
+
+		UINT16 status = 0;
+		dicom::DataSet response;
+		dicom::DataSet data;
+		bool rejected = false;
+		try
+		{
+			scu.readRSP(status, response, data);
+		}
+		catch(const std::exception&)
+		{
+			rejected = true;
+		}
+		assert(rejected);
+	}
+
 	void checkCMove()
 	{
 		const dicom::UID classUID("1.2.840.10008.5.1.4.1.2.2.2");
@@ -162,6 +290,8 @@ int main()
 	checkCFind();
 	checkCGet();
 	checkCCancel();
+	checkCCancelOverPData();
+	checkSCUResponseValidationOverPData();
 	checkCMove();
 	return 0;
 }
