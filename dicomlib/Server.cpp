@@ -316,22 +316,13 @@ namespace dicom
 		//return (Handlers_.find(uid)!=Handlers_.end());
 	}
 
-	/*
-		currently only support Implicit VR/LittleEndian, but there's
-		no real technical reason why we couldn't support the others if
-		needed.
-	*/
-
 	bool Server::CanHandleTransferSyntax(TransferSyntax &TrnSyntax)
 	{
 		std::lock_guard<std::mutex> scoped_lock(mutex_);
-		if(TrnSyntax.UID_ == IMPL_VR_LE_TRANSFER_SYNTAX)
-			return true;
-
-		//I think we should also publish that we can handle Explicit Transfer syntax as well, yes no?
-		if(TrnSyntax.UID_ ==  EXPL_VR_LE_TRANSFER_SYNTAX)
-			return true;
-		return (false);
+		if(!IsTransferSyntaxUID(TrnSyntax.UID_))
+			return false;
+		TS ts(TrnSyntax.UID_);
+		return ts.canDecodeDataset() || ts.canPassThroughPixelData() || ts.hasCompiledPixelCodec();
 	}
 
 

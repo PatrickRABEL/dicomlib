@@ -11,6 +11,7 @@
 #include "UID.hpp"
 #include "UIDs.hpp"
 #include "Exceptions.hpp"
+#include "dicomlib/Config.hpp"
 #include <sstream>
 namespace dicom
 {
@@ -55,5 +56,37 @@ namespace dicom
 	bool TS::isEncapsulated() const
 	{
 		return IsEncapsulatedTransferSyntaxUID(uid_);
+	}
+
+	bool TS::isNativeUncompressed() const
+	{
+		return uid_ == IMPL_VR_LE_TRANSFER_SYNTAX ||
+			uid_ == EXPL_VR_LE_TRANSFER_SYNTAX ||
+			uid_ == EXPL_VR_BE_TRANSFER_SYNTAX;
+	}
+
+	bool TS::canDecodeDataset() const
+	{
+		if(uid_ == IMPL_VR_LE_TRANSFER_SYNTAX || uid_ == EXPL_VR_LE_TRANSFER_SYNTAX)
+			return true;
+#if DICOMLIB_ENABLE_EXPLICIT_VR_BIG_ENDIAN
+		if(uid_ == EXPL_VR_BE_TRANSFER_SYNTAX)
+			return true;
+#endif
+		return false;
+	}
+
+	bool TS::canPassThroughPixelData() const
+	{
+#if DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH
+		if(isEncapsulated() && !isDeflated())
+			return true;
+#endif
+		return false;
+	}
+
+	bool TS::hasCompiledPixelCodec() const
+	{
+		return false;
 	}
 }//namespace dicom

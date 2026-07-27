@@ -1,11 +1,24 @@
 #include "PresentationContexts.hpp"
+#include "dicomlib/Config.hpp"
+#include "UIDs.hpp"
 
 namespace dicom
 {
 	void PresentationContexts::Add(const UID& uid)
 	{
 		primitive::AbstractSyntax as(uid);
-		primitive::PresentationContext p(as,IDGenerator_());
+		std::vector<primitive::TransferSyntax> transfer_syntaxes;
+		transfer_syntaxes.push_back(primitive::TransferSyntax(EXPL_VR_LE_TRANSFER_SYNTAX));
+		transfer_syntaxes.push_back(primitive::TransferSyntax(IMPL_VR_LE_TRANSFER_SYNTAX));
+#if DICOMLIB_ENABLE_EXPLICIT_VR_BIG_ENDIAN
+		transfer_syntaxes.push_back(primitive::TransferSyntax(EXPL_VR_BE_TRANSFER_SYNTAX));
+#endif
+#if DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH
+		std::vector<UID> encapsulated = GetEncapsulatedTransferSyntaxUIDs();
+		for(size_t i=0;i<encapsulated.size();++i)
+			transfer_syntaxes.push_back(primitive::TransferSyntax(encapsulated[i]));
+#endif
+		primitive::PresentationContext p(as,transfer_syntaxes,IDGenerator_());
 		push_back(p);
 	}
 

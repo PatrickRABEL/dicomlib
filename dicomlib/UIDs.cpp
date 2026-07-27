@@ -2195,4 +2195,28 @@ static const char* ENCAPSULATED_TRANSFER_SYNTAX_UIDS[] =
             ENCAPSULATED_TRANSFER_SYNTAX_UIDS+sizeof(ENCAPSULATED_TRANSFER_SYNTAX_UIDS)/sizeof(const char*),
             uid);
     }
+
+    vector<UID> GetTransferSyntaxUIDs()
+    {
+        vector<UID> uids;
+        for(const char* const* i=TRANSFER_SYNTAX_UIDS;
+            i!=TRANSFER_SYNTAX_UIDS+sizeof(TRANSFER_SYNTAX_UIDS)/sizeof(const char*);
+            ++i)
+        {
+            uids.push_back(UID(*i));
+        }
+        return uids;
+    }
+
+    vector<UID> GetEncapsulatedTransferSyntaxUIDs()
+    {
+        vector<UID> uids;
+        for(const char* const* i=ENCAPSULATED_TRANSFER_SYNTAX_UIDS;
+            i!=ENCAPSULATED_TRANSFER_SYNTAX_UIDS+sizeof(ENCAPSULATED_TRANSFER_SYNTAX_UIDS)/sizeof(const char*);
+            ++i)
+        {
+            uids.push_back(UID(*i));
+        }
+        return uids;
+    }
 }

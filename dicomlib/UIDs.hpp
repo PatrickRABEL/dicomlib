@@ -2,6 +2,7 @@
 #define HPP_INCLUDE_GUARD_57343948
 
 #include <string>
+#include <vector>
 #include "UID.hpp"
 namespace dicom
 {
@@ -157,6 +158,8 @@ namespace dicom
 
 	bool IsTransferSyntaxUID(UID uid);
 	bool IsEncapsulatedTransferSyntaxUID(UID uid);
+	std::vector<UID> GetTransferSyntaxUIDs();
+	std::vector<UID> GetEncapsulatedTransferSyntaxUIDs();
 
 	/*
 		See Part 4, Section C.3.1
