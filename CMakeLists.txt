@@ -49,7 +49,7 @@ endif()
 
 include(cmake/DicomlibCodecDependencies.cmake)
 
-if(DICOMLIB_WITH_RLE OR DICOMLIB_WITH_JPEG OR DICOMLIB_WITH_JPEGLS OR
+if(DICOMLIB_WITH_JPEG OR DICOMLIB_WITH_JPEGLS OR
    DICOMLIB_WITH_JPEG2000 OR DICOMLIB_WITH_HTJ2K OR DICOMLIB_WITH_JPEGXL OR
    DICOMLIB_WITH_FFMPEG OR DICOMLIB_WITH_GDCM)
     message(FATAL_ERROR "Pixel codec options are declared and their dependencies can be detected, but pixel codec integration is not implemented yet. Leave pixel codec options OFF to remain standards-accurate.")
@@ -103,6 +103,7 @@ add_library(dicom STATIC
     dicomlib/pdata.cpp
     dicomlib/PresentationContexts.cpp
     dicomlib/QueryRetrieve.cpp
+    dicomlib/RLECodec.cpp
     dicomlib/Server.cpp
     dicomlib/ServiceBase.cpp
     dicomlib/Tag.cpp
@@ -196,4 +197,10 @@ if(BUILD_TESTING)
     )
     target_link_libraries(dicom_transfer_syntax_roundtrip_tests PRIVATE dicom)
     add_test(NAME transfer_syntax_roundtrip COMMAND dicom_transfer_syntax_roundtrip_tests)
+
+    add_executable(dicom_rle_codec_tests
+        tests/rle_codec.cpp
+    )
+    target_link_libraries(dicom_rle_codec_tests PRIVATE dicom)
+    add_test(NAME rle_codec COMMAND dicom_rle_codec_tests)
 endif()

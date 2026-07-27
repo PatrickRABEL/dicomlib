@@ -14,6 +14,7 @@
 #include "VR.hpp"
 #include "Exceptions.hpp"
 #include "DataDictionary.hpp"
+#include "RLECodec.hpp"
 #include "ValueToStream.hpp"
 #include "UIDs.hpp"
 #include "dicomlib/Config.hpp"
@@ -681,6 +682,10 @@ namespace dicom{
 		}
 		Decoder d(buffer,data,transfer_syntax);
 		d.Decode();
+#if DICOMLIB_WITH_RLE
+		if(transfer_syntax.getUID() == RLE_LOSSLESS_TRANSFER_SYNTAX)
+			DecodeRLELosslessPixelData(data);
+#endif
 	}
 
 	void ReadElementFromBuffer(Buffer& buffer, DataSet& ds,TS transfer_syntax)

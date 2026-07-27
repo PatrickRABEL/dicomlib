@@ -34,12 +34,19 @@ int main()
 	dicom::TS explicitBig(dicom::EXPL_VR_BE_TRANSFER_SYNTAX);
 	dicom::TS deflated(dicom::DEFLATED_EXPL_VR_LE_TRANSFER_SYNTAX);
 	dicom::TS jpegBaseline(dicom::JPEG_BASELINE_TRANSFER_SYNTAX);
+	dicom::TS rle(dicom::RLE_LOSSLESS_TRANSFER_SYNTAX);
 
 	assert(implicitLittle.canDecodeDataset());
 	assert(explicitLittle.canDecodeDataset());
 	assert(!jpegBaseline.canDecodeDataset());
 	assert(jpegBaseline.isEncapsulated());
 	assert(!jpegBaseline.hasCompiledPixelCodec());
+
+#if DICOMLIB_WITH_RLE
+	assert(rle.hasCompiledPixelCodec());
+#else
+	assert(!rle.hasCompiledPixelCodec());
+#endif
 
 #if DICOMLIB_WITH_ZLIB
 	assert(deflated.canDecodeDataset());
@@ -64,6 +71,7 @@ int main()
 	assert(serverAccepts(server, dicom::EXPL_VR_LE_TRANSFER_SYNTAX));
 	assert(serverAccepts(server, dicom::EXPL_VR_BE_TRANSFER_SYNTAX) == static_cast<bool>(DICOMLIB_ENABLE_EXPLICIT_VR_BIG_ENDIAN));
 	assert(serverAccepts(server, dicom::DEFLATED_EXPL_VR_LE_TRANSFER_SYNTAX) == static_cast<bool>(DICOMLIB_WITH_ZLIB));
+	assert(serverAccepts(server, dicom::RLE_LOSSLESS_TRANSFER_SYNTAX) == static_cast<bool>(DICOMLIB_WITH_RLE));
 	assert(serverAccepts(server, dicom::JPEG_BASELINE_TRANSFER_SYNTAX) == static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH));
 
 	dicom::PresentationContexts contexts;

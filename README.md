@@ -80,6 +80,8 @@ Optional configuration:
   encapsulated Pixel Data can be accepted as byte-exact pass-through data.
 - `DICOMLIB_WITH_ZLIB`: disabled by default; when enabled, Deflated Explicit VR
   Little Endian is encoded and decoded through zlib raw DEFLATE.
+- `DICOMLIB_WITH_RLE`: disabled by default; when enabled, RLE Lossless Pixel
+  Data is encoded and decoded by the built-in DICOM RLE codec.
 - `DICOMLIB_PREPARE_EXTERNAL_CODECS`: disabled by default; when enabled, CMake
   requires the external libraries needed for future pixel-compressed transfer
   syntax support.
@@ -98,10 +100,9 @@ External dependency mapping:
   `libavformat`, `libavutil`, and `libswscale`
 - General DICOM pixel codec backend: GDCM through CMake `find_package(GDCM)`
 
-Pixel codec options are declared but intentionally blocked until real codec
+External pixel codec options are declared but intentionally blocked until real codec
 implementations are added:
 
-- `DICOMLIB_WITH_RLE`
 - `DICOMLIB_WITH_JPEG`
 - `DICOMLIB_WITH_JPEGLS`
 - `DICOMLIB_WITH_JPEG2000`

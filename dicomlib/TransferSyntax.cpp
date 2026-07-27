@@ -91,6 +91,10 @@ namespace dicom
 
 	bool TS::hasCompiledPixelCodec() const
 	{
+#if DICOMLIB_WITH_RLE
+		if(uid_ == RLE_LOSSLESS_TRANSFER_SYNTAX)
+			return true;
+#endif
 		return false;
 	}
 }//namespace dicom
