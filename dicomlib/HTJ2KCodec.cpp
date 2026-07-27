@@ -14,6 +14,9 @@
 #include <openjph/ojph_params.h>
 
 #include <algorithm>
+#include <cmath>
+#include <iomanip>
+#include <sstream>
 #include <string>
 #endif
 
@@ -80,6 +83,25 @@ namespace dicom
 					copy.insert(*i);
 			}
 			return copy;
+		}
+
+		void PutSingleStringValue(DataSet& data, Tag tag, VR vr, const std::string& value)
+		{
+			data.erase(tag);
+			if(vr == VR_CS)
+				data.Put<VR_CS>(tag, value);
+			else if(vr == VR_DS)
+				data.Put<VR_DS>(tag, value);
+			else
+				throw exception("Unsupported HTJ2K metadata VR");
+		}
+
+		std::string CompressionRatioString(size_t nativeSize, size_t encodedSize)
+		{
+			Enforce(encodedSize != 0, "HTJ2K encoded Pixel Data is empty");
+			std::ostringstream ratio;
+			ratio << std::setprecision(6) << (double(nativeSize) / double(encodedSize));
+			return ratio.str();
 		}
 
 		std::vector<BYTE> NativePixelBytes(const DataSet& data, const ImageGeometry& geometry)
@@ -157,10 +179,18 @@ namespace dicom
 			pixels[offset + 1] = BYTE((value >> 8) & 0xff);
 		}
 
-		std::vector<BYTE> EncodeHTJ2K(const std::vector<BYTE>& pixels, const ImageGeometry& geometry, bool rpcl)
+		std::vector<BYTE> EncodeHTJ2K(
+			const std::vector<BYTE>& pixels,
+			const ImageGeometry& geometry,
+			bool rpcl,
+			bool reversible,
+			UINT16 qfactor)
 		{
 			Enforce(pixels.size() == ExpectedNativeSize(geometry),
 				"Native Pixel Data size is inconsistent with HTJ2K image attributes");
+			if(!reversible)
+				Enforce(qfactor >= 1 && qfactor <= 100,
+					"HTJ2K lossy Qfactor must be between 1 and 100");
 
 			ojph::codestream codestream;
 			codestream.set_planar(true);
@@ -184,7 +214,12 @@ namespace dicom
 			cod.set_block_dims(64, 64);
 			cod.set_progression_order(rpcl ? "RPCL" : "LRCP");
 			cod.set_color_transform(false);
-			cod.set_reversible(true);
+			cod.set_reversible(reversible);
+			if(!reversible)
+			{
+				ojph::param_qcd qcd = codestream.access_qcd();
+				qcd.set_qfactor(static_cast<ojph::ui8>(qfactor));
+			}
 
 			ojph::mem_outfile output;
 			output.open(65536, false);
@@ -201,11 +236,16 @@ namespace dicom
 					line = codestream.exchange(line, component);
 					Enforce(line != 0, "HTJ2K encoder finished before consuming all rows");
 					Enforce(component < geometry.samplesPerPixel, "HTJ2K encoder requested an invalid component");
-					Enforce(line->flags & ojph::line_buf::LFT_INTEGER, "HTJ2K lossless encoder requested a non-integer line");
 					Enforce(line->size >= geometry.columns, "HTJ2K encoder line is shorter than Columns");
 					Enforce(rows[component] < geometry.rows, "HTJ2K encoder requested too many rows");
 					for(size_t column=0;column<geometry.columns;++column)
-						line->i32[column] = ReadSample(pixels, geometry, rows[component], column, component);
+					{
+						const int sample = ReadSample(pixels, geometry, rows[component], column, component);
+						if(line->flags & ojph::line_buf::LFT_INTEGER)
+							line->i32[column] = sample;
+						else
+							line->f32[column] = static_cast<float>(sample);
+					}
 					++rows[component];
 				}
 				(void)codestream.exchange(line, component);
@@ -225,7 +265,17 @@ namespace dicom
 			return encoded;
 		}
 
-		std::vector<BYTE> DecodeHTJ2K(const std::vector<BYTE>& encoded, const ImageGeometry& geometry, bool requireRPCL)
+		int ClampSample(int value, const ImageGeometry& geometry)
+		{
+			const int maximum = (1 << geometry.bitsStored) - 1;
+			return std::max(0, std::min(maximum, value));
+		}
+
+		std::vector<BYTE> DecodeHTJ2K(
+			const std::vector<BYTE>& encoded,
+			const ImageGeometry& geometry,
+			bool requireReversible,
+			bool requireRPCL)
 		{
 			Enforce(!encoded.empty(), "HTJ2K codestream is empty");
 			ojph::mem_infile input;
@@ -249,7 +299,8 @@ namespace dicom
 						"Subsampled HTJ2K components are not supported");
 				}
 				ojph::param_cod cod = codestream.access_cod();
-				Enforce(cod.is_reversible(), "HTJ2K Lossless Transfer Syntax requires reversible coding");
+				if(requireReversible)
+					Enforce(cod.is_reversible(), "HTJ2K Lossless Transfer Syntax requires reversible coding");
 				if(requireRPCL)
 				{
 					Enforce(std::string(cod.get_progression_order_as_string()) == "RPCL",
@@ -271,11 +322,17 @@ namespace dicom
 					line = codestream.pull(component);
 					Enforce(line != 0, "HTJ2K decoder finished before producing all rows");
 					Enforce(component < geometry.samplesPerPixel, "HTJ2K decoder returned an invalid component");
-					Enforce(line->flags & ojph::line_buf::LFT_INTEGER, "HTJ2K lossless decoder returned a non-integer line");
 					Enforce(line->size >= geometry.columns, "HTJ2K decoder line is shorter than Columns");
 					Enforce(rows[component] < geometry.rows, "HTJ2K decoder returned too many rows");
 					for(size_t column=0;column<geometry.columns;++column)
-						WriteSample(pixels, geometry, rows[component], column, component, line->i32[column]);
+					{
+						int sample = 0;
+						if(line->flags & ojph::line_buf::LFT_INTEGER)
+							sample = line->i32[column];
+						else
+							sample = static_cast<int>(std::lround(line->f32[column]));
+						WriteSample(pixels, geometry, rows[component], column, component, ClampSample(sample, geometry));
+					}
 					++rows[component];
 				}
 				for(size_t componentIndex=0;componentIndex<rows.size();++componentIndex)
@@ -296,7 +353,7 @@ namespace dicom
 #if DICOMLIB_WITH_HTJ2K
 		const ImageGeometry geometry = ReadImageGeometry(data);
 		const std::vector<BYTE> codestream = ConcatenateFragments(data);
-		const std::vector<BYTE> pixels = DecodeHTJ2K(codestream, geometry, false);
+		const std::vector<BYTE> pixels = DecodeHTJ2K(codestream, geometry, true, false);
 		data.erase(TAG_PIXEL_DATA);
 		if(geometry.bitsAllocated == 8)
 			data.Put<VR_OB>(TAG_PIXEL_DATA, pixels);
@@ -318,7 +375,29 @@ namespace dicom
 #if DICOMLIB_WITH_HTJ2K
 		const ImageGeometry geometry = ReadImageGeometry(data);
 		const std::vector<BYTE> codestream = ConcatenateFragments(data);
-		const std::vector<BYTE> pixels = DecodeHTJ2K(codestream, geometry, true);
+		const std::vector<BYTE> pixels = DecodeHTJ2K(codestream, geometry, true, true);
+		data.erase(TAG_PIXEL_DATA);
+		if(geometry.bitsAllocated == 8)
+			data.Put<VR_OB>(TAG_PIXEL_DATA, pixels);
+		else
+		{
+			std::vector<UINT16> words(pixels.size() / 2, 0);
+			for(size_t i=0;i<words.size();++i)
+				words[i] = UINT16(pixels[i * 2]) | (UINT16(pixels[i * 2 + 1]) << 8);
+			data.Put<VR_OW>(TAG_PIXEL_DATA, words);
+		}
+#else
+		(void)data;
+		throw exception("HTJ2K requires DICOMLIB_WITH_HTJ2K");
+#endif
+	}
+
+	void DecodeHTJ2KPixelData(DataSet& data)
+	{
+#if DICOMLIB_WITH_HTJ2K
+		const ImageGeometry geometry = ReadImageGeometry(data);
+		const std::vector<BYTE> codestream = ConcatenateFragments(data);
+		const std::vector<BYTE> pixels = DecodeHTJ2K(codestream, geometry, false, false);
 		data.erase(TAG_PIXEL_DATA);
 		if(geometry.bitsAllocated == 8)
 			data.Put<VR_OB>(TAG_PIXEL_DATA, pixels);
@@ -341,7 +420,7 @@ namespace dicom
 		const ImageGeometry geometry = ReadImageGeometry(data);
 		const std::vector<BYTE> pixels = NativePixelBytes(data, geometry);
 		DataSet encodedData = CopyWithoutPixelData(data);
-		const std::vector<BYTE> encoded = EncodeHTJ2K(pixels, geometry, false);
+		const std::vector<BYTE> encoded = EncodeHTJ2K(pixels, geometry, false, true, 0);
 		encodedData.Put<VR_OB>(TAG_PIXEL_DATA, encoded);
 		return encodedData;
 #else
@@ -356,8 +435,28 @@ namespace dicom
 		const ImageGeometry geometry = ReadImageGeometry(data);
 		const std::vector<BYTE> pixels = NativePixelBytes(data, geometry);
 		DataSet encodedData = CopyWithoutPixelData(data);
-		const std::vector<BYTE> encoded = EncodeHTJ2K(pixels, geometry, true);
+		const std::vector<BYTE> encoded = EncodeHTJ2K(pixels, geometry, true, true, 0);
 		encodedData.Put<VR_OB>(TAG_PIXEL_DATA, encoded);
+		return encodedData;
+#else
+		(void)data;
+		throw exception("HTJ2K requires DICOMLIB_WITH_HTJ2K");
+#endif
+	}
+
+	DataSet EncodeHTJ2KPixelData(const DataSet& data)
+	{
+#if DICOMLIB_WITH_HTJ2K
+		const ImageGeometry geometry = ReadImageGeometry(data);
+		const std::vector<BYTE> pixels = NativePixelBytes(data, geometry);
+		DataSet encodedData = CopyWithoutPixelData(data);
+		const std::vector<BYTE> encoded =
+			EncodeHTJ2K(pixels, geometry, false, false, static_cast<UINT16>(DICOMLIB_HTJ2K_QFACTOR));
+		encodedData.Put<VR_OB>(TAG_PIXEL_DATA, encoded);
+		PutSingleStringValue(encodedData, TAG_LOSSY_IMAGE_COMPRESSION, VR_CS, "01");
+		PutSingleStringValue(encodedData, TAG_LOSSY_IMAGE_COMPRESSION_RATIO, VR_DS,
+			CompressionRatioString(pixels.size(), encoded.size()));
+		PutSingleStringValue(encodedData, TAG_LOSSY_IMAGE_COMPRESSION_METHOD, VR_CS, "ISO_15444_15");
 		return encodedData;
 #else
 		(void)data;

@@ -104,7 +104,9 @@ namespace dicom
 			return true;
 #endif
 #if DICOMLIB_WITH_HTJ2K
-		if(uid_ == HTJ2K_LOSSLESS_ONLY_TRANSFER_SYNTAX || uid_ == HTJ2K_RPCL_LOSSLESS_TRANSFER_SYNTAX)
+		if(uid_ == HTJ2K_LOSSLESS_ONLY_TRANSFER_SYNTAX ||
+			uid_ == HTJ2K_RPCL_LOSSLESS_TRANSFER_SYNTAX ||
+			uid_ == HTJ2K_TRANSFER_SYNTAX)
 			return true;
 #endif
 #if DICOMLIB_WITH_JPEGLS

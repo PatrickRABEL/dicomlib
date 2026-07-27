@@ -704,6 +704,8 @@ namespace dicom{
 			DecodeHTJ2KLosslessPixelData(data);
 		if(transfer_syntax.getUID() == HTJ2K_RPCL_LOSSLESS_TRANSFER_SYNTAX)
 			DecodeHTJ2KRPCLLosslessPixelData(data);
+		if(transfer_syntax.getUID() == HTJ2K_TRANSFER_SYNTAX)
+			DecodeHTJ2KPixelData(data);
 #endif
 #if DICOMLIB_WITH_JPEGLS
 		if(transfer_syntax.getUID() == JPEG_LS_LOSSLESS_TRANSFER_SYNTAX)

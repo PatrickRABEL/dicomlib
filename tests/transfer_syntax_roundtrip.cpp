@@ -329,6 +329,48 @@ namespace
 		assert(decodedPixels == pixels);
 	}
 
+	void assertHTJ2KRoundTrip()
+	{
+		dicom::DataSet source;
+		source.Put<dicom::VR_UI>(dicom::TAG_SOP_CLASS_UID, dicom::SC_IMAGE_STORAGE_SOP_CLASS);
+		source.Put<dicom::VR_UI>(dicom::TAG_SOP_INST_UID, dicom::UID("1.2.826.0.1.3680043.10.12"));
+		source.Put<dicom::VR_US>(dicom::TAG_ROWS, UINT16(8));
+		source.Put<dicom::VR_US>(dicom::TAG_COLUMNS, UINT16(8));
+		source.Put<dicom::VR_US>(dicom::TAG_SAMPLES_PER_PX, UINT16(1));
+		source.Put<dicom::VR_US>(dicom::TAG_BITS_ALLOC, UINT16(8));
+		source.Put<dicom::VR_US>(dicom::TAG_BITS_STORED, UINT16(8));
+		source.Put<dicom::VR_US>(dicom::TAG_HIGH_BIT, UINT16(7));
+		source.Put<dicom::VR_US>(dicom::TAG_PX_REPRESENT, UINT16(0));
+
+		dicom::TypeFromVR<dicom::VR_OB>::Type pixels;
+		for(size_t i=0;i<64;++i)
+			pixels.push_back(BYTE(i * 3));
+		source.Put<dicom::VR_OB>(dicom::TAG_PIXEL_DATA, pixels);
+
+		dicom::TS ts(dicom::HTJ2K_TRANSFER_SYNTAX);
+		dicom::Buffer encoded(__LITTLE_ENDIAN);
+		dicom::WriteToBuffer(source, encoded, ts);
+
+		dicom::DataSet decoded;
+		dicom::ReadFromBuffer(encoded, decoded, ts);
+
+		std::string lossyCompression;
+		std::string compressionRatio;
+		std::string compressionMethod;
+		dicom::TypeFromVR<dicom::VR_OB>::Type decodedPixels;
+		decoded(dicom::TAG_LOSSY_IMAGE_COMPRESSION) >> lossyCompression;
+		decoded(dicom::TAG_LOSSY_IMAGE_COMPRESSION_RATIO) >> compressionRatio;
+		decoded(dicom::TAG_LOSSY_IMAGE_COMPRESSION_METHOD) >> compressionMethod;
+		decoded(dicom::TAG_PIXEL_DATA) >> decodedPixels;
+
+		assert(lossyCompression == "01");
+		assert(!compressionRatio.empty());
+		assert(compressionMethod == "ISO_15444_15");
+		assert(decodedPixels.size() == pixels.size());
+		for(size_t i=0;i<decodedPixels.size();++i)
+			assert(std::abs(int(decodedPixels[i]) - int(pixels[i])) <= 8);
+	}
+
 	void assertJPEGLSLosslessRoundTrip()
 	{
 		dicom::DataSet source;
@@ -533,6 +575,7 @@ int main()
 #if DICOMLIB_WITH_HTJ2K
 	assertHTJ2KLosslessRoundTrip();
 	assertHTJ2KRPCLLosslessRoundTrip();
+	assertHTJ2KRoundTrip();
 #endif
 
 #if DICOMLIB_WITH_JPEGLS
