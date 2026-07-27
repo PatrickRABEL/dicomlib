@@ -13,10 +13,19 @@ namespace dicom
 #if DICOMLIB_ENABLE_EXPLICIT_VR_BIG_ENDIAN
 		transfer_syntaxes.push_back(primitive::TransferSyntax(EXPL_VR_BE_TRANSFER_SYNTAX));
 #endif
+#if DICOMLIB_WITH_ZLIB
+		transfer_syntaxes.push_back(primitive::TransferSyntax(DEFLATED_EXPL_VR_LE_TRANSFER_SYNTAX));
+#endif
+#if DICOMLIB_WITH_RLE
+		transfer_syntaxes.push_back(primitive::TransferSyntax(RLE_LOSSLESS_TRANSFER_SYNTAX));
+#endif
 #if DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH
 		std::vector<UID> encapsulated = GetEncapsulatedTransferSyntaxUIDs();
 		for(size_t i=0;i<encapsulated.size();++i)
-			transfer_syntaxes.push_back(primitive::TransferSyntax(encapsulated[i]));
+		{
+			if(encapsulated[i] != RLE_LOSSLESS_TRANSFER_SYNTAX)
+				transfer_syntaxes.push_back(primitive::TransferSyntax(encapsulated[i]));
+		}
 #endif
 		primitive::PresentationContext p(as,transfer_syntaxes,IDGenerator_());
 		push_back(p);

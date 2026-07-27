@@ -79,6 +79,8 @@ int main()
 	assert(hasTransferSyntax(contexts, dicom::IMPL_VR_LE_TRANSFER_SYNTAX));
 	assert(hasTransferSyntax(contexts, dicom::EXPL_VR_LE_TRANSFER_SYNTAX));
 	assert(hasTransferSyntax(contexts, dicom::EXPL_VR_BE_TRANSFER_SYNTAX) == static_cast<bool>(DICOMLIB_ENABLE_EXPLICIT_VR_BIG_ENDIAN));
+	assert(hasTransferSyntax(contexts, dicom::DEFLATED_EXPL_VR_LE_TRANSFER_SYNTAX) == static_cast<bool>(DICOMLIB_WITH_ZLIB));
+	assert(hasTransferSyntax(contexts, dicom::RLE_LOSSLESS_TRANSFER_SYNTAX) == static_cast<bool>(DICOMLIB_WITH_RLE));
 	assert(hasTransferSyntax(contexts, dicom::JPEG_BASELINE_TRANSFER_SYNTAX) == static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH));
 
 	return 0;
