@@ -15,6 +15,10 @@ the copyright notice. The software is provided as-is, without warranty.
 This is not currently expressed as a standard SPDX license identifier in the
 repository.
 
+New contributions made by Patrick RABEL are licensed under the BSD 2-Clause
+License, subject to the existing license terms that apply to the original code.
+See [`NOTICE.md`](NOTICE.md).
+
 ## Current Scope
 
 The maintained build targets are:
