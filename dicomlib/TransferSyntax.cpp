@@ -103,6 +103,10 @@ namespace dicom
 		if(uid_ == JPEG2000_LOSSLESS_ONLY || uid_ == JPEG2000)
 			return true;
 #endif
+#if DICOMLIB_WITH_HTJ2K
+		if(uid_ == HTJ2K_LOSSLESS_ONLY_TRANSFER_SYNTAX)
+			return true;
+#endif
 #if DICOMLIB_WITH_JPEGLS
 		if(uid_ == JPEG_LS_LOSSLESS_TRANSFER_SYNTAX || uid_ == JPEG_LS_NEAR_LOSSLESS_TRANSFER_SYNTAX)
 			return true;

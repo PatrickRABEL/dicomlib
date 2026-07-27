@@ -26,6 +26,9 @@ namespace dicom
 		transfer_syntaxes.push_back(primitive::TransferSyntax(JPEG2000_LOSSLESS_ONLY));
 		transfer_syntaxes.push_back(primitive::TransferSyntax(JPEG2000));
 #endif
+#if DICOMLIB_WITH_HTJ2K
+		transfer_syntaxes.push_back(primitive::TransferSyntax(HTJ2K_LOSSLESS_ONLY_TRANSFER_SYNTAX));
+#endif
 #if DICOMLIB_WITH_JPEGLS
 		transfer_syntaxes.push_back(primitive::TransferSyntax(JPEG_LS_LOSSLESS_TRANSFER_SYNTAX));
 		transfer_syntaxes.push_back(primitive::TransferSyntax(JPEG_LS_NEAR_LOSSLESS_TRANSFER_SYNTAX));
@@ -53,6 +56,11 @@ namespace dicom
 #else
 			const bool skipJPEG2000 = false;
 #endif
+#if DICOMLIB_WITH_HTJ2K
+			const bool skipHTJ2K = encapsulated[i] == HTJ2K_LOSSLESS_ONLY_TRANSFER_SYNTAX;
+#else
+			const bool skipHTJ2K = false;
+#endif
 #if DICOMLIB_WITH_JPEGLS
 			const bool skipJPEGLS =
 				encapsulated[i] == JPEG_LS_LOSSLESS_TRANSFER_SYNTAX ||
@@ -67,7 +75,7 @@ namespace dicom
 #else
 			const bool skipJPEGXL = false;
 #endif
-			if(!skipRLE && !skipJPEGBaseline && !skipJPEG2000 && !skipJPEGLS && !skipJPEGXL)
+			if(!skipRLE && !skipJPEGBaseline && !skipJPEG2000 && !skipHTJ2K && !skipJPEGLS && !skipJPEGXL)
 				transfer_syntaxes.push_back(primitive::TransferSyntax(encapsulated[i]));
 		}
 #endif

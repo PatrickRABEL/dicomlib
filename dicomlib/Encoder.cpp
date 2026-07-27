@@ -9,6 +9,7 @@
 #include <type_traits>
 #include "Encoder.hpp"
 #include "Exceptions.hpp"
+#include "HTJ2KCodec.hpp"
 #include "JPEG2000Codec.hpp"
 #include "JPEGCodec.hpp"
 #include "JPEGLSCodec.hpp"
@@ -542,6 +543,16 @@ namespace dicom
 			return E.Encode();
 #else
 			throw exception("JPEG 2000 requires DICOMLIB_WITH_JPEG2000");
+#endif
+		}
+		if(transfer_syntax.getUID() == HTJ2K_LOSSLESS_ONLY_TRANSFER_SYNTAX)
+		{
+#if DICOMLIB_WITH_HTJ2K
+			DataSet encodedData = EncodeHTJ2KLosslessPixelData(data);
+			Encoder E(buffer,encodedData,transfer_syntax);
+			return E.Encode();
+#else
+			throw exception("HTJ2K requires DICOMLIB_WITH_HTJ2K");
 #endif
 		}
 		if(transfer_syntax.getUID() == JPEG_LS_LOSSLESS_TRANSFER_SYNTAX)

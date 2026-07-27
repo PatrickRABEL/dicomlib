@@ -80,6 +80,15 @@ namespace dicom
 	//!JPEG XL Image Compression
 	const UID JPEG_XL_TRANSFER_SYNTAX				= UID("1.2.840.10008.1.2.4.112");
 
+	//!High-Throughput JPEG 2000 Image Compression (Lossless Only)
+	const UID HTJ2K_LOSSLESS_ONLY_TRANSFER_SYNTAX	= UID("1.2.840.10008.1.2.4.201");
+
+	//!High-Throughput JPEG 2000 with RPCL Options Image Compression (Lossless Only)
+	const UID HTJ2K_RPCL_LOSSLESS_TRANSFER_SYNTAX	= UID("1.2.840.10008.1.2.4.202");
+
+	//!High-Throughput JPEG 2000 Image Compression
+	const UID HTJ2K_TRANSFER_SYNTAX					= UID("1.2.840.10008.1.2.4.203");
+
 	const UID RLE_LOSSLESS_TRANSFER_SYNTAX			= UID("1.2.840.10008.1.2.5");
 
 
