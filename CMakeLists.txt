@@ -79,3 +79,13 @@ target_compile_options(dicom PRIVATE
 
 find_package(Threads REQUIRED)
 target_link_libraries(dicom PUBLIC Threads::Threads)
+
+include(CTest)
+
+if(BUILD_TESTING)
+    add_executable(dicom_cdimse_tests
+        tests/cdimse_commandsets.cpp
+    )
+    target_link_libraries(dicom_cdimse_tests PRIVATE dicom)
+    add_test(NAME cdimse_commandsets COMMAND dicom_cdimse_tests)
+endif()

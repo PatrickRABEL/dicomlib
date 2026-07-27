@@ -46,8 +46,10 @@ namespace dicom
 	void HandleCStore(CStoreFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID)
 	{
 		UINT16 msgID,data_set_status;
+		UID instuid;
 		command(TAG_MSG_ID)>>msgID;
 		command(TAG_DATA_SET_TYPE)>>data_set_status;
+		command(TAG_AFF_SOP_INST_UID)>>instuid;
 		if(data_set_status==DataSetStatus::NO_DATA_SET)
 			throw exception("No data set!");
 		DataSet data;
@@ -55,8 +57,6 @@ namespace dicom
 
 		handler(pdu,command,data);//this should indicate failure via a throw...
 
-		UID instuid;
-		data(TAG_SOP_INST_UID)>>instuid;
 		CommandSet::CStoreRSP response(msgID,classUID,instuid,Status::SUCCESS);
 		pdu.WriteCommand(response,classUID);
 	}
@@ -108,13 +108,26 @@ namespace dicom
 
 	void CGetSCP::handle(ServiceBase& pdu, const DataSet& rqCmd, const UID& classUID)
 	{
+		(void)pdu;
+		(void)rqCmd;
+		(void)classUID;
 		//TODO
+		throw NotYetImplemented();
+	}
+
+	void HandleCGet(CGetFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID)
+	{
+		(void)handler;
+		(void)pdu;
+		(void)command;
+		(void)classUID;
 		throw NotYetImplemented();
 	}
 
 	void HandleCMove(CMoveFunction handler,ServiceBase& pdu,
 		const DataSet& command, const UID& classUID)
 	{
+		(void)classUID;
 		UINT16 data_set_status;
 		command(TAG_DATA_SET_TYPE)>>data_set_status;
 		if(data_set_status==DataSetStatus::NO_DATA_SET)
