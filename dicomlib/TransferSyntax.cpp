@@ -95,6 +95,8 @@ namespace dicom
 		if(uid_ == RLE_LOSSLESS_TRANSFER_SYNTAX)
 			return true;
 #endif
+		if(uid_ == ENCAPSULATED_UNCOMPRESSED_EXPL_VR_LE_TRANSFER_SYNTAX)
+			return true;
 #if DICOMLIB_WITH_JPEG
 		if(uid_ == JPEG_BASELINE_TRANSFER_SYNTAX)
 			return true;

@@ -1,6 +1,7 @@
 #include "dicomlib/Config.hpp"
 #include "dicomlib/DataSet.hpp"
 #include "dicomlib/Decoder.hpp"
+#include "dicomlib/EncapsulatedUncompressedCodec.hpp"
 #include "dicomlib/Encoder.hpp"
 #include "dicomlib/JPEGCodec.hpp"
 #include "dicomlib/TransferSyntax.hpp"
@@ -163,6 +164,79 @@ namespace
 		assert(fragments.size() == 2);
 		assert(fragments[0].Get<dicom::TypeFromVR<dicom::VR_OB>::Type>() == fragment1);
 		assert(fragments[1].Get<dicom::TypeFromVR<dicom::VR_OB>::Type>() == fragment2);
+	}
+
+	void assertEncapsulatedUncompressedOddFrameRoundTrip()
+	{
+		dicom::DataSet source;
+		source.Put<dicom::VR_UI>(dicom::TAG_SOP_CLASS_UID, dicom::SC_IMAGE_STORAGE_SOP_CLASS);
+		source.Put<dicom::VR_UI>(dicom::TAG_SOP_INST_UID, dicom::UID("1.2.826.0.1.3680043.10.19"));
+		source.Put<dicom::VR_US>(dicom::TAG_ROWS, UINT16(1));
+		source.Put<dicom::VR_US>(dicom::TAG_COLUMNS, UINT16(3));
+		source.Put<dicom::VR_US>(dicom::TAG_SAMPLES_PER_PX, UINT16(1));
+		source.Put<dicom::VR_US>(dicom::TAG_BITS_ALLOC, UINT16(8));
+
+		dicom::TypeFromVR<dicom::VR_OB>::Type pixels;
+		pixels.push_back(1);
+		pixels.push_back(2);
+		pixels.push_back(3);
+		source.Put<dicom::VR_OB>(dicom::TAG_PIXEL_DATA, pixels);
+
+		dicom::DataSet encodedData = dicom::EncodeEncapsulatedUncompressedPixelData(source);
+		const std::vector<dicom::Value> fragments = encodedData.Values(dicom::TAG_PIXEL_DATA);
+		assert(fragments.size() == 1);
+		const dicom::TypeFromVR<dicom::VR_OB>::Type& fragment =
+			fragments[0].Get<dicom::TypeFromVR<dicom::VR_OB>::Type>();
+		assert(fragment.size() == 4);
+		assert(fragment[0] == 1);
+		assert(fragment[1] == 2);
+		assert(fragment[2] == 3);
+		assert(fragment[3] == 0);
+
+		dicom::TS ts(dicom::ENCAPSULATED_UNCOMPRESSED_EXPL_VR_LE_TRANSFER_SYNTAX);
+		dicom::Buffer encoded(__LITTLE_ENDIAN);
+		dicom::WriteToBuffer(source, encoded, ts);
+
+		dicom::DataSet decoded;
+		dicom::ReadFromBuffer(encoded, decoded, ts);
+
+		dicom::TypeFromVR<dicom::VR_OB>::Type decodedPixels;
+		decoded(dicom::TAG_PIXEL_DATA) >> decodedPixels;
+		assert(decodedPixels == pixels);
+	}
+
+	void assertEncapsulatedUncompressedMultiframeRoundTrip()
+	{
+		dicom::DataSet source;
+		source.Put<dicom::VR_UI>(dicom::TAG_SOP_CLASS_UID, dicom::SC_IMAGE_STORAGE_SOP_CLASS);
+		source.Put<dicom::VR_UI>(dicom::TAG_SOP_INST_UID, dicom::UID("1.2.826.0.1.3680043.10.20"));
+		source.Put<dicom::VR_US>(dicom::TAG_ROWS, UINT16(2));
+		source.Put<dicom::VR_US>(dicom::TAG_COLUMNS, UINT16(2));
+		source.Put<dicom::VR_US>(dicom::TAG_SAMPLES_PER_PX, UINT16(1));
+		source.Put<dicom::VR_IS>(dicom::TAG_NUM_FRAMES, std::string("2"));
+		source.Put<dicom::VR_US>(dicom::TAG_BITS_ALLOC, UINT16(16));
+
+		dicom::TypeFromVR<dicom::VR_OW>::Type pixels;
+		for(size_t i=0;i<8;++i)
+			pixels.push_back(UINT16(0x1000 + i));
+		source.Put<dicom::VR_OW>(dicom::TAG_PIXEL_DATA, pixels);
+
+		dicom::DataSet encodedData = dicom::EncodeEncapsulatedUncompressedPixelData(source);
+		const std::vector<dicom::Value> fragments = encodedData.Values(dicom::TAG_PIXEL_DATA);
+		assert(fragments.size() == 2);
+		assert(fragments[0].Get<dicom::TypeFromVR<dicom::VR_OB>::Type>().size() == 8);
+		assert(fragments[1].Get<dicom::TypeFromVR<dicom::VR_OB>::Type>().size() == 8);
+
+		dicom::TS ts(dicom::ENCAPSULATED_UNCOMPRESSED_EXPL_VR_LE_TRANSFER_SYNTAX);
+		dicom::Buffer encoded(__LITTLE_ENDIAN);
+		dicom::WriteToBuffer(source, encoded, ts);
+
+		dicom::DataSet decoded;
+		dicom::ReadFromBuffer(encoded, decoded, ts);
+
+		dicom::TypeFromVR<dicom::VR_OW>::Type decodedPixels;
+		decoded(dicom::TAG_PIXEL_DATA) >> decodedPixels;
+		assert(decodedPixels == pixels);
 	}
 
 	void assertJPEGBaselineRoundTrip()
@@ -678,6 +752,8 @@ int main()
 {
 	assertRoundTrip(dicom::TS(dicom::IMPL_VR_LE_TRANSFER_SYNTAX));
 	assertRoundTrip(dicom::TS(dicom::EXPL_VR_LE_TRANSFER_SYNTAX));
+	assertEncapsulatedUncompressedOddFrameRoundTrip();
+	assertEncapsulatedUncompressedMultiframeRoundTrip();
 
 #if DICOMLIB_ENABLE_EXPLICIT_VR_BIG_ENDIAN
 	assertRoundTrip(dicom::TS(dicom::EXPL_VR_BE_TRANSFER_SYNTAX));

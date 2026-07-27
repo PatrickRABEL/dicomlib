@@ -78,6 +78,9 @@ Optional configuration:
 - `DICOMLIB_ENABLE_EXPLICIT_VR_BIG_ENDIAN`: enabled by default.
 - `DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH`: disabled by default; when enabled,
   encapsulated Pixel Data fragments can be accepted without pixel decoding.
+- Encapsulated Uncompressed Explicit VR Little Endian
+  `1.2.840.10008.1.2.1.98` is always enabled; Pixel Data is encoded and decoded
+  as one uncompressed OB fragment per frame.
 - `DICOMLIB_WITH_ZLIB`: disabled by default; when enabled, Deflated Explicit VR
   Little Endian is encoded and decoded through zlib raw DEFLATE.
 - `DICOMLIB_WITH_RLE`: disabled by default; when enabled, RLE Lossless Pixel
@@ -105,6 +108,8 @@ Optional configuration:
 External dependency mapping:
 
 - Deflated Explicit VR Little Endian: zlib
+- Encapsulated Uncompressed Explicit VR Little Endian: no external library
+  required
 - RLE Lossless: no external library required
 - JPEG Baseline: libjpeg or libjpeg-turbo through the standard CMake `JPEG`
   package

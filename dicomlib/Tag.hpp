@@ -314,6 +314,7 @@ namespace dicom
 		TAG_SAMPLES_PER_PX            = 0x00280002,
 		TAG_PHOTOMETRIC               = 0x00280004,
 		TAG_PLANAR_CONFIG             = 0x00280006,
+		TAG_NUM_FRAMES                = 0x00280008,
 		TAG_ROWS                      = 0x00280010,
 		TAG_COLUMNS                   = 0x00280011,
 		TAG_PLANES                    = 0x00280012,

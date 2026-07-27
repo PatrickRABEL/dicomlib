@@ -10,6 +10,7 @@ corresponding encode/decode path is implemented and covered by tests.
 | --- | --- | --- | --- | --- |
 | Implicit VR Little Endian | `1.2.840.10008.1.2` | Native dataset encode/decode | Always on | `transfer_syntax_roundtrip` |
 | Explicit VR Little Endian | `1.2.840.10008.1.2.1` | Native dataset encode/decode | Always on | `transfer_syntax_roundtrip` |
+| Encapsulated Uncompressed Explicit VR Little Endian | `1.2.840.10008.1.2.1.98` | Uncompressed Pixel Data encode/decode as one OB fragment per frame | Always on | `transfer_syntax_roundtrip` |
 | Explicit VR Big Endian | `1.2.840.10008.1.2.2` | Native dataset encode/decode | `DICOMLIB_ENABLE_EXPLICIT_VR_BIG_ENDIAN` | `transfer_syntax_roundtrip` |
 | Deflated Explicit VR Little Endian | `1.2.840.10008.1.2.1.99` | Dataset encode/decode through zlib raw DEFLATE | `DICOMLIB_WITH_ZLIB` | `transfer_syntax_roundtrip` with zlib |
 | RLE Lossless | `1.2.840.10008.1.2.5` | Pixel Data encode/decode through built-in DICOM RLE codec | `DICOMLIB_WITH_RLE` | `rle_codec`, `transfer_syntax_roundtrip` with RLE |

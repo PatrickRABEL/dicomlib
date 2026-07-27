@@ -25,6 +25,9 @@ namespace dicom
 	//!Explicit VR, Little Endian
 	const UID EXPL_VR_LE_TRANSFER_SYNTAX			= UID("1.2.840.10008.1.2.1");
 
+	//!Encapsulated Uncompressed Explicit VR Little Endian
+	const UID ENCAPSULATED_UNCOMPRESSED_EXPL_VR_LE_TRANSFER_SYNTAX = UID("1.2.840.10008.1.2.1.98");
+
 	//!Not sure what this is!  Probably shouldn't advertise as supporting it!
 	const UID DEFLATED_EXPL_VR_LE_TRANSFER_SYNTAX   = UID("1.2.840.10008.1.2.1.99");
 

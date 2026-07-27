@@ -32,6 +32,7 @@ int main()
 	dicom::TS implicitLittle(dicom::IMPL_VR_LE_TRANSFER_SYNTAX);
 	dicom::TS explicitLittle(dicom::EXPL_VR_LE_TRANSFER_SYNTAX);
 	dicom::TS explicitBig(dicom::EXPL_VR_BE_TRANSFER_SYNTAX);
+	dicom::TS encapsulatedUncompressed(dicom::ENCAPSULATED_UNCOMPRESSED_EXPL_VR_LE_TRANSFER_SYNTAX);
 	dicom::TS deflated(dicom::DEFLATED_EXPL_VR_LE_TRANSFER_SYNTAX);
 	dicom::TS jpegBaseline(dicom::JPEG_BASELINE_TRANSFER_SYNTAX);
 	dicom::TS jpegLosslessProcess14SV1(dicom::JPEG_LOSSLESS_NON_HIERARCHICAL);
@@ -49,6 +50,8 @@ int main()
 
 	assert(implicitLittle.canDecodeDataset());
 	assert(explicitLittle.canDecodeDataset());
+	assert(encapsulatedUncompressed.isEncapsulated());
+	assert(encapsulatedUncompressed.hasCompiledPixelCodec());
 	assert(!jpegBaseline.canDecodeDataset());
 	assert(jpegBaseline.isEncapsulated());
 	assert(jpegLosslessProcess14SV1.isEncapsulated());
@@ -139,6 +142,7 @@ int main()
 	assert(serverAccepts(server, dicom::IMPL_VR_LE_TRANSFER_SYNTAX));
 	assert(serverAccepts(server, dicom::EXPL_VR_LE_TRANSFER_SYNTAX));
 	assert(serverAccepts(server, dicom::EXPL_VR_BE_TRANSFER_SYNTAX) == static_cast<bool>(DICOMLIB_ENABLE_EXPLICIT_VR_BIG_ENDIAN));
+	assert(serverAccepts(server, dicom::ENCAPSULATED_UNCOMPRESSED_EXPL_VR_LE_TRANSFER_SYNTAX));
 	assert(serverAccepts(server, dicom::DEFLATED_EXPL_VR_LE_TRANSFER_SYNTAX) == static_cast<bool>(DICOMLIB_WITH_ZLIB));
 	assert(serverAccepts(server, dicom::RLE_LOSSLESS_TRANSFER_SYNTAX) ==
 		(static_cast<bool>(DICOMLIB_WITH_RLE) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));
@@ -172,6 +176,7 @@ int main()
 	assert(hasTransferSyntax(contexts, dicom::IMPL_VR_LE_TRANSFER_SYNTAX));
 	assert(hasTransferSyntax(contexts, dicom::EXPL_VR_LE_TRANSFER_SYNTAX));
 	assert(hasTransferSyntax(contexts, dicom::EXPL_VR_BE_TRANSFER_SYNTAX) == static_cast<bool>(DICOMLIB_ENABLE_EXPLICIT_VR_BIG_ENDIAN));
+	assert(hasTransferSyntax(contexts, dicom::ENCAPSULATED_UNCOMPRESSED_EXPL_VR_LE_TRANSFER_SYNTAX));
 	assert(hasTransferSyntax(contexts, dicom::DEFLATED_EXPL_VR_LE_TRANSFER_SYNTAX) == static_cast<bool>(DICOMLIB_WITH_ZLIB));
 	assert(hasTransferSyntax(contexts, dicom::RLE_LOSSLESS_TRANSFER_SYNTAX) ==
 		(static_cast<bool>(DICOMLIB_WITH_RLE) || static_cast<bool>(DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH)));

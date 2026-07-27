@@ -19,6 +19,7 @@ namespace dicom
 #if DICOMLIB_WITH_RLE
 		transfer_syntaxes.push_back(primitive::TransferSyntax(RLE_LOSSLESS_TRANSFER_SYNTAX));
 #endif
+		transfer_syntaxes.push_back(primitive::TransferSyntax(ENCAPSULATED_UNCOMPRESSED_EXPL_VR_LE_TRANSFER_SYNTAX));
 #if DICOMLIB_WITH_JPEG
 		transfer_syntaxes.push_back(primitive::TransferSyntax(JPEG_BASELINE_TRANSFER_SYNTAX));
 #endif
@@ -52,6 +53,8 @@ namespace dicom
 #else
 			const bool skipRLE = false;
 #endif
+			const bool skipEncapsulatedUncompressed =
+				encapsulated[i] == ENCAPSULATED_UNCOMPRESSED_EXPL_VR_LE_TRANSFER_SYNTAX;
 #if DICOMLIB_WITH_JPEG
 			const bool skipJPEGBaseline = encapsulated[i] == JPEG_BASELINE_TRANSFER_SYNTAX;
 #else
@@ -90,7 +93,7 @@ namespace dicom
 #else
 			const bool skipJPEGXL = false;
 #endif
-			if(!skipRLE && !skipJPEGBaseline && !skipGDCMJPEG && !skipJPEG2000 && !skipHTJ2K && !skipJPEGLS && !skipJPEGXL)
+			if(!skipRLE && !skipEncapsulatedUncompressed && !skipJPEGBaseline && !skipGDCMJPEG && !skipJPEG2000 && !skipHTJ2K && !skipJPEGLS && !skipJPEGXL)
 				transfer_syntaxes.push_back(primitive::TransferSyntax(encapsulated[i]));
 		}
 #endif

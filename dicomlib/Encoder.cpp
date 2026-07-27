@@ -7,6 +7,7 @@
 *************************************************************************/
 #include <iostream>
 #include <type_traits>
+#include "EncapsulatedUncompressedCodec.hpp"
 #include "Encoder.hpp"
 #include "Exceptions.hpp"
 #include "HTJ2KCodec.hpp"
@@ -502,6 +503,12 @@ namespace dicom
 
 	UINT32 WriteToBuffer(const DataSet& data, Buffer& buffer, TS transfer_syntax)
 	{
+		if(transfer_syntax.getUID() == ENCAPSULATED_UNCOMPRESSED_EXPL_VR_LE_TRANSFER_SYNTAX)
+		{
+			DataSet encodedData = EncodeEncapsulatedUncompressedPixelData(data);
+			Encoder E(buffer,encodedData,transfer_syntax);
+			return E.Encode();
+		}
 		if(transfer_syntax.getUID() == DEFLATED_EXPL_VR_LE_TRANSFER_SYNTAX)
 		{
 #if DICOMLIB_WITH_ZLIB

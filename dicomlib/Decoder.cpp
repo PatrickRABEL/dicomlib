@@ -14,6 +14,7 @@
 #include "VR.hpp"
 #include "Exceptions.hpp"
 #include "DataDictionary.hpp"
+#include "EncapsulatedUncompressedCodec.hpp"
 #include "GDCMJPEGCodec.hpp"
 #include "HTJ2KCodec.hpp"
 #include "JPEG2000Codec.hpp"
@@ -688,6 +689,8 @@ namespace dicom{
 		}
 		Decoder d(buffer,data,transfer_syntax);
 		d.Decode();
+		if(transfer_syntax.getUID() == ENCAPSULATED_UNCOMPRESSED_EXPL_VR_LE_TRANSFER_SYNTAX)
+			DecodeEncapsulatedUncompressedPixelData(data);
 #if DICOMLIB_WITH_RLE
 		if(transfer_syntax.getUID() == RLE_LOSSLESS_TRANSFER_SYNTAX)
 			DecodeRLELosslessPixelData(data);

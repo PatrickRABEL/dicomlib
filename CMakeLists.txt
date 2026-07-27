@@ -113,6 +113,7 @@ add_library(dicom STATIC
     dicomlib/DataDictionary.cpp
     dicomlib/Decoder.cpp
     dicomlib/Dumper.cpp
+    dicomlib/EncapsulatedUncompressedCodec.cpp
     dicomlib/Encoder.cpp
     dicomlib/Exceptions.cpp
     dicomlib/File.cpp
