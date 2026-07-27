@@ -9,6 +9,7 @@
 #include <type_traits>
 #include "Encoder.hpp"
 #include "Exceptions.hpp"
+#include "JPEG2000Codec.hpp"
 #include "JPEGCodec.hpp"
 #include "RLECodec.hpp"
 #include "UIDs.hpp"
@@ -529,6 +530,16 @@ namespace dicom
 			return E.Encode();
 #else
 			throw exception("JPEG Baseline requires DICOMLIB_WITH_JPEG");
+#endif
+		}
+		if(transfer_syntax.getUID() == JPEG2000_LOSSLESS_ONLY || transfer_syntax.getUID() == JPEG2000)
+		{
+#if DICOMLIB_WITH_JPEG2000
+			DataSet encodedData = EncodeJPEG2000LosslessPixelData(data);
+			Encoder E(buffer,encodedData,transfer_syntax);
+			return E.Encode();
+#else
+			throw exception("JPEG 2000 requires DICOMLIB_WITH_JPEG2000");
 #endif
 		}
 		Encoder E(buffer,data,transfer_syntax);
