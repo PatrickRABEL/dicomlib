@@ -194,9 +194,13 @@ C-STORE sending with aggregate counters for C-GET SCP handlers.
 sending on an application-opened Move Destination association, including Move
 Originator fields and aggregate counters for C-MOVE SCP handlers.
 `Server::SetMoveDestinationResolverCallback()` maps Move Destination AE Titles
-to host/port endpoints. Automatic handler interruption, asynchronous operations,
-and automatic destination association opening inside C-MOVE dispatch are not yet
-claimed. Generic C-DIMSE status helpers classify the implemented `Success`,
+to host/port endpoints. `AddMoveStoreHandler()` lets dispatch open the
+destination association automatically when the handler supplies retrieved
+instances and destination storage Presentation Contexts. C-CANCEL is polled
+before final C-FIND/C-GET/C-MOVE responses and between automatic C-MOVE
+destination C-STORE sub-operations. Asynchronous termination of arbitrary
+application code and asynchronous operations are not yet claimed. Generic
+C-DIMSE status helpers classify the implemented `Success`,
 `Pending`, `Cancel`, `Warning`, and final/non-final response states; SOP-class
 specific validators are provided for C-ECHO, C-STORE, and Query/Retrieve
 C-FIND, C-GET, and C-MOVE response statuses.

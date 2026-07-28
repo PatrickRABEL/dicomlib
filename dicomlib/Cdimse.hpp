@@ -16,6 +16,7 @@
 #include <string>
 #include "ServiceBase.hpp"
 #include "CommandSets.hpp"
+#include "PresentationContexts.hpp"
 
 namespace dicom
 {
@@ -67,6 +68,8 @@ namespace dicom
 		CMoveStatusFunction;
 	typedef std::function<CSubOperationResult(ServiceBase&,const DataSet&,DataSet&)>
 		CGetStatusFunction;
+	typedef std::function<void(ServiceBase&,const DataSet&,DataSet&,Sequence&,PresentationContexts&)>
+		CMoveStoreFunction;
 
 	void HandleCEcho(ServiceBase& pdu, const DataSet& command,const UID& classUID);
 
@@ -105,6 +108,33 @@ namespace dicom
 		const Sequence& instances,
 		const std::string& moveOriginatorAET,
 		UINT16 moveOriginatorMessageID);
+	CSubOperationResult SendCMoveStoreSubOperations(
+		ServiceBase& destination,
+		const Sequence& instances,
+		const std::string& moveOriginatorAET,
+		UINT16 moveOriginatorMessageID,
+		ServiceBase& cancelService,
+		UINT16 cancelMessageID);
+	CSubOperationResult SendCMoveStoreSubOperationsToEndpoint(
+		const std::string& host,
+		unsigned short port,
+		const std::string& localAET,
+		const std::string& remoteAET,
+		const PresentationContexts& presentationContexts,
+		const Sequence& instances,
+		const std::string& moveOriginatorAET,
+		UINT16 moveOriginatorMessageID);
+	CSubOperationResult SendCMoveStoreSubOperationsToEndpoint(
+		const std::string& host,
+		unsigned short port,
+		const std::string& localAET,
+		const std::string& remoteAET,
+		const PresentationContexts& presentationContexts,
+		const Sequence& instances,
+		const std::string& moveOriginatorAET,
+		UINT16 moveOriginatorMessageID,
+		ServiceBase& cancelService,
+		UINT16 cancelMessageID);
 
 	class CGetSCP
 	{

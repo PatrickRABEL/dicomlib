@@ -784,9 +784,14 @@ namespace
 				endpoint = dicom::MoveDestinationEndpoint("127.0.0.1", destinationPort);
 				return true;
 			});
-		moveServer.AddCancellableMoveHandler(
+		moveServer.AddMoveStoreHandler(
 			moveClassUID,
-			[&](dicom::ServiceBase& service, const dicom::DataSet& command, dicom::DataSet& request)
+			[&](
+				dicom::ServiceBase&,
+				const dicom::DataSet& command,
+				dicom::DataSet& request,
+				dicom::Sequence& instances,
+				dicom::PresentationContexts& destinationContexts)
 			{
 				const UINT16 moveMessageID = get<UINT16>(command, dicom::TAG_MSG_ID);
 				const std::string destinationAET = get<std::string>(command, dicom::TAG_MOVE_DEST);
@@ -806,30 +811,11 @@ namespace
 				second.Put<dicom::VR_UI>(dicom::TAG_SOP_INST_UID, secondInstanceUID);
 				second.Put<dicom::VR_UI>(dicom::TAG_STUDY_INST_UID, studyUID);
 
-				dicom::Sequence instances;
 				instances.push_back(first);
 				instances.push_back(second);
 
-				dicom::PresentationContexts contexts;
-				contexts.Add(storeClassUID, dicom::TS(dicom::IMPL_VR_LE_TRANSFER_SYNTAX));
-				dicom::MoveDestinationEndpoint endpoint;
-				assert(moveServer.ResolveMoveDestination(destinationAET, endpoint));
-				dicom::ClientConnection destination(
-					endpoint.host,
-					endpoint.port,
-					"MOVE_SCP",
-					destinationAET,
-					contexts);
-
-				const std::string moveOriginatorAET = service.AAssociateRQ_.CallingAppTitle_;
-				const dicom::CSubOperationResult result =
-					dicom::SendCMoveStoreSubOperations(
-						destination,
-						instances,
-						moveOriginatorAET,
-						moveMessageID);
+				destinationContexts.Add(storeClassUID, dicom::TS(dicom::IMPL_VR_LE_TRANSFER_SYNTAX));
 				moveHandled = true;
-				return result;
 			});
 		moveServer.ServeInNewThread(movePort);
 
@@ -871,6 +857,139 @@ namespace
 		assert(completed);
 		assert(moveHandled);
 		assert(destinationStores == 2);
+	}
+
+	void checkServerClientCMoveStoreSubOperationCancel()
+	{
+		const short movePort = reserveLocalPort();
+		short destinationPort = reserveLocalPort();
+		while(destinationPort == movePort)
+			destinationPort = reserveLocalPort();
+		const dicom::UID moveClassUID = dicom::STUDY_ROOT_QR_MOVE_SOP_CLASS;
+		const dicom::UID storeClassUID = dicom::CT_IMAGE_STORAGE_SOP_CLASS;
+		const dicom::UID studyUID("1.2.826.0.1.3680043.10.1553.9");
+		const dicom::UID firstInstanceUID("1.2.826.0.1.3680043.10.1553.9.1");
+		const dicom::UID secondInstanceUID("1.2.826.0.1.3680043.10.1553.9.2");
+		std::atomic<bool> moveHandled(false);
+		std::atomic<int> destinationStores(0);
+		std::atomic<int> moveOriginatorMessageID(0);
+
+		QuietLogger destinationLogger;
+		dicom::Server destinationServer;
+		destinationServer.SetLogger(&destinationLogger);
+		destinationServer.SetCheckLocalAETCallback(acceptAnyLocalAET);
+		destinationServer.SetCheckRemoteAETCallback(acceptAnyRemoteAET);
+		destinationServer.AddHandler(
+			storeClassUID,
+			[&](dicom::ServiceBase&, const dicom::DataSet& command, dicom::DataSet& stored)
+			{
+				assert(get<UINT16>(command, dicom::TAG_CMD_FIELD) == dicom::Command::C_STORE_RQ);
+				assert(get<dicom::UID>(command, dicom::TAG_AFF_SOP_CLASS_UID) == storeClassUID);
+				assert(get<std::string>(command, dicom::TAG_MOVE_ORIG_AET) == "SCU_AE");
+				assert(get<UINT16>(command, dicom::TAG_MOVE_ORIG_MSG_ID) == moveOriginatorMessageID.load());
+				assert(get<dicom::UID>(stored, dicom::TAG_SOP_CLASS_UID) == storeClassUID);
+				assert(get<dicom::UID>(stored, dicom::TAG_STUDY_INST_UID) == studyUID);
+				const int count = destinationStores.fetch_add(1) + 1;
+				if(count == 1)
+					std::this_thread::sleep_for(std::chrono::milliseconds(200));
+			});
+		destinationServer.ServeInNewThread(destinationPort);
+
+		QuietLogger moveLogger;
+		dicom::Server moveServer;
+		moveServer.SetLogger(&moveLogger);
+		moveServer.SetCheckLocalAETCallback(acceptAnyLocalAET);
+		moveServer.SetCheckRemoteAETCallback(acceptAnyRemoteAET);
+		moveServer.SetMoveDestinationResolverCallback(
+			[&](const std::string& title, dicom::MoveDestinationEndpoint& endpoint)
+			{
+				if(title != "DEST_AE")
+					return false;
+				endpoint = dicom::MoveDestinationEndpoint("127.0.0.1", destinationPort);
+				return true;
+			});
+		moveServer.AddMoveStoreHandler(
+			moveClassUID,
+			[&](
+				dicom::ServiceBase&,
+				const dicom::DataSet& command,
+				dicom::DataSet& request,
+				dicom::Sequence& instances,
+				dicom::PresentationContexts& destinationContexts)
+			{
+				const UINT16 moveMessageID = get<UINT16>(command, dicom::TAG_MSG_ID);
+				const std::string destinationAET = get<std::string>(command, dicom::TAG_MOVE_DEST);
+				moveOriginatorMessageID = moveMessageID;
+				assert(get<UINT16>(command, dicom::TAG_CMD_FIELD) == dicom::Command::C_MOVE_RQ);
+				assert(destinationAET == "DEST_AE");
+				assert(get<std::string>(request, dicom::TAG_QR_LEVEL) == "STUDY");
+				assert(get<dicom::UID>(request, dicom::TAG_STUDY_INST_UID) == studyUID);
+
+				dicom::DataSet first;
+				first.Put<dicom::VR_UI>(dicom::TAG_SOP_CLASS_UID, storeClassUID);
+				first.Put<dicom::VR_UI>(dicom::TAG_SOP_INST_UID, firstInstanceUID);
+				first.Put<dicom::VR_UI>(dicom::TAG_STUDY_INST_UID, studyUID);
+
+				dicom::DataSet second;
+				second.Put<dicom::VR_UI>(dicom::TAG_SOP_CLASS_UID, storeClassUID);
+				second.Put<dicom::VR_UI>(dicom::TAG_SOP_INST_UID, secondInstanceUID);
+				second.Put<dicom::VR_UI>(dicom::TAG_STUDY_INST_UID, studyUID);
+
+				instances.push_back(first);
+				instances.push_back(second);
+				destinationContexts.Add(storeClassUID, dicom::TS(dicom::IMPL_VR_LE_TRANSFER_SYNTAX));
+				moveHandled = true;
+			});
+		moveServer.ServeInNewThread(movePort);
+
+		dicom::PresentationContexts contexts;
+		contexts.Add(moveClassUID, dicom::TS(dicom::IMPL_VR_LE_TRANSFER_SYNTAX));
+
+		bool completed = false;
+		for(int attempt = 0; attempt < 20 && !completed; ++attempt)
+		{
+			try
+			{
+				dicom::DataSet query;
+				query.Put<dicom::VR_CS>(dicom::TAG_QR_LEVEL, std::string("STUDY"));
+				query.Put<dicom::VR_UI>(dicom::TAG_STUDY_INST_UID, studyUID);
+
+				dicom::ClientConnection client("127.0.0.1", movePort, "SCU_AE", "MOVE_SCP", contexts);
+				dicom::CMoveSCU moveSCU(client, moveClassUID);
+				moveSCU.writeRQ("DEST_AE", query);
+
+				for(int wait = 0; wait < 20 && destinationStores.load() == 0; ++wait)
+					std::this_thread::sleep_for(std::chrono::milliseconds(50));
+				moveSCU.writeCancelRQ();
+
+				UINT16 status = 0;
+				dicom::DataSet response;
+				dicom::DataSet data;
+				moveSCU.readRSP(status, response, data);
+				assert(get<UINT16>(response, dicom::TAG_CMD_FIELD) == dicom::Command::C_MOVE_RSP);
+				assert(status == dicom::Status::CANCEL);
+				assert(get<UINT16>(response, dicom::TAG_NUM_REMAIN_SUBOP) == 1);
+				assert(get<UINT16>(response, dicom::TAG_NUM_COMPL_SUBOP) == 1);
+				assert(get<UINT16>(response, dicom::TAG_NUM_FAIL_SUBOP) == 0);
+				assert(get<UINT16>(response, dicom::TAG_NUM_WARN_SUBOP) == 0);
+				assert(data.empty());
+				completed = moveHandled && destinationStores == 1;
+			}
+			catch(const SystemError&)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(50));
+			}
+			catch(const std::exception&)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(50));
+			}
+		}
+
+		moveServer.Stop();
+		destinationServer.Stop();
+		assert(completed);
+		assert(moveHandled);
+		assert(destinationStores == 1);
 	}
 
 	void checkServerClientCGet()
@@ -1325,9 +1444,8 @@ namespace
 		const short port = reserveLocalPort();
 		const dicom::UID classUID = dicom::STUDY_ROOT_QR_FIND_SOP_CLASS;
 		std::atomic<bool> findHandled(false);
-		std::atomic<bool> cancelHandled(false);
 
-		CancelDispatchLogger logger(cancelHandled);
+		QuietLogger logger;
 		dicom::Server server;
 		server.SetLogger(&logger);
 		server.SetCheckLocalAETCallback(acceptAnyLocalAET);
@@ -1339,6 +1457,7 @@ namespace
 				(void)matches;
 				assert(get<std::string>(query, dicom::TAG_QR_LEVEL) == "STUDY");
 				findHandled = true;
+				std::this_thread::sleep_for(std::chrono::milliseconds(200));
 			});
 		server.ServeInNewThread(port);
 
@@ -1364,12 +1483,10 @@ namespace
 				dicom::DataSet data;
 				findSCU.readRSP(status, response, data);
 				assert(get<UINT16>(response, dicom::TAG_CMD_FIELD) == dicom::Command::C_FIND_RSP);
-				assert(status == dicom::Status::SUCCESS);
+				assert(status == dicom::Status::CANCEL);
 				assert(data.empty());
 
-				for(int wait = 0; wait < 20 && !cancelHandled; ++wait)
-					std::this_thread::sleep_for(std::chrono::milliseconds(50));
-				completed = cancelHandled;
+				completed = true;
 			}
 			catch(const SystemError&)
 			{
@@ -1380,7 +1497,6 @@ namespace
 		server.Stop();
 		assert(completed);
 		assert(findHandled);
-		assert(cancelHandled);
 	}
 
 	void checkServerClientCCancelObservedByRunningHandler()
@@ -1438,7 +1554,7 @@ namespace
 				dicom::DataSet data;
 				findSCU.readRSP(status, response, data);
 				assert(get<UINT16>(response, dicom::TAG_CMD_FIELD) == dicom::Command::C_FIND_RSP);
-				assert(status == dicom::Status::SUCCESS);
+				assert(status == dicom::Status::CANCEL);
 				assert(data.empty());
 				completed = cancelObserved;
 			}
@@ -1528,6 +1644,74 @@ namespace
 		assert(cancelObserved);
 	}
 
+	void checkServerClientCFindFinalCancelAfterHandlerReturn()
+	{
+		const short port = reserveLocalPort();
+		const dicom::UID classUID = dicom::STUDY_ROOT_QR_FIND_SOP_CLASS;
+		std::atomic<bool> handlerStarted(false);
+
+		QuietLogger logger;
+		dicom::Server server;
+		server.SetLogger(&logger);
+		server.SetCheckLocalAETCallback(acceptAnyLocalAET);
+		server.SetCheckRemoteAETCallback(acceptAnyRemoteAET);
+		server.AddFindHandler(
+			classUID,
+			[&](dicom::ServiceBase&, dicom::DataSet& query, dicom::Sequence& matches)
+			{
+				assert(get<std::string>(query, dicom::TAG_QR_LEVEL) == "STUDY");
+				handlerStarted = true;
+
+				dicom::DataSet match;
+				match.Put<dicom::VR_CS>(dicom::TAG_QR_LEVEL, std::string("STUDY"));
+				match.Put<dicom::VR_UI>(dicom::TAG_STUDY_INST_UID, dicom::UID("1.2.826.0.1.3680043.10.1553.10"));
+				matches.push_back(match);
+
+				std::this_thread::sleep_for(std::chrono::milliseconds(200));
+			});
+		server.ServeInNewThread(port);
+
+		dicom::PresentationContexts contexts;
+		contexts.Add(classUID, dicom::TS(dicom::IMPL_VR_LE_TRANSFER_SYNTAX));
+
+		bool completed = false;
+		for(int attempt = 0; attempt < 20 && !completed; ++attempt)
+		{
+			try
+			{
+				dicom::DataSet query;
+				query.Put<dicom::VR_CS>(dicom::TAG_QR_LEVEL, std::string("STUDY"));
+				query.Put<dicom::VR_UI>(dicom::TAG_STUDY_INST_UID, dicom::UID(""));
+
+				dicom::ClientConnection client("127.0.0.1", port, "SCU_AE", "SCP_AE", contexts);
+				dicom::CFindSCU findSCU(client, classUID);
+				findSCU.writeRQ(query);
+
+				for(int wait = 0; wait < 20 && !handlerStarted; ++wait)
+					std::this_thread::sleep_for(std::chrono::milliseconds(50));
+				findSCU.writeCancelRQ();
+
+				UINT16 status = 0;
+				dicom::DataSet response;
+				dicom::DataSet data;
+				findSCU.readRSP(status, response, data);
+				assert(get<UINT16>(response, dicom::TAG_CMD_FIELD) == dicom::Command::C_FIND_RSP);
+				assert(status == dicom::Status::CANCEL);
+				assert(get<UINT16>(response, dicom::TAG_DATA_SET_TYPE) == dicom::DataSetStatus::NO_DATA_SET);
+				assert(data.empty());
+				completed = true;
+			}
+			catch(const SystemError&)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(50));
+			}
+		}
+
+		server.Stop();
+		assert(completed);
+		assert(handlerStarted);
+	}
+
 	void checkCMove()
 	{
 		const dicom::UID classUID("1.2.840.10008.5.1.4.1.2.2.2");
@@ -1565,6 +1749,7 @@ int main()
 	checkServerClientCFind();
 	checkServerClientCMove();
 	checkServerClientCMoveStoreSubOperationScheduler();
+	checkServerClientCMoveStoreSubOperationCancel();
 	checkServerClientCGet();
 	checkServerClientCGetStoreSubOperation();
 	checkServerClientCGetStoreSubOperationScheduler();
@@ -1573,6 +1758,7 @@ int main()
 	checkServerClientCCancelDispatch();
 	checkServerClientCCancelObservedByRunningHandler();
 	checkServerClientCFindFinalCancelStatus();
+	checkServerClientCFindFinalCancelAfterHandlerReturn();
 	checkCMove();
 	return 0;
 }

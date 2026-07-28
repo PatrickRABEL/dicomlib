@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <iostream>
 #include "Cdimse.hpp"
+#include "ClientConnection.hpp"
 #include "ServiceBase.hpp"
 
 #include "Dumper.hpp"
@@ -139,6 +140,13 @@ namespace dicom
 		//the user-defined callback does the actual matching...
 		const UINT16 finalStatus = handler(pdu,request_data,Matches);
 
+		if(PollCCancelRQ(pdu,msgID))
+		{
+			CommandSet::CFindRSP response(msgID,classUID,Status::CANCEL,DataSetStatus::NO_DATA_SET);
+			pdu.WriteCommand(response,classUID);
+			return;
+		}
+
 		//now we send back all found matches.
 		for(Sequence::iterator I=Matches.begin();I!=Matches.end();I++)
 		{
@@ -209,7 +217,9 @@ namespace dicom
 		DataSet request_data;
 		pdu.Read(request_data);
 
-		const CSubOperationResult result = handler(pdu,command,request_data);
+		CSubOperationResult result = handler(pdu,command,request_data);
+		if(PollCCancelRQ(pdu,msgID))
+			result.status = Status::CANCEL;
 		CommandSet::CGetRSP response(msgID,classUID,result.status,DataSetStatus::NO_DATA_SET);
 		SetCGetCounters(response,result);
 		pdu.WriteCommand(response,classUID);
@@ -395,6 +405,23 @@ namespace dicom
 		const std::string& moveOriginatorAET,
 		UINT16 moveOriginatorMessageID)
 	{
+		return SendCMoveStoreSubOperations(
+			destination,
+			instances,
+			moveOriginatorAET,
+			moveOriginatorMessageID,
+			destination,
+			0);
+	}
+
+	CSubOperationResult SendCMoveStoreSubOperations(
+		ServiceBase& destination,
+		const Sequence& instances,
+		const std::string& moveOriginatorAET,
+		UINT16 moveOriginatorMessageID,
+		ServiceBase& cancelService,
+		UINT16 cancelMessageID)
+	{
 		if(instances.size() > 0xffff)
 			throw exception("Too many C-MOVE sub-operations for UINT16 counters");
 
@@ -402,6 +429,12 @@ namespace dicom
 
 		for(Sequence::const_iterator I=instances.begin();I!=instances.end();I++)
 		{
+			if(cancelMessageID != 0 && PollCCancelRQ(cancelService,cancelMessageID))
+			{
+				result.status = Status::CANCEL;
+				return result;
+			}
+
 			UID classUID;
 			UID instUID;
 			(*I)(TAG_SOP_CLASS_UID) >> classUID;
@@ -426,6 +459,46 @@ namespace dicom
 		if(result.failed != 0 || result.warning != 0)
 			result.status = Status::WARNING;
 		return result;
+	}
+
+	CSubOperationResult SendCMoveStoreSubOperationsToEndpoint(
+		const std::string& host,
+		unsigned short port,
+		const std::string& localAET,
+		const std::string& remoteAET,
+		const PresentationContexts& presentationContexts,
+		const Sequence& instances,
+		const std::string& moveOriginatorAET,
+		UINT16 moveOriginatorMessageID)
+	{
+		ClientConnection destination(host,port,localAET,remoteAET,presentationContexts);
+		return SendCMoveStoreSubOperations(
+			destination,
+			instances,
+			moveOriginatorAET,
+			moveOriginatorMessageID);
+	}
+
+	CSubOperationResult SendCMoveStoreSubOperationsToEndpoint(
+		const std::string& host,
+		unsigned short port,
+		const std::string& localAET,
+		const std::string& remoteAET,
+		const PresentationContexts& presentationContexts,
+		const Sequence& instances,
+		const std::string& moveOriginatorAET,
+		UINT16 moveOriginatorMessageID,
+		ServiceBase& cancelService,
+		UINT16 cancelMessageID)
+	{
+		ClientConnection destination(host,port,localAET,remoteAET,presentationContexts);
+		return SendCMoveStoreSubOperations(
+			destination,
+			instances,
+			moveOriginatorAET,
+			moveOriginatorMessageID,
+			cancelService,
+			cancelMessageID);
 	}
 
 	void HandleCMove(CMoveFunction handler,ServiceBase& pdu,
@@ -458,7 +531,9 @@ namespace dicom
 		DataSet request_data;
 		pdu.Read(request_data);
 
-		const CSubOperationResult result = handler(pdu,command,request_data);
+		CSubOperationResult result = handler(pdu,command,request_data);
+		if(PollCCancelRQ(pdu,msgID))
+			result.status = Status::CANCEL;
 		CommandSet::CMoveRSP response(msgID,classUID,result.status,DataSetStatus::NO_DATA_SET);
 		SetCMoveCounters(response,result);
 		pdu.WriteCommand(response,classUID);

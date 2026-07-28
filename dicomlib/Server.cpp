@@ -319,6 +319,11 @@ namespace dicom
 		std::lock_guard<std::mutex> scoped_lock(mutex_);
 		CancellableMoveHandlers_[uid]=Handler;
 	}
+	void Server::AddMoveStoreHandler(const UID& uid,CMoveStoreFunction Handler)
+	{
+		std::lock_guard<std::mutex> scoped_lock(mutex_);
+		MoveStoreHandlers_[uid]=Handler;
+	}
 
 	bool Server::HasCancellableFindHandler(const UID& uid)
 	{
@@ -377,6 +382,25 @@ namespace dicom
 			return I->second;
 	}
 
+	bool Server::HasMoveStoreHandler(const UID& uid)
+	{
+		std::lock_guard<std::mutex> scoped_lock(mutex_);
+		return MoveStoreHandlers_.find(uid)!=MoveStoreHandlers_.end();
+	}
+
+	CMoveStoreFunction Server::GetMoveStoreHandler(const UID& uid)
+	{
+		std::lock_guard<std::mutex> scoped_lock(mutex_);
+		std::map<UID,CMoveStoreFunction>::iterator I = MoveStoreHandlers_.find(uid);
+		if(I==MoveStoreHandlers_.end())
+		{
+			LogError("No available handler.");
+			throw NoAvailableHandler();//or something
+		}
+		else
+			return I->second;
+	}
+
 	CFindFunction Server::GetFindHandler(const UID& uid)
 	{
 		std::lock_guard<std::mutex> scoped_lock(mutex_);
@@ -411,7 +435,8 @@ namespace dicom
 			(FindHandlers_.find(uid)!=FindHandlers_.end()) ||
 			(CancellableFindHandlers_.find(uid)!=CancellableFindHandlers_.end()) ||
 			(CancellableGetHandlers_.find(uid)!=CancellableGetHandlers_.end()) ||
-			(CancellableMoveHandlers_.find(uid)!=CancellableMoveHandlers_.end()))
+			(CancellableMoveHandlers_.find(uid)!=CancellableMoveHandlers_.end()) ||
+			(MoveStoreHandlers_.find(uid)!=MoveStoreHandlers_.end()))
 			return true;
 		if(VERIFICATION_SOP_CLASS==uid)
 			return true;//we accept this by default.

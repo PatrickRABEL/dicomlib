@@ -184,7 +184,69 @@ namespace dicom
 				break;
 			case Command::C_MOVE_RQ:
 			{
-				if(server_.HasCancellableMoveHandler(classUID))
+				if(server_.HasMoveStoreHandler(classUID))
+				{
+					UINT16 msgID = 0;
+					UINT16 dataSetType = 0;
+					std::string destinationAET;
+					command(TAG_MSG_ID) >> msgID;
+					command(TAG_DATA_SET_TYPE) >> dataSetType;
+					command(TAG_MOVE_DEST) >> destinationAET;
+					ClearCancelRequest(msgID);
+					if(dataSetType==DataSetStatus::NO_DATA_SET)
+						throw exception("No data set");
+					DataSet requestData;
+					Read(requestData);
+
+					MoveDestinationEndpoint endpoint;
+					CSubOperationResult result(0xa801,0,0,0,0);
+					if(server_.ResolveMoveDestination(destinationAET,endpoint))
+					{
+						Sequence instances;
+						PresentationContexts destinationContexts;
+						CMoveStoreFunction handler=server_.GetMoveStoreHandler(classUID);
+						handler(*this,command,requestData,instances,destinationContexts);
+
+						if(PollCCancelRQ(*this,msgID))
+						{
+							if(instances.size() > 0xffff)
+								throw exception("Too many C-MOVE sub-operations for UINT16 counters");
+							result = CSubOperationResult(
+								Status::CANCEL,
+								static_cast<UINT16>(instances.size()),
+								0,
+								0,
+								0);
+						}
+						else
+						{
+							const std::string moveOriginatorAET = AAssociateRQ_.CallingAppTitle_;
+							result = SendCMoveStoreSubOperationsToEndpoint(
+								endpoint.host,
+								endpoint.port,
+								AAssociateRQ_.CalledAppTitle_,
+								destinationAET,
+								destinationContexts,
+								instances,
+								moveOriginatorAET,
+								msgID,
+								*this,
+								msgID);
+						}
+					}
+
+					CommandSet::CMoveRSP response(
+						msgID,
+						classUID,
+						result.status,
+						DataSetStatus::NO_DATA_SET);
+					response.setRemaining(result.remaining);
+					response.setCompleted(result.completed);
+					response.setFailed(result.failed);
+					response.setWarning(result.warning);
+					WriteCommand(response,classUID);
+				}
+				else if(server_.HasCancellableMoveHandler(classUID))
 				{
 					CMoveStatusFunction handler=server_.GetCancellableMoveHandler(classUID);
 					HandleCMove(handler,*this,command,classUID);

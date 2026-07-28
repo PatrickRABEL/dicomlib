@@ -32,6 +32,9 @@ network flow are covered by tests.
 | C-GET multi-instance sub-operation helper | `SendCGetStoreSubOperations()` sends multiple C-STORE sub-operations sequentially on the C-GET association, reads each C-STORE-RSP, and returns aggregate counters for the final C-GET-RSP | `cdimse_commandsets` |
 | C-MOVE destination C-STORE sub-operation helper | `SendCMoveStoreSubOperations()` sends multiple C-STORE sub-operations sequentially on an application-opened destination association, includes Move Originator AE Title and Message ID, reads each C-STORE-RSP, and returns aggregate counters for the final C-MOVE-RSP | `cdimse_commandsets` |
 | Move Destination endpoint resolver | `Server::SetMoveDestinationResolverCallback()` maps a Move Destination AE Title to a host/port endpoint; verified in the C-MOVE destination C-STORE network test | `cdimse_commandsets` |
+| Automatic C-MOVE destination association opening | `AddMoveStoreHandler()` lets a C-MOVE SCP handler provide retrieved instances and destination storage Presentation Contexts; dispatch resolves the Move Destination, opens the destination association, sends C-STORE sub-operations, and writes the final C-MOVE-RSP counters | `cdimse_commandsets` |
+| C-CANCEL final handling after handler return | C-FIND, C-GET, and C-MOVE status handlers poll for pending C-CANCEL before writing final responses; C-FIND is verified when the application handler does not poll directly | `cdimse_commandsets` |
+| C-CANCEL during automatic C-MOVE sub-operations | Automatic C-MOVE sub-operation processing polls the C-MOVE association before each destination C-STORE and returns final Cancel counters when C-CANCEL is received between sub-operations | `cdimse_commandsets` |
 | Generic C-DIMSE status helpers | Helpers classify the implemented status constants for Success, Pending, Cancel, Warning, and final/non-final response handling | `cdimse_commandsets` |
 | Query/Retrieve response status validators | C-FIND, C-GET, and C-MOVE response status validators cover the status codes and implementation-specific `Cxxx` failure ranges defined by the current PS3.4 Query/Retrieve tables | `cdimse_commandsets` |
 | Verification and Storage response status validators | C-ECHO and C-STORE response status validators cover the status codes and implementation-specific C-STORE ranges defined by current PS3.7 and PS3.4 tables | `cdimse_commandsets` |
@@ -40,17 +43,15 @@ network flow are covered by tests.
 
 | Area | Current status |
 | --- | --- |
-| C-CANCEL final cancel semantics | C-FIND, C-GET, and C-MOVE now have explicit cancellable handler contracts that can return final Cancel status after application-observed C-CANCEL. The library still does not interrupt handlers automatically. |
+| C-CANCEL final cancel semantics | C-FIND, C-GET, and C-MOVE status handlers poll for pending C-CANCEL before final responses, and automatic C-MOVE polls between destination C-STORE sub-operations. The library still does not asynchronously terminate arbitrary application code while it is executing. |
 | C-GET sub-operation orchestration | Same-association C-STORE sub-operation round trips are verified, including a reusable sequential multi-instance helper with aggregate counters. This helper does not claim asynchronous operations or automatic handler interruption. |
-| C-MOVE sub-operation orchestration | Destination C-STORE sub-operation round trips are verified using a resolver-provided endpoint, an application-opened destination association, and a reusable sequential helper with aggregate counters. The library does not yet automatically open the Move Destination association inside C-MOVE dispatch. |
+| C-MOVE sub-operation orchestration | Destination C-STORE sub-operation round trips are verified using a resolver-provided endpoint, automatic destination association opening in C-MOVE dispatch, and reusable sequential helpers with aggregate counters. The handler must still provide the retrieved instances and destination storage Presentation Contexts. |
 | Service-specific status ranges | C-ECHO, C-STORE, Query/Retrieve C-FIND, C-GET, and C-MOVE status validators are verified. N-DIMSE status validators and detailed failed/warning related fields are not complete. |
-| Network end-to-end tests | Current tests cover command set construction, selected dispatch/SCU code paths, local P-DATA round trips, a local A-ASSOCIATE primitive exchange with C-ECHO, thread-backed C-ECHO/C-STORE/C-FIND/C-GET dispatch/C-MOVE dispatch/C-CANCEL dispatch, C-CANCEL polling by a running C-FIND handler, final C-FIND/C-GET/C-MOVE Cancel responses, one C-GET same-association C-STORE sub-operation, sequential multi-instance C-GET C-STORE sub-operations, and sequential multi-instance C-MOVE destination C-STORE sub-operations. |
+| Network end-to-end tests | Current tests cover command set construction, selected dispatch/SCU code paths, local P-DATA round trips, a local A-ASSOCIATE primitive exchange with C-ECHO, thread-backed C-ECHO/C-STORE/C-FIND/C-GET dispatch/C-MOVE dispatch/C-CANCEL dispatch, C-CANCEL polling by a running C-FIND handler, final C-FIND/C-GET/C-MOVE Cancel responses, one C-GET same-association C-STORE sub-operation, sequential multi-instance C-GET C-STORE sub-operations, automatic sequential multi-instance C-MOVE destination C-STORE sub-operations, and C-MOVE Cancel between destination sub-operations. |
 | Extended negotiation | SCU/SCP Role Selection, SOP Class Extended Negotiation, and Asynchronous Operations Window are not implemented as verified C-DIMSE behavior. |
 
 ## Execution Order
 
-1. Add automatic C-MOVE destination association opening only after defining how
-   the handler provides the destination storage presentation contexts.
-2. Add N-DIMSE status validators for implemented N service classes.
-3. Add verified extended negotiation support only after the association-layer
+1. Add N-DIMSE status validators for implemented N service classes.
+2. Add verified extended negotiation support only after the association-layer
    behavior is implemented and covered.

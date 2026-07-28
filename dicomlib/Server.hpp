@@ -122,6 +122,7 @@ namespace dicom
 		std::map<UID,HandlerFunction> Handlers_;
 		std::map<UID,CGetStatusFunction> CancellableGetHandlers_;
 		std::map<UID,CMoveStatusFunction> CancellableMoveHandlers_;
+		std::map<UID,CMoveStoreFunction> MoveStoreHandlers_;
 
 		/*
 			Would it be cleaner to explicitly specify CMoveHandlers_, CGetHandlers_ etc,
@@ -222,6 +223,7 @@ namespace dicom
 		void AddCancellableFindHandler(const UID& uid,CFindStatusFunction Handler);
 		void AddCancellableGetHandler(const UID& uid,CGetStatusFunction Handler);
 		void AddCancellableMoveHandler(const UID& uid,CMoveStatusFunction Handler);
+		void AddMoveStoreHandler(const UID& uid,CMoveStoreFunction Handler);
 
 		HandlerFunction GetHandler(const UID& uid);
 		CFindFunction GetFindHandler(const UID& uid);
@@ -231,6 +233,8 @@ namespace dicom
 		bool HasCancellableGetHandler(const UID& uid);
 		CMoveStatusFunction GetCancellableMoveHandler(const UID& uid);
 		bool HasCancellableMoveHandler(const UID& uid);
+		CMoveStoreFunction GetMoveStoreHandler(const UID& uid);
+		bool HasMoveStoreHandler(const UID& uid);
 
 		bool IsAcceptableRemoteApplicationTitle		(const std::string& Title,std::string ip);
 		bool IsAcceptableLocalApplicationTitle		(const std::string& Title);
