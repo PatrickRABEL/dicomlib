@@ -325,6 +325,28 @@ namespace
 		assert(get<UINT16>(rsp, dicom::TAG_NUM_WARN_SUBOP) == 0);
 	}
 
+	void checkCdimseStatusHelpers()
+	{
+		assert(dicom::IsCdimseSuccessStatus(dicom::Status::SUCCESS));
+		assert(!dicom::IsCdimseSuccessStatus(dicom::Status::PENDING));
+
+		assert(dicom::IsCdimsePendingStatus(dicom::Status::PENDING));
+		assert(dicom::IsCdimsePendingStatus(dicom::Status::PENDING1));
+		assert(!dicom::IsCdimsePendingStatus(dicom::Status::SUCCESS));
+
+		assert(dicom::IsCdimseCancelStatus(dicom::Status::CANCEL));
+		assert(!dicom::IsCdimseCancelStatus(dicom::Status::SUCCESS));
+
+		assert(dicom::IsCdimseWarningStatus(dicom::Status::WARNING));
+		assert(!dicom::IsCdimseWarningStatus(dicom::Status::SUCCESS));
+
+		assert(!dicom::IsCdimseFinalStatus(dicom::Status::PENDING));
+		assert(!dicom::IsCdimseFinalStatus(dicom::Status::PENDING1));
+		assert(dicom::IsCdimseFinalStatus(dicom::Status::SUCCESS));
+		assert(dicom::IsCdimseFinalStatus(dicom::Status::CANCEL));
+		assert(dicom::IsCdimseFinalStatus(dicom::Status::WARNING));
+	}
+
 	void checkCCancel()
 	{
 		dicom::CommandSet::CCancelRQ rq(7);
@@ -1480,6 +1502,7 @@ int main()
 	checkCStore();
 	checkCFind();
 	checkCGet();
+	checkCdimseStatusHelpers();
 	checkCCancel();
 	checkCCancelOverPData();
 	checkSCUResponseValidationOverPData();

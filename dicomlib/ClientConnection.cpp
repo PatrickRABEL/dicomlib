@@ -290,7 +290,7 @@ namespace dicom
 
 		UINT16 status = Status::PENDING;
 		std::vector<DataSet> Responses;
-		while (status==Status::PENDING || status == Status::PENDING1)
+		while (IsCdimsePendingStatus(status))
 		{
 			DataSet response;
 			DataSet data;

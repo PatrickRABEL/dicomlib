@@ -228,6 +228,31 @@ namespace dicom
 		pdu.RequestCancel(messageIDBeingRespondedTo);
 	}
 
+	bool IsCdimseSuccessStatus(UINT16 status)
+	{
+		return status == Status::SUCCESS;
+	}
+
+	bool IsCdimsePendingStatus(UINT16 status)
+	{
+		return status == Status::PENDING || status == Status::PENDING1;
+	}
+
+	bool IsCdimseCancelStatus(UINT16 status)
+	{
+		return status == Status::CANCEL;
+	}
+
+	bool IsCdimseWarningStatus(UINT16 status)
+	{
+		return status == Status::WARNING;
+	}
+
+	bool IsCdimseFinalStatus(UINT16 status)
+	{
+		return !IsCdimsePendingStatus(status);
+	}
+
 	bool PollCCancelRQ(ServiceBase& pdu, UINT16 messageID)
 	{
 		Network::Socket* socket = pdu.GetSocket();
@@ -277,9 +302,9 @@ namespace dicom
 			storeSCU.readRSP(storeStatus,storeResponse);
 
 			result.remaining--;
-			if(storeStatus == Status::SUCCESS)
+			if(IsCdimseSuccessStatus(storeStatus))
 				result.completed++;
-			else if(storeStatus == Status::WARNING)
+			else if(IsCdimseWarningStatus(storeStatus))
 				result.warning++;
 			else
 				result.failed++;
@@ -316,9 +341,9 @@ namespace dicom
 			storeSCU.readRSP(storeStatus,storeResponse);
 
 			result.remaining--;
-			if(storeStatus == Status::SUCCESS)
+			if(IsCdimseSuccessStatus(storeStatus))
 				result.completed++;
-			else if(storeStatus == Status::WARNING)
+			else if(IsCdimseWarningStatus(storeStatus))
 				result.warning++;
 			else
 				result.failed++;

@@ -86,6 +86,12 @@ namespace dicom
 
 	void HandleCCancel(ServiceBase& pdu, const DataSet& command);
 
+	bool IsCdimseSuccessStatus(UINT16 status);
+	bool IsCdimsePendingStatus(UINT16 status);
+	bool IsCdimseCancelStatus(UINT16 status);
+	bool IsCdimseWarningStatus(UINT16 status);
+	bool IsCdimseFinalStatus(UINT16 status);
+
 	bool PollCCancelRQ(ServiceBase& pdu, UINT16 messageID = 0);
 
 	CSubOperationResult SendCGetStoreSubOperations(ServiceBase& pdu, const Sequence& instances);

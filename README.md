@@ -196,7 +196,9 @@ Originator fields and aggregate counters for C-MOVE SCP handlers.
 `Server::SetMoveDestinationResolverCallback()` maps Move Destination AE Titles
 to host/port endpoints. Automatic handler interruption, asynchronous operations,
 and automatic destination association opening inside C-MOVE dispatch are not yet
-claimed.
+claimed. Generic C-DIMSE status helpers classify the implemented `Success`,
+`Pending`, `Cancel`, `Warning`, and final/non-final response states; SOP-class
+specific status range validation is not yet claimed.
 
 The detailed C-DIMSE implementation plan and remaining work are maintained in
 [`docs/CDIMSE_PLAN.md`](docs/CDIMSE_PLAN.md).
