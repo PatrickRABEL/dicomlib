@@ -9,14 +9,14 @@ network flow are covered by tests.
 
 | Service | Status | Verification |
 | --- | --- | --- |
-| C-ECHO | SCU request/response and SCP success response | `cdimse_commandsets` |
-| C-STORE | SCU request/response and SCP callback dispatch | `cdimse_commandsets` |
-| C-FIND | SCU request/response and SCP callback dispatch with pending matches followed by success | `cdimse_commandsets` |
-| C-MOVE | SCU request/response command sets and SCP callback dispatch after Identifier read | `cdimse_commandsets` |
-| C-GET | SCU request/response command sets and SCP callback dispatch after Identifier read; C-STORE sub-operations are application-handler responsibility | `cdimse_commandsets` |
+| C-ECHO | SCU request/response and SCP success response with request command/SOP Class UID validation | `cdimse_commandsets` |
+| C-STORE | SCU request/response and SCP callback dispatch with request command/SOP Class UID validation | `cdimse_commandsets` |
+| C-FIND | SCU request/response and SCP callback dispatch with request command/SOP Class UID validation, pending matches followed by success | `cdimse_commandsets` |
+| C-MOVE | SCU request/response command sets and SCP callback dispatch with request command/SOP Class UID validation after Identifier read | `cdimse_commandsets` |
+| C-GET | SCU request/response command sets and SCP callback dispatch with request command/SOP Class UID validation after Identifier read; C-STORE sub-operations are application-handler responsibility | `cdimse_commandsets` |
 | C-CANCEL-RQ command set | Command set for cancelling C-FIND, C-GET, or C-MOVE; SCP dispatch accepts the command without requiring a SOP Class UID and records the referenced Message ID on the association state | `cdimse_commandsets` |
-| SCU response validation | Response Command Field and Message ID Being Responded To are checked for C-ECHO, C-STORE, C-FIND, C-GET, and C-MOVE | Code path in `Cdimse.cpp` |
-| Local P-DATA C-DIMSE coverage | C-CANCEL-RQ SCU write/SCP read/handle and C-FIND SCU response Message ID validation are covered through `ServiceBase` over a local socket pair | `cdimse_commandsets` |
+| SCU response validation | Response Command Field, Message ID Being Responded To, and service-specific response status are checked for C-ECHO, C-STORE, C-FIND, C-GET, and C-MOVE; optional response Affected SOP Class UID is checked when present, optional C-STORE response Affected SOP Instance UID is checked when present, and unexpected association release before a response command or expected response data set is rejected | `cdimse_commandsets` |
+| Local P-DATA C-DIMSE coverage | C-CANCEL-RQ SCU write/SCP read/handle, C-FIND SCU response Message ID validation, and SCP rejection of association release before mandatory C-FIND/C-STORE request data sets are covered through `ServiceBase` over local socket pairs | `cdimse_commandsets` |
 | Local association primitive coverage | A-ASSOCIATE-RQ and A-ASSOCIATE-AC are exchanged over a local socket pair, then C-ECHO is executed on the negotiated association state | `cdimse_commandsets` |
 | Thread-backed C-ECHO | `ClientConnection::Echo()` is verified against `Server` running in a background thread with A-ASSOCIATE negotiation | `cdimse_commandsets` |
 | Thread-backed C-STORE | `ClientConnection::Store()` is verified against a registered `Server` C-STORE handler with A-ASSOCIATE negotiation and success response validation | `cdimse_commandsets` |

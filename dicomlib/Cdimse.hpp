@@ -181,6 +181,7 @@ namespace dicom
 
 	class CStoreSCU  : public SCU
 	{
+		UID lastSOPInstanceUID_;
 	public:
 		CStoreSCU(ServiceBase& service,const UID& classUID);
 		void writeRQ(const UID& instUID,

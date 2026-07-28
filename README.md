@@ -179,8 +179,16 @@ C-DIMSE command sets are covered by tests for:
 - C-CANCEL-RQ command set structure
 
 SCU response handling validates the response command field and the Message ID
-Being Responded To. SCP dispatch handles C-ECHO, C-STORE, C-FIND, C-MOVE, and
-routes C-GET to the registered application handler after reading the Identifier.
+Being Responded To. When present in a response, Affected SOP Class UID is
+checked against the invoked service class; C-STORE responses also check
+Affected SOP Instance UID when present. SCU response readers apply the
+service-specific status validators for C-ECHO, C-STORE, C-FIND, C-GET, and
+C-MOVE, and reject association release before a response command or expected
+response Data Set. SCP dispatch handles C-ECHO, C-STORE, C-FIND, C-MOVE, and
+routes C-GET to the registered application handler after reading the
+Identifier. C-DIMSE SCP handlers reject unexpected request command fields and
+mismatched Affected SOP Class UIDs, and reject association release before a
+mandatory request Data Set is received.
 C-CANCEL-RQ is encoded, accepted by SCP dispatch, recorded on association state,
 and can be polled by a running handler with `PollCCancelRQ()`. C-FIND SCP code
 can use `AddCancellableFindHandler()` to return a final `Status::CANCEL`;

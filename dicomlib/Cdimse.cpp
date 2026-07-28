@@ -33,7 +33,12 @@ namespace dicom
 {
 	namespace
 	{
-		void ValidateCdimseResponse(const DataSet& response, Command::Code expectedCommand, UINT16 expectedMessageID)
+		void ValidateCdimseResponse(
+			const DataSet& response,
+			Command::Code expectedCommand,
+			UINT16 expectedMessageID,
+			const UID& expectedClassUID,
+			const UID* expectedInstanceUID = 0)
 		{
 			UINT16 command = 0;
 			UINT16 responseMessageID = 0;
@@ -44,6 +49,84 @@ namespace dicom
 				throw exception("Unexpected C-DIMSE response command field");
 			if(responseMessageID != expectedMessageID)
 				throw exception("Unexpected C-DIMSE response message ID");
+			if(response.exists(TAG_AFF_SOP_CLASS_UID))
+			{
+				UID responseClassUID;
+				response(TAG_AFF_SOP_CLASS_UID) >> responseClassUID;
+				if(responseClassUID != expectedClassUID)
+					throw exception("Unexpected C-DIMSE response SOP Class UID");
+			}
+			if(expectedInstanceUID && response.exists(TAG_AFF_SOP_INST_UID))
+			{
+				UID responseInstanceUID;
+				response(TAG_AFF_SOP_INST_UID) >> responseInstanceUID;
+				if(responseInstanceUID != *expectedInstanceUID)
+					throw exception("Unexpected C-DIMSE response SOP Instance UID");
+			}
+		}
+
+		void ValidateCdimseResponseStatus(UINT16 status, Command::Code command)
+		{
+			bool valid = false;
+			switch(command)
+			{
+			case Command::C_ECHO_RSP:
+				valid = IsCEchoResponseStatus(status);
+				break;
+			case Command::C_STORE_RSP:
+				valid = IsCStoreResponseStatus(status);
+				break;
+			case Command::C_FIND_RSP:
+				valid = IsCFindResponseStatus(status);
+				break;
+			case Command::C_GET_RSP:
+				valid = IsCGetResponseStatus(status);
+				break;
+			case Command::C_MOVE_RSP:
+				valid = IsCMoveResponseStatus(status);
+				break;
+			default:
+				throw exception("Unexpected C-DIMSE response command field");
+			}
+			if(!valid)
+				throw exception("Invalid C-DIMSE response status");
+		}
+
+		void ValidateCdimseRequest(
+			const DataSet& command,
+			Command::Code expectedCommand,
+			const UID* expectedClassUID = 0)
+		{
+			UINT16 commandField = 0;
+			command(TAG_CMD_FIELD) >> commandField;
+			if(commandField != expectedCommand)
+				throw exception("Unexpected C-DIMSE request command field");
+
+			if(expectedClassUID)
+			{
+				UID commandClassUID;
+				command(TAG_AFF_SOP_CLASS_UID) >> commandClassUID;
+				if(commandClassUID != *expectedClassUID)
+					throw exception("Unexpected C-DIMSE request SOP Class UID");
+			}
+		}
+
+		void ReadRequiredCommand(ServiceBase& service, DataSet& command)
+		{
+			if(!service.Read(command))
+				throw exception("Unexpected association release while reading C-DIMSE response command");
+		}
+
+		void ReadRequiredDataSet(ServiceBase& service, DataSet& data)
+		{
+			if(!service.Read(data))
+				throw exception("Unexpected association release while reading C-DIMSE response data set");
+		}
+
+		void ReadRequiredRequestDataSet(ServiceBase& service, DataSet& data)
+		{
+			if(!service.Read(data))
+				throw exception("Unexpected association release while reading C-DIMSE request data set");
 		}
 
 		void SetCGetCounters(CommandSet::CGetRSP& response, const CSubOperationResult& result)
@@ -96,6 +179,7 @@ namespace dicom
 	void HandleCEcho(ServiceBase& pdu, const DataSet& command,const UID& classUID)
 	{
 		RequireSCPRole(pdu,classUID);
+		ValidateCdimseRequest(command,Command::C_ECHO_RQ,&classUID);
 		UINT16 msgID;
 		command(TAG_MSG_ID)>>msgID;
 		CommandSet::CEchoRSP response(msgID,classUID);
@@ -105,6 +189,7 @@ namespace dicom
 	void HandleCStore(CStoreFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID)
 	{
 		RequireSCPRole(pdu,classUID);
+		ValidateCdimseRequest(command,Command::C_STORE_RQ,&classUID);
 		UINT16 msgID,data_set_status;
 		UID instuid;
 		command(TAG_MSG_ID)>>msgID;
@@ -113,7 +198,7 @@ namespace dicom
 		if(data_set_status==DataSetStatus::NO_DATA_SET)
 			throw exception("No data set!");
 		DataSet data;
-		pdu.Read(data);//the TransferSyntax is determined internally by pdu. -Sam
+		ReadRequiredRequestDataSet(pdu,data);//the TransferSyntax is determined internally by pdu. -Sam
 
 		handler(pdu,command,data);//this should indicate failure via a throw...
 
@@ -138,6 +223,7 @@ namespace dicom
 	void HandleCFind(CFindStatusFunction handler,ServiceBase& pdu, const DataSet& command, const UID& classUID)
 	{
 		RequireSCPRole(pdu,classUID);
+		ValidateCdimseRequest(command,Command::C_FIND_RQ,&classUID);
 #ifdef _DEBUG
 		cout  << "HandleCFind:" << endl << command;
 #endif
@@ -148,7 +234,7 @@ namespace dicom
 		if(data_set_status==DataSetStatus::NO_DATA_SET)
 			throw exception("No data set");
 		DataSet request_data;
-		pdu.Read(request_data);
+		ReadRequiredRequestDataSet(pdu,request_data);
 
 		Sequence Matches;
 
@@ -209,6 +295,7 @@ namespace dicom
 	void HandleCGet(CGetFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID)
 	{
 		RequireSCPRole(pdu,classUID);
+		ValidateCdimseRequest(command,Command::C_GET_RQ,&classUID);
 		UINT16 msgID,data_set_status;
 		command(TAG_MSG_ID)>>msgID;
 		pdu.ClearCancelRequest(msgID);
@@ -216,7 +303,7 @@ namespace dicom
 		if(data_set_status==DataSetStatus::NO_DATA_SET)
 			throw exception("No data set");
 		DataSet request_data;
-		pdu.Read(request_data);
+		ReadRequiredRequestDataSet(pdu,request_data);
 
 		handler(pdu,command,request_data);
 	}
@@ -224,6 +311,7 @@ namespace dicom
 	void HandleCGet(CGetStatusFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID)
 	{
 		RequireSCPRole(pdu,classUID);
+		ValidateCdimseRequest(command,Command::C_GET_RQ,&classUID);
 		UINT16 msgID,data_set_status;
 		command(TAG_MSG_ID)>>msgID;
 		pdu.ClearCancelRequest(msgID);
@@ -231,7 +319,7 @@ namespace dicom
 		if(data_set_status==DataSetStatus::NO_DATA_SET)
 			throw exception("No data set");
 		DataSet request_data;
-		pdu.Read(request_data);
+		ReadRequiredRequestDataSet(pdu,request_data);
 
 		CSubOperationResult result = handler(pdu,command,request_data);
 		if(PollCCancelRQ(pdu,msgID))
@@ -243,6 +331,7 @@ namespace dicom
 
 	void HandleCCancel(ServiceBase& pdu, const DataSet& command)
 	{
+		ValidateCdimseRequest(command,Command::C_CANCEL_RQ);
 		UINT16 messageIDBeingRespondedTo = 0;
 		UINT16 dataSetType = 0;
 		command(TAG_MSG_ID_RSP) >> messageIDBeingRespondedTo;
@@ -523,6 +612,7 @@ namespace dicom
 		const DataSet& command, const UID& classUID)
 	{
 		RequireSCPRole(pdu,classUID);
+		ValidateCdimseRequest(command,Command::C_MOVE_RQ,&classUID);
 		UINT16 msgID,data_set_status;
 		command(TAG_MSG_ID)>>msgID;
 		pdu.ClearCancelRequest(msgID);
@@ -530,7 +620,7 @@ namespace dicom
 		if(data_set_status==DataSetStatus::NO_DATA_SET)
 			throw exception("No data set");
 		DataSet request_data;
-		pdu.Read(request_data);
+		ReadRequiredRequestDataSet(pdu,request_data);
 
 		//The rest part of implementation involves design of server and should be 
 		//implemented in serve. -Sam
@@ -541,6 +631,7 @@ namespace dicom
 		const DataSet& command, const UID& classUID)
 	{
 		RequireSCPRole(pdu,classUID);
+		ValidateCdimseRequest(command,Command::C_MOVE_RQ,&classUID);
 		UINT16 msgID,data_set_status;
 		command(TAG_MSG_ID)>>msgID;
 		pdu.ClearCancelRequest(msgID);
@@ -548,7 +639,7 @@ namespace dicom
 		if(data_set_status==DataSetStatus::NO_DATA_SET)
 			throw exception("No data set");
 		DataSet request_data;
-		pdu.Read(request_data);
+		ReadRequiredRequestDataSet(pdu,request_data);
 
 		CSubOperationResult result = handler(pdu,command,request_data);
 		if(PollCCancelRQ(pdu,msgID))
@@ -589,13 +680,15 @@ namespace dicom
 
 	void CEchoSCU::readRSP(UINT16& status, DataSet& response)
 	{
-		service_.Read(response);
-		ValidateCdimseResponse(response, Command::C_ECHO_RSP, lastMessageID_);
+		ReadRequiredCommand(service_,response);
+		ValidateCdimseResponse(response, Command::C_ECHO_RSP, lastMessageID_, classUID_);
 		response(TAG_STATUS)>>status;
+		ValidateCdimseResponseStatus(status, Command::C_ECHO_RSP);
 	}
 
 	CStoreSCU::CStoreSCU(ServiceBase& service,const UID& classUID)
 	: SCU(service,classUID)
+	, lastSOPInstanceUID_("")
 	{
 	}
 
@@ -603,6 +696,7 @@ namespace dicom
 	{
 		RequireSCURole(service_,classUID_);
 		lastMessageID_ = uniq16odd();
+		lastSOPInstanceUID_ = instUID;
 		CommandSet::CStoreRQ rq(lastMessageID_, classUID_, instUID, priority);
 		service_.WriteCommand(rq, classUID_);
 		service_.WriteDataSet(data, classUID_/*,ts*/);
@@ -617,6 +711,7 @@ namespace dicom
 	{
 		RequireSCURole(service_,classUID_);
 		lastMessageID_ = uniq16odd();
+		lastSOPInstanceUID_ = instUID;
 		CommandSet::CStoreRQ rq(
 			lastMessageID_,
 			classUID_,
@@ -636,9 +731,10 @@ namespace dicom
 
 	void CStoreSCU::readRSP(UINT16& status, DataSet& response)
 	{
-		service_.Read(response);
-		ValidateCdimseResponse(response, Command::C_STORE_RSP, lastMessageID_);
+		ReadRequiredCommand(service_,response);
+		ValidateCdimseResponse(response, Command::C_STORE_RSP, lastMessageID_, classUID_, &lastSOPInstanceUID_);
 		response(TAG_STATUS) >> status;
+		ValidateCdimseResponseStatus(status, Command::C_STORE_RSP);
 	}
 //I'd prefer:
 /*
@@ -678,12 +774,13 @@ namespace dicom
 	{
 		UINT16 dstype = 0;
 
-		service_.Read(response);
-		ValidateCdimseResponse(response, Command::C_FIND_RSP, lastMessageID_);
+		ReadRequiredCommand(service_,response);
+		ValidateCdimseResponse(response, Command::C_FIND_RSP, lastMessageID_, classUID_);
 		response(TAG_DATA_SET_TYPE)	>>	dstype;
 		response(TAG_STATUS)		>>	status;
+		ValidateCdimseResponseStatus(status, Command::C_FIND_RSP);
 		if(dstype!=DataSetStatus::NO_DATA_SET)
-			service_.Read(data);
+			ReadRequiredDataSet(service_,data);
 
 	}
 
@@ -715,12 +812,13 @@ namespace dicom
 	void CGetSCU::readRSP(UINT16& status, DataSet& response, DataSet&  data)
 	{
 		UINT16 dstype = 0;
-		service_.Read(response);
-		ValidateCdimseResponse(response, Command::C_GET_RSP, lastMessageID_);
+		ReadRequiredCommand(service_,response);
+		ValidateCdimseResponse(response, Command::C_GET_RSP, lastMessageID_, classUID_);
 		response(TAG_DATA_SET_TYPE)	>>	dstype;
 		response(TAG_STATUS)		>>	status;
+		ValidateCdimseResponseStatus(status, Command::C_GET_RSP);
 		if(dstype!=DataSetStatus::NO_DATA_SET)
-			service_.Read(data);
+			ReadRequiredDataSet(service_,data);
 
 	}
 
@@ -729,7 +827,7 @@ namespace dicom
 		while(true)
 		{
 			DataSet command;
-			service_.Read(command);
+			ReadRequiredCommand(service_,command);
 
 			Command::Code commandField = 0;
 			command(TAG_CMD_FIELD) >> commandField;
@@ -737,12 +835,13 @@ namespace dicom
 			if(commandField == Command::C_GET_RSP)
 			{
 				UINT16 dstype = 0;
-				ValidateCdimseResponse(command, Command::C_GET_RSP, lastMessageID_);
+				ValidateCdimseResponse(command, Command::C_GET_RSP, lastMessageID_, classUID_);
 				command(TAG_DATA_SET_TYPE) >> dstype;
 				command(TAG_STATUS) >> status;
+				ValidateCdimseResponseStatus(status, Command::C_GET_RSP);
 				response = command;
 				if(dstype!=DataSetStatus::NO_DATA_SET)
-					service_.Read(data);
+					ReadRequiredDataSet(service_,data);
 				return;
 			}
 
@@ -793,12 +892,13 @@ namespace dicom
 	{
 		UINT16 dstype = 0;
 
-		service_.Read(response);
-		ValidateCdimseResponse(response, Command::C_MOVE_RSP, lastMessageID_);
+		ReadRequiredCommand(service_,response);
+		ValidateCdimseResponse(response, Command::C_MOVE_RSP, lastMessageID_, classUID_);
 		response(TAG_DATA_SET_TYPE)	>>	dstype;
 		response(TAG_STATUS)		>>	status;
+		ValidateCdimseResponseStatus(status, Command::C_MOVE_RSP);
 		if(dstype!=DataSetStatus::NO_DATA_SET)
-			service_.Read(data);
+			ReadRequiredDataSet(service_,data);
 
 	}
 }//namespace dicom

@@ -1547,34 +1547,306 @@ namespace
 	void checkSCUResponseValidationOverPData()
 	{
 		const dicom::UID classUID("1.2.840.10008.5.1.4.1.2.2.1");
-		int sockets[2];
-		makeSocketPair(sockets);
-		PairedService scuSide(sockets[0], classUID);
-		PairedService scpSide(sockets[1], classUID);
+		const dicom::UID wrongClassUID("1.2.840.10008.5.1.4.1.2.1.1");
 
-		TestCFindSCU scu(scuSide, classUID);
-		scu.setLastMessageID(13);
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService scuSide(sockets[0], classUID);
+			PairedService scpSide(sockets[1], classUID);
 
-		dicom::CommandSet::CFindRSP wrongMessageID(
-			15,
-			classUID,
-			dicom::Status::SUCCESS,
-			dicom::DataSetStatus::NO_DATA_SET);
-		scpSide.WriteCommand(wrongMessageID, classUID);
+			TestCFindSCU scu(scuSide, classUID);
+			scu.setLastMessageID(13);
 
-		UINT16 status = 0;
-		dicom::DataSet response;
-		dicom::DataSet data;
-		bool rejected = false;
+			dicom::CommandSet::CFindRSP wrongMessageID(
+				15,
+				classUID,
+				dicom::Status::SUCCESS,
+				dicom::DataSetStatus::NO_DATA_SET);
+			scpSide.WriteCommand(wrongMessageID, classUID);
+
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			bool rejected = false;
+			try
+			{
+				scu.readRSP(status, response, data);
+			}
+			catch(const std::exception&)
+			{
+				rejected = true;
+			}
+			assert(rejected);
+		}
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService scuSide(sockets[0], classUID);
+			PairedService scpSide(sockets[1], classUID);
+
+			TestCFindSCU scu(scuSide, classUID);
+			scu.setLastMessageID(17);
+
+			dicom::CommandSet::CFindRSP wrongClass(
+				17,
+				wrongClassUID,
+				dicom::Status::SUCCESS,
+				dicom::DataSetStatus::NO_DATA_SET);
+			scpSide.WriteCommand(wrongClass, classUID);
+
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			bool rejected = false;
+			try
+			{
+				scu.readRSP(status, response, data);
+			}
+			catch(const std::exception&)
+			{
+				rejected = true;
+			}
+			assert(rejected);
+		}
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService scuSide(sockets[0], classUID);
+			PairedService scpSide(sockets[1], classUID);
+
+			TestCFindSCU scu(scuSide, classUID);
+			scu.setLastMessageID(19);
+
+			dicom::CommandSet::CFindRSP invalidStatus(
+				19,
+				classUID,
+				dicom::Status::WARNING,
+				dicom::DataSetStatus::NO_DATA_SET);
+			scpSide.WriteCommand(invalidStatus, classUID);
+
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			bool rejected = false;
+			try
+			{
+				scu.readRSP(status, response, data);
+			}
+			catch(const std::exception&)
+			{
+				rejected = true;
+			}
+			assert(rejected);
+		}
+
+		{
+			const dicom::UID instanceUID("1.2.826.0.1.3680043.10.1553.12.1");
+			const dicom::UID wrongInstanceUID("1.2.826.0.1.3680043.10.1553.12.2");
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService scuSide(sockets[0], dicom::CT_IMAGE_STORAGE_SOP_CLASS);
+			PairedService scpSide(sockets[1], dicom::CT_IMAGE_STORAGE_SOP_CLASS);
+
+			dicom::DataSet stored;
+			stored.Put<dicom::VR_UI>(dicom::TAG_SOP_CLASS_UID, dicom::CT_IMAGE_STORAGE_SOP_CLASS);
+			stored.Put<dicom::VR_UI>(dicom::TAG_SOP_INST_UID, instanceUID);
+
+			dicom::CStoreSCU scu(scuSide, dicom::CT_IMAGE_STORAGE_SOP_CLASS);
+			scu.writeRQ(instanceUID, stored);
+
+			dicom::DataSet request;
+			requireRead(scpSide, request);
+			const UINT16 messageID = get<UINT16>(request, dicom::TAG_MSG_ID);
+			dicom::CommandSet::CStoreRSP wrongInstance(
+				messageID,
+				dicom::CT_IMAGE_STORAGE_SOP_CLASS,
+				wrongInstanceUID,
+				dicom::Status::SUCCESS);
+			scpSide.WriteCommand(wrongInstance, dicom::CT_IMAGE_STORAGE_SOP_CLASS);
+
+			UINT16 status = 0;
+			dicom::DataSet response;
+			bool rejected = false;
+			try
+			{
+				scu.readRSP(status, response);
+			}
+			catch(const std::exception&)
+			{
+				rejected = true;
+			}
+			assert(rejected);
+		}
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService scuSide(sockets[0], classUID);
+			{
+				PairedService scpSide(sockets[1], classUID);
+			}
+
+			TestCFindSCU scu(scuSide, classUID);
+			scu.setLastMessageID(27);
+
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			bool rejected = false;
+			try
+			{
+				scu.readRSP(status, response, data);
+			}
+			catch(const std::exception&)
+			{
+				rejected = true;
+			}
+			assert(rejected);
+		}
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService scuSide(sockets[0], classUID);
+			{
+				PairedService scpSide(sockets[1], classUID);
+				dicom::CommandSet::CFindRSP pendingWithoutData(
+					29,
+					classUID,
+					dicom::Status::PENDING,
+					dicom::DataSetStatus::YES_DATA_SET);
+				scpSide.WriteCommand(pendingWithoutData, classUID);
+			}
+
+			TestCFindSCU scu(scuSide, classUID);
+			scu.setLastMessageID(29);
+
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			bool rejected = false;
+			try
+			{
+				scu.readRSP(status, response, data);
+			}
+			catch(const std::exception&)
+			{
+				rejected = true;
+			}
+			assert(rejected);
+		}
+	}
+
+	void checkCdimseSCPRequestValidation()
+	{
+		const dicom::UID classUID("1.2.840.10008.5.1.4.1.2.2.1");
+		const dicom::UID wrongClassUID("1.2.840.10008.5.1.4.1.2.1.1");
+		NullService service;
+
+		dicom::CommandSet::CMoveRQ moveRequest(21,classUID,"ARCHIVE_AE");
+		bool wrongCommandRejected = false;
 		try
 		{
-			scu.readRSP(status, response, data);
+			dicom::HandleCFind(
+				dicom::CFindStatusFunction(
+					[](dicom::ServiceBase&, dicom::DataSet&, dicom::Sequence&)
+					{
+						return dicom::Status::SUCCESS;
+					}),
+				service,
+				moveRequest,
+				classUID);
 		}
 		catch(const std::exception&)
 		{
-			rejected = true;
+			wrongCommandRejected = true;
 		}
-		assert(rejected);
+		assert(wrongCommandRejected);
+
+		dicom::CommandSet::CEchoRQ wrongClassEcho(23,wrongClassUID);
+		bool wrongClassRejected = false;
+		try
+		{
+			dicom::HandleCEcho(service, wrongClassEcho, dicom::VERIFICATION_SOP_CLASS);
+		}
+		catch(const std::exception&)
+		{
+			wrongClassRejected = true;
+		}
+		assert(wrongClassRejected);
+
+		dicom::CommandSet::CFindRQ notCancel(25,classUID);
+		bool wrongCancelCommandRejected = false;
+		try
+		{
+			dicom::HandleCCancel(service, notCancel);
+		}
+		catch(const std::exception&)
+		{
+			wrongCancelCommandRejected = true;
+		}
+		assert(wrongCancelCommandRejected);
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService scpSide(sockets[1], classUID);
+			{
+				PairedService requestorSide(sockets[0], classUID);
+			}
+
+			dicom::CommandSet::CFindRQ request(27,classUID);
+			bool missingDataRejected = false;
+			try
+			{
+				dicom::HandleCFind(
+					dicom::CFindStatusFunction(
+						[](dicom::ServiceBase&, dicom::DataSet&, dicom::Sequence&)
+						{
+							return dicom::Status::SUCCESS;
+						}),
+					scpSide,
+					request,
+					classUID);
+			}
+			catch(const std::exception&)
+			{
+				missingDataRejected = true;
+			}
+			assert(missingDataRejected);
+		}
+
+		{
+			const dicom::UID storageClassUID = dicom::CT_IMAGE_STORAGE_SOP_CLASS;
+			const dicom::UID instanceUID("1.2.826.0.1.3680043.10.1553.13.1");
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService scpSide(sockets[1], storageClassUID);
+			{
+				PairedService requestorSide(sockets[0], storageClassUID);
+			}
+
+			dicom::CommandSet::CStoreRQ request(29,storageClassUID,instanceUID);
+			bool missingDataRejected = false;
+			try
+			{
+				dicom::HandleCStore(
+					[](dicom::ServiceBase&, const dicom::DataSet&, dicom::DataSet&)
+					{
+					},
+					scpSide,
+					request,
+					storageClassUID);
+			}
+			catch(const std::exception&)
+			{
+				missingDataRejected = true;
+			}
+			assert(missingDataRejected);
+		}
 	}
 
 	void checkAssociationNegotiationAndCEcho()
@@ -3054,6 +3326,7 @@ int main()
 	checkCCancel();
 	checkCCancelOverPData();
 	checkSCUResponseValidationOverPData();
+	checkCdimseSCPRequestValidation();
 	checkAssociationExtendedNegotiation();
 	checkAssociationNegotiationAndCEcho();
 	checkServerClientCEcho();
