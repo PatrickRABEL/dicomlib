@@ -26,17 +26,53 @@ namespace dicom
 		void ValidateNdimseResponse(
 			const DataSet& response,
 			Command::Code expectedCommand,
-			UINT16 expectedMessageID)
+			UINT16 expectedMessageID,
+			const UID& expectedClassUID)
 		{
 			UINT16 command = 0;
 			UINT16 responseMessageID = 0;
+			UID responseClassUID;
 			response(TAG_CMD_FIELD) >> command;
 			response(TAG_MSG_ID_RSP) >> responseMessageID;
+			response(TAG_AFF_SOP_CLASS_UID) >> responseClassUID;
 
 			if(command != expectedCommand)
 				throw exception("Unexpected N-DIMSE response command field");
 			if(responseMessageID != expectedMessageID)
 				throw exception("Unexpected N-DIMSE response message ID");
+			if(responseClassUID != expectedClassUID)
+				throw exception("Unexpected N-DIMSE response SOP Class UID");
+		}
+
+		void ValidateNdimseRequest(
+			const DataSet& command,
+			Command::Code expectedCommand,
+			const UID& expectedClassUID)
+		{
+			UINT16 commandField = 0;
+			UID commandClassUID;
+			command(TAG_CMD_FIELD) >> commandField;
+			if(commandField != expectedCommand)
+				throw exception("Unexpected N-DIMSE request command field");
+
+			switch(expectedCommand)
+			{
+			case Command::N_EVENT_REPORT_RQ:
+			case Command::N_CREATE_RQ:
+				command(TAG_AFF_SOP_CLASS_UID) >> commandClassUID;
+				break;
+			case Command::N_GET_RQ:
+			case Command::N_SET_RQ:
+			case Command::N_ACTION_RQ:
+			case Command::N_DELETE_RQ:
+				command(TAG_REQ_SOP_CLASS_UID) >> commandClassUID;
+				break;
+			default:
+				throw exception("Unexpected N-DIMSE request command field");
+			}
+
+			if(commandClassUID != expectedClassUID)
+				throw exception("Unexpected N-DIMSE request SOP Class UID");
 		}
 
 		void RequireSCURole(ServiceBase& service, const UID& classUID)
@@ -87,6 +123,24 @@ namespace dicom
 			command(TAG_DATA_SET_TYPE) >> dataSetType;
 			if(dataSetType != DataSetStatus::NO_DATA_SET && !service.Read(data))
 				throw exception("Unexpected association release while reading N-DIMSE request data set");
+		}
+
+		void ReadRequiredRequestDataSet(ServiceBase& service, const DataSet& command, DataSet& data)
+		{
+			UINT16 dataSetType = 0;
+			command(TAG_DATA_SET_TYPE) >> dataSetType;
+			if(dataSetType == DataSetStatus::NO_DATA_SET)
+				throw exception("N-DIMSE request requires a data set");
+			if(!service.Read(data))
+				throw exception("Unexpected association release while reading N-DIMSE request data set");
+		}
+
+		void RejectRequestDataSet(const DataSet& command)
+		{
+			UINT16 dataSetType = 0;
+			command(TAG_DATA_SET_TYPE) >> dataSetType;
+			if(dataSetType != DataSetStatus::NO_DATA_SET)
+				throw exception("N-DIMSE request shall not include a data set");
 		}
 
 		UID ReadUIDIfPresent(const DataSet& command, Tag tag)
@@ -162,6 +216,7 @@ namespace dicom
 	void HandleNEventReport(NHandlerFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID)
 	{
 		RequireSCPRole(pdu,classUID);
+		ValidateNdimseRequest(command,Command::N_EVENT_REPORT_RQ,classUID);
 
 		UINT16 msgID = 0;
 		UINT16 eventTypeID = 0;
@@ -191,6 +246,7 @@ namespace dicom
 	void HandleNGet(NHandlerFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID)
 	{
 		RequireSCPRole(pdu,classUID);
+		ValidateNdimseRequest(command,Command::N_GET_RQ,classUID);
 
 		UINT16 msgID = 0;
 		command(TAG_MSG_ID) >> msgID;
@@ -198,7 +254,7 @@ namespace dicom
 
 		DataSet requestData;
 		DataSet responseData;
-		ReadRequestDataSetIfPresent(pdu,command,requestData);
+		RejectRequestDataSet(command);
 		const UINT16 status = handler(pdu,command,requestData,responseData);
 		if(!IsNGetResponseStatus(status))
 			throw exception("Invalid N-GET response status");
@@ -217,6 +273,7 @@ namespace dicom
 	void HandleNSet(NHandlerFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID)
 	{
 		RequireSCPRole(pdu,classUID);
+		ValidateNdimseRequest(command,Command::N_SET_RQ,classUID);
 
 		UINT16 msgID = 0;
 		command(TAG_MSG_ID) >> msgID;
@@ -224,7 +281,7 @@ namespace dicom
 
 		DataSet requestData;
 		DataSet responseData;
-		ReadRequestDataSetIfPresent(pdu,command,requestData);
+		ReadRequiredRequestDataSet(pdu,command,requestData);
 		const UINT16 status = handler(pdu,command,requestData,responseData);
 		if(!IsNSetResponseStatus(status))
 			throw exception("Invalid N-SET response status");
@@ -243,6 +300,7 @@ namespace dicom
 	void HandleNAction(NHandlerFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID)
 	{
 		RequireSCPRole(pdu,classUID);
+		ValidateNdimseRequest(command,Command::N_ACTION_RQ,classUID);
 
 		UINT16 msgID = 0;
 		UINT16 actionTypeID = 0;
@@ -272,6 +330,7 @@ namespace dicom
 	void HandleNCreate(NHandlerFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID)
 	{
 		RequireSCPRole(pdu,classUID);
+		ValidateNdimseRequest(command,Command::N_CREATE_RQ,classUID);
 
 		UINT16 msgID = 0;
 		command(TAG_MSG_ID) >> msgID;
@@ -298,6 +357,7 @@ namespace dicom
 	void HandleNDelete(NHandlerFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID)
 	{
 		RequireSCPRole(pdu,classUID);
+		ValidateNdimseRequest(command,Command::N_DELETE_RQ,classUID);
 
 		UINT16 msgID = 0;
 		command(TAG_MSG_ID) >> msgID;
@@ -305,10 +365,12 @@ namespace dicom
 
 		DataSet requestData;
 		DataSet responseData;
-		ReadRequestDataSetIfPresent(pdu,command,requestData);
+		RejectRequestDataSet(command);
 		const UINT16 status = handler(pdu,command,requestData,responseData);
 		if(!IsNDeleteResponseStatus(status))
 			throw exception("Invalid N-DELETE response status");
+		if(!responseData.empty())
+			throw exception("N-DELETE response shall not include a data set");
 
 		CommandSet::NDeleteRSP responseCommand(msgID,classUID,instUID,status);
 		pdu.WriteCommand(responseCommand,classUID);
@@ -330,7 +392,7 @@ namespace dicom
 		UINT16 dataSetType = 0;
 		if(!service_.Read(response))
 			throw exception("Unexpected association release while reading N-DIMSE response command");
-		ValidateNdimseResponse(response,expectedCommand,lastMessageID_);
+		ValidateNdimseResponse(response,expectedCommand,lastMessageID_,classUID_);
 		response(TAG_DATA_SET_TYPE) >> dataSetType;
 		response(TAG_STATUS) >> status;
 		ValidateNdimseResponseStatus(status,expectedCommand);

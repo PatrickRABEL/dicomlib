@@ -4,7 +4,6 @@ namespace dicom
 {
 	namespace CommandSet
 	{
-
 		//////////////////////////////////////////////////////////////////////////
 		//C-DIMSE commands
 		//////////////////////////////////////////////////////////////////////////
@@ -180,7 +179,6 @@ namespace dicom
 		NEventReportRQ::NEventReportRQ(UINT16 msgID, const UID& classUID, const UID& instUID,
 			UINT16 eventTypID, UINT16 dsType)
 		{
-
 			this->Put<VR_UI>(TAG_AFF_SOP_CLASS_UID,classUID);
 			this->Put<VR_US>(TAG_CMD_FIELD, Command::N_EVENT_REPORT_RQ);
 			this->Put<VR_US>(TAG_MSG_ID, msgID);

@@ -211,9 +211,13 @@ N-EVENT-REPORT, N-GET, N-SET, N-ACTION, N-CREATE, and N-DELETE SCU request and
 response paths are covered over local P-DATA, including response command field,
 Message ID Being Responded To, status validation, optional response data set
 reading, and negotiated SCU role enforcement. N-DIMSE SCP handlers are exposed
-for N-EVENT-REPORT, N-GET, N-SET, N-ACTION, N-CREATE, and N-DELETE, and server
-dispatch is covered through `Server`/`ClientConnection` tests. `NGetRQ` encodes
-the Attribute Identifier List as multi-valued `AT`. A-ASSOCIATE-RQ/AC
+for N-EVENT-REPORT, N-GET, N-SET, N-ACTION, N-CREATE, and N-DELETE; they validate
+the request command field, enforce SOP Class UID consistency, apply the PS3.7
+`Command Data Set Type` rule that `0101H` means no Data Set and any other value
+means a Data Set is present, and server dispatch is covered through
+`Server`/`ClientConnection` tests. SCU response validation also rejects
+unexpected SOP Class UIDs. `NGetRQ` encodes the Attribute Identifier List as
+multi-valued `AT`. A-ASSOCIATE-RQ/AC
 user-information round trips preserve SCP/SCU Role Selection, SOP Class
 Extended Negotiation, and Asynchronous Operations Window sub-items, and
 `ClientConnection` can send caller-provided User Information proposals.

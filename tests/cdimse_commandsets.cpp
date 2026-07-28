@@ -469,6 +469,7 @@ namespace
 		const dicom::UID instUID("1.2.826.0.1.3680043.10.1553.20.1");
 		const UINT16 eventTypeID = 3;
 		const UINT16 actionTypeID = 5;
+		const UINT16 invalidDataSetType = 0xffff;
 
 		dicom::CommandSet::NEventReportRQ eventRQ(
 			21,
@@ -619,6 +620,14 @@ namespace
 		assert(get<UINT16>(deleteRSP, dicom::TAG_MSG_ID_RSP) == 31);
 		assert(get<UINT16>(deleteRSP, dicom::TAG_DATA_SET_TYPE) == dicom::DataSetStatus::NO_DATA_SET);
 		assert(get<UINT16>(deleteRSP, dicom::TAG_STATUS) == dicom::Status::SUCCESS);
+
+		dicom::CommandSet::NActionRQ nonNullDataSetTypeRQ(
+			33,
+			classUID,
+			instUID,
+			actionTypeID,
+			invalidDataSetType);
+		assert(get<UINT16>(nonNullDataSetTypeRQ, dicom::TAG_DATA_SET_TYPE) == invalidDataSetType);
 	}
 
 	void checkCdimseStatusHelpers()
@@ -1017,60 +1026,232 @@ namespace
 		{
 			statusRejected = true;
 		}
-			if(!statusRejected)
-				throw dicom::exception("N-DIMSE non-final response status was not rejected");
+		if(!statusRejected)
+			throw dicom::exception("N-DIMSE non-final response status was not rejected");
 
-			dicom::primitive::AAssociateAC scpDeniedAcknowledgement;
-			scpDeniedAcknowledgement.PresContextAccepts_.push_back(accepted);
-			scpDeniedAcknowledgement.UserInfo_ = makeUserInformation();
-			scpDeniedAcknowledgement.UserInfo_.AddSCPSCURoleSelection(classUID,false,true);
+		{
+			int classMismatchSockets[2];
+			makeSocketPair(classMismatchSockets);
+			PairedService classMismatchSCUService(classMismatchSockets[0], classUID);
+			PairedService classMismatchSCPService(classMismatchSockets[1], classUID);
+			const dicom::UID wrongClassUID("1.2.826.0.1.3680043.10.1553.22.99");
 
-			NullService acceptorState;
-			acceptorState.AAssociateRQ_.ProposedPresentationContexts_ = contexts;
-			acceptorState.AcceptedPresentationContexts_ = scpDeniedAcknowledgement.PresContextAccepts_;
-			acceptorState.ApplyAssociationNegotiationAsAcceptor(scpDeniedAcknowledgement.UserInfo_);
+			dicom::NDeleteSCU classMismatchSCU(classMismatchSCUService,classUID);
+			classMismatchSCU.writeRQ(instUID);
 
-			dicom::CommandSet::NDeleteRQ deniedRequest(3,classUID,instUID);
-			bool scpRoleRejected = false;
+			dicom::DataSet classMismatchRequest;
+			requireRead(classMismatchSCPService,classMismatchRequest);
+			const UINT16 classMismatchMessageID = get<UINT16>(classMismatchRequest, dicom::TAG_MSG_ID);
+			dicom::CommandSet::NDeleteRSP classMismatchResponse(
+				classMismatchMessageID,
+				wrongClassUID,
+				instUID,
+				dicom::Status::SUCCESS);
+			classMismatchSCPService.WriteCommand(classMismatchResponse,classUID);
+
+			bool classMismatchRejected = false;
 			try
 			{
-				dicom::HandleNDelete(
-					[](dicom::ServiceBase&, const dicom::DataSet&, const dicom::DataSet&, dicom::DataSet&)
-					{
-						return dicom::Status::SUCCESS;
-					},
-					acceptorState,
-					deniedRequest,
-					classUID);
+				UINT16 status = 0;
+				dicom::DataSet response;
+				dicom::DataSet data;
+				classMismatchSCU.readRSP(status,response,data);
 			}
 			catch(const dicom::exception&)
 			{
-				scpRoleRejected = true;
+				classMismatchRejected = true;
 			}
-			if(!scpRoleRejected)
-				throw dicom::exception("N-DIMSE SCP role selection was not enforced");
+			if(!classMismatchRejected)
+				throw dicom::exception("N-DIMSE response SOP Class UID mismatch was not rejected");
+		}
 
-			NullService invalidStatusService;
-			invalidStatusService.AAssociateRQ_.ProposedPresentationContexts_ = contexts;
-			invalidStatusService.AcceptedPresentationContexts_.push_back(accepted);
-			bool scpStatusRejected = false;
-			try
-			{
-				dicom::HandleNDelete(
-					[](dicom::ServiceBase&, const dicom::DataSet&, const dicom::DataSet&, dicom::DataSet&)
-					{
-						return dicom::Status::PENDING;
-					},
-					invalidStatusService,
-					deniedRequest,
-					classUID);
-			}
-			catch(const dicom::exception&)
-			{
-				scpStatusRejected = true;
-			}
-			if(!scpStatusRejected)
-				throw dicom::exception("N-DIMSE SCP invalid response status was not rejected");
+		dicom::primitive::AAssociateAC scpDeniedAcknowledgement;
+		scpDeniedAcknowledgement.PresContextAccepts_.push_back(accepted);
+		scpDeniedAcknowledgement.UserInfo_ = makeUserInformation();
+		scpDeniedAcknowledgement.UserInfo_.AddSCPSCURoleSelection(classUID,false,true);
+
+		NullService acceptorState;
+		acceptorState.AAssociateRQ_.ProposedPresentationContexts_ = contexts;
+		acceptorState.AcceptedPresentationContexts_ = scpDeniedAcknowledgement.PresContextAccepts_;
+		acceptorState.ApplyAssociationNegotiationAsAcceptor(scpDeniedAcknowledgement.UserInfo_);
+
+		dicom::CommandSet::NDeleteRQ deniedRequest(3,classUID,instUID);
+		bool scpRoleRejected = false;
+		try
+		{
+			dicom::HandleNDelete(
+				[](dicom::ServiceBase&, const dicom::DataSet&, const dicom::DataSet&, dicom::DataSet&)
+				{
+					return dicom::Status::SUCCESS;
+				},
+				acceptorState,
+				deniedRequest,
+				classUID);
+		}
+		catch(const dicom::exception&)
+		{
+			scpRoleRejected = true;
+		}
+		if(!scpRoleRejected)
+			throw dicom::exception("N-DIMSE SCP role selection was not enforced");
+
+		NullService invalidStatusService;
+		invalidStatusService.AAssociateRQ_.ProposedPresentationContexts_ = contexts;
+		invalidStatusService.AcceptedPresentationContexts_.push_back(accepted);
+		bool scpStatusRejected = false;
+		try
+		{
+			dicom::HandleNDelete(
+				[](dicom::ServiceBase&, const dicom::DataSet&, const dicom::DataSet&, dicom::DataSet&)
+				{
+					return dicom::Status::PENDING;
+				},
+				invalidStatusService,
+				deniedRequest,
+				classUID);
+		}
+		catch(const dicom::exception&)
+		{
+			scpStatusRejected = true;
+		}
+		if(!scpStatusRejected)
+			throw dicom::exception("N-DIMSE SCP invalid response status was not rejected");
+
+		dicom::DataSet invalidNGetRequest;
+		invalidNGetRequest.Put<dicom::VR_UI>(dicom::TAG_REQ_SOP_CLASS_UID, classUID);
+		invalidNGetRequest.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD, dicom::Command::N_GET_RQ);
+		invalidNGetRequest.Put<dicom::VR_US>(dicom::TAG_MSG_ID, UINT16(5));
+		invalidNGetRequest.Put<dicom::VR_US>(dicom::TAG_DATA_SET_TYPE, dicom::DataSetStatus::YES_DATA_SET);
+		invalidNGetRequest.Put<dicom::VR_UI>(dicom::TAG_REQ_SOP_INST_UID, instUID);
+		bool nGetDataSetRejected = false;
+		try
+		{
+			dicom::HandleNGet(
+				[](dicom::ServiceBase&, const dicom::DataSet&, const dicom::DataSet&, dicom::DataSet&)
+				{
+					return dicom::Status::SUCCESS;
+				},
+				invalidStatusService,
+				invalidNGetRequest,
+				classUID);
+		}
+		catch(const dicom::exception&)
+		{
+			nGetDataSetRejected = true;
+		}
+		if(!nGetDataSetRejected)
+			throw dicom::exception("N-GET request data set was not rejected");
+
+		dicom::DataSet invalidNSetRequest;
+		invalidNSetRequest.Put<dicom::VR_UI>(dicom::TAG_REQ_SOP_CLASS_UID, classUID);
+		invalidNSetRequest.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD, dicom::Command::N_SET_RQ);
+		invalidNSetRequest.Put<dicom::VR_US>(dicom::TAG_MSG_ID, UINT16(7));
+		invalidNSetRequest.Put<dicom::VR_US>(dicom::TAG_DATA_SET_TYPE, dicom::DataSetStatus::NO_DATA_SET);
+		invalidNSetRequest.Put<dicom::VR_UI>(dicom::TAG_REQ_SOP_INST_UID, instUID);
+		bool nSetMissingDataSetRejected = false;
+		try
+		{
+			dicom::HandleNSet(
+				[](dicom::ServiceBase&, const dicom::DataSet&, const dicom::DataSet&, dicom::DataSet&)
+				{
+					return dicom::Status::SUCCESS;
+				},
+				invalidStatusService,
+				invalidNSetRequest,
+				classUID);
+		}
+		catch(const dicom::exception&)
+		{
+			nSetMissingDataSetRejected = true;
+		}
+		if(!nSetMissingDataSetRejected)
+			throw dicom::exception("N-SET missing request data set was not rejected");
+
+		dicom::DataSet invalidNDeleteRequest;
+		invalidNDeleteRequest.Put<dicom::VR_UI>(dicom::TAG_REQ_SOP_CLASS_UID, classUID);
+		invalidNDeleteRequest.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD, dicom::Command::N_DELETE_RQ);
+		invalidNDeleteRequest.Put<dicom::VR_US>(dicom::TAG_MSG_ID, UINT16(9));
+		invalidNDeleteRequest.Put<dicom::VR_US>(dicom::TAG_DATA_SET_TYPE, dicom::DataSetStatus::YES_DATA_SET);
+		invalidNDeleteRequest.Put<dicom::VR_UI>(dicom::TAG_REQ_SOP_INST_UID, instUID);
+		bool nDeleteDataSetRejected = false;
+		try
+		{
+			dicom::HandleNDelete(
+				[](dicom::ServiceBase&, const dicom::DataSet&, const dicom::DataSet&, dicom::DataSet&)
+				{
+					return dicom::Status::SUCCESS;
+				},
+				invalidStatusService,
+				invalidNDeleteRequest,
+				classUID);
+		}
+		catch(const dicom::exception&)
+		{
+			nDeleteDataSetRejected = true;
+		}
+		if(!nDeleteDataSetRejected)
+			throw dicom::exception("N-DELETE request data set was not rejected");
+
+		bool nDeleteResponseDataRejected = false;
+		try
+		{
+			dicom::HandleNDelete(
+				[](dicom::ServiceBase&, const dicom::DataSet&, const dicom::DataSet&, dicom::DataSet& responseData)
+				{
+					responseData.Put<dicom::VR_UI>(dicom::TAG_SOP_INST_UID, dicom::UID("1.2.826.0.1.3680043.10.1553.22.2"));
+					return dicom::Status::SUCCESS;
+				},
+				invalidStatusService,
+				deniedRequest,
+				classUID);
+		}
+		catch(const dicom::exception&)
+		{
+			nDeleteResponseDataRejected = true;
+		}
+		if(!nDeleteResponseDataRejected)
+			throw dicom::exception("N-DELETE response data set was not rejected");
+
+		dicom::CommandSet::NGetRQ wrongCommand(11,classUID,instUID,std::vector<dicom::Tag>());
+		bool wrongCommandRejected = false;
+		try
+		{
+			dicom::HandleNDelete(
+				[](dicom::ServiceBase&, const dicom::DataSet&, const dicom::DataSet&, dicom::DataSet&)
+				{
+					return dicom::Status::SUCCESS;
+				},
+				invalidStatusService,
+				wrongCommand,
+				classUID);
+		}
+		catch(const dicom::exception&)
+		{
+			wrongCommandRejected = true;
+		}
+		if(!wrongCommandRejected)
+			throw dicom::exception("N-DIMSE wrong request command field was not rejected");
+
+		const dicom::UID wrongClassUID("1.2.826.0.1.3680043.10.1553.22.98");
+		dicom::CommandSet::NDeleteRQ wrongClassRequest(13,wrongClassUID,instUID);
+		bool wrongClassRejected = false;
+		try
+		{
+			dicom::HandleNDelete(
+				[](dicom::ServiceBase&, const dicom::DataSet&, const dicom::DataSet&, dicom::DataSet&)
+				{
+					return dicom::Status::SUCCESS;
+				},
+				invalidStatusService,
+				wrongClassRequest,
+				classUID);
+		}
+		catch(const dicom::exception&)
+		{
+			wrongClassRejected = true;
+		}
+		if(!wrongClassRejected)
+			throw dicom::exception("N-DIMSE request SOP Class UID mismatch was not rejected");
 	}
 
 	void checkNdimseSCPOverPData()
@@ -1216,7 +1397,14 @@ namespace
 
 			dicom::DataSet command;
 			requireRead(scpService,command);
-			dicom::HandleNDelete(successHandler,scpService,command,classUID);
+			dicom::HandleNDelete(
+				[](dicom::ServiceBase&, const dicom::DataSet&, const dicom::DataSet&, dicom::DataSet&)
+				{
+					return dicom::Status::SUCCESS;
+				},
+				scpService,
+				command,
+				classUID);
 
 			UINT16 status = 0;
 			dicom::DataSet response;
