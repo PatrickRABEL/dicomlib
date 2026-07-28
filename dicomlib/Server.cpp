@@ -353,8 +353,8 @@ namespace dicom
 
 			FD_ZERO(&rfds);
 			FD_SET(pSocket->GetSocketDescriptor(), &rfds);
-			/* Wait up to five seconds.  We may want to tune this value.*/
-			tv.tv_sec = 5;
+			/* Wait briefly so Stop() can terminate a background server deterministically. */
+			tv.tv_sec = 1;
 			tv.tv_usec = 0;
 			if(KillFlagRaised())
 			{
@@ -385,18 +385,20 @@ namespace dicom
 	*/
 	void Server::Stop()
 	{
-		std::lock_guard<std::mutex> scoped_lock(mutex_);
-
 		RaiseKillFlag();
-		if(ServerThread_)
+
+		std::unique_ptr<std::thread> serverThread;
 		{
-			//ServerThread_->join();//Sam comments this out because it deadlock the server all the time.
-									//The discussion on the web thinks this is a problem only when 
-									//windows are used. But I found it also happens in command line
-									//programs. -Sam 8Apr2009
-			if(ServerThread_->joinable())
-				ServerThread_->detach();
-			ServerThread_.reset();
+			std::lock_guard<std::mutex> scoped_lock(mutex_);
+			serverThread = std::move(ServerThread_);
+		}
+
+		if(serverThread && serverThread->joinable())
+		{
+			if(serverThread->get_id() == std::this_thread::get_id())
+				serverThread->detach();
+			else
+				serverThread->join();
 		}
 	}
 

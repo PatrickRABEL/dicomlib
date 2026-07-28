@@ -1,13 +1,18 @@
 #include "dicomlib/Cdimse.hpp"
 #include "dicomlib/aaac.hpp"
+#include "dicomlib/ClientConnection.hpp"
 #include "dicomlib/CommandSets.hpp"
 #include "dicomlib/ImplementationUID.hpp"
 #include "dicomlib/PresentationContexts.hpp"
+#include "dicomlib/Server.hpp"
 
 #include <cassert>
+#include <chrono>
+#include <cstring>
 #include <exception>
 #include <string>
 #include <sys/socket.h>
+#include <thread>
 #include <unistd.h>
 
 namespace
@@ -178,6 +183,46 @@ namespace
 		const int result = ::socketpair(AF_UNIX, SOCK_STREAM, 0, sockets);
 		assert(result == 0);
 	}
+
+	short reserveLocalPort()
+	{
+		const int fd = ::socket(AF_INET, SOCK_STREAM, 0);
+		assert(fd >= 0);
+
+		sockaddr_in address;
+		std::memset(&address, 0, sizeof(address));
+		address.sin_family = AF_INET;
+		address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+		address.sin_port = 0;
+		assert(::bind(fd, reinterpret_cast<sockaddr*>(&address), sizeof(address)) == 0);
+
+		socklen_t length = sizeof(address);
+		assert(::getsockname(fd, reinterpret_cast<sockaddr*>(&address), &length) == 0);
+		const short port = static_cast<short>(ntohs(address.sin_port));
+		::close(fd);
+		return port;
+	}
+
+	bool acceptAnyLocalAET(const std::string&)
+	{
+		return true;
+	}
+
+	bool acceptAnyRemoteAET(const std::string&, const std::string&)
+	{
+		return true;
+	}
+
+	struct QuietLogger : public dicom::Server::Logger
+	{
+		void LogError(std::string)
+		{
+		}
+
+		void LogMessage(std::string)
+		{
+		}
+	};
 
 	void checkCEcho()
 	{
@@ -373,6 +418,40 @@ namespace
 		assert(status == dicom::Status::SUCCESS);
 	}
 
+	void checkServerClientCEcho()
+	{
+		const short port = reserveLocalPort();
+		QuietLogger logger;
+		dicom::Server server;
+		server.SetLogger(&logger);
+		server.SetCheckLocalAETCallback(acceptAnyLocalAET);
+		server.SetCheckRemoteAETCallback(acceptAnyRemoteAET);
+		server.ServeInNewThread(port);
+
+		dicom::PresentationContexts contexts;
+		contexts.Add(dicom::VERIFICATION_SOP_CLASS, dicom::TS(dicom::IMPL_VR_LE_TRANSFER_SYNTAX));
+
+		bool completed = false;
+		for(int attempt = 0; attempt < 20 && !completed; ++attempt)
+		{
+			try
+			{
+				dicom::ClientConnection client("127.0.0.1", port, "SCU_AE", "SCP_AE", contexts);
+				dicom::DataSet response = client.Echo();
+				assert(get<UINT16>(response, dicom::TAG_CMD_FIELD) == dicom::Command::C_ECHO_RSP);
+				assert(get<UINT16>(response, dicom::TAG_STATUS) == dicom::Status::SUCCESS);
+				completed = true;
+			}
+			catch(const SystemError&)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(50));
+			}
+		}
+
+		server.Stop();
+		assert(completed);
+	}
+
 	void checkCMove()
 	{
 		const dicom::UID classUID("1.2.840.10008.5.1.4.1.2.2.2");
@@ -401,6 +480,7 @@ int main()
 	checkCCancelOverPData();
 	checkSCUResponseValidationOverPData();
 	checkAssociationNegotiationAndCEcho();
+	checkServerClientCEcho();
 	checkCMove();
 	return 0;
 }
