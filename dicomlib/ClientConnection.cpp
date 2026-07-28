@@ -34,10 +34,38 @@ namespace dicom
 {
 	using namespace primitive;
 
+	namespace
+	{
+		UserInformation DefaultUserInformation()
+		{
+			UserInformation userInfo;
+			MaximumSubLength maxSubLength;
+			maxSubLength.Set(16384);
+			userInfo.ImpClass_.UID_=ImplementationClassUID;
+			userInfo.ImpVersion_.Name=ImplementationVersionName;
+			userInfo.SetMax(maxSubLength);
+			return userInfo;
+		}
+	}
+
 	ClientConnection::ClientConnection(std::string Host, unsigned short Port,
 		std::string LocalAET,std::string RemoteAET,
 		//const std::vector<PresentationContext>& ProposedPresentationContexts)
 		const PresentationContexts& ProposedPresentationContexts)
+		:ClientConnection(
+			Host,
+			Port,
+			LocalAET,
+			RemoteAET,
+			ProposedPresentationContexts,
+			DefaultUserInformation())
+	{
+	}
+
+	ClientConnection::ClientConnection(std::string Host, unsigned short Port,
+		std::string LocalAET,std::string RemoteAET,
+		const PresentationContexts& ProposedPresentationContexts,
+		const primitive::UserInformation& ProposedUserInformation)
 		//: ServiceBase(new Network::ClientSocket(Host,Port))
         : socket_(new Network::ClientSocket(Host,Port))
 
@@ -64,16 +92,8 @@ namespace dicom
 
 		association_request.ProposedPresentationContexts_=ProposedPresentationContexts;//expensive copy operation!
 
-
-		//last bit to do is:
-		UserInformation UserInfo;
-		MaximumSubLength MaxSubLength;
-		MaxSubLength.Set(16384);	// we can do all DICOM can handle???
-		UserInfo.ImpClass_.UID_=ImplementationClassUID;
-		UserInfo.ImpVersion_.Name=ImplementationVersionName;
-		UserInfo.SetMax(MaxSubLength);
-
-		association_request.SetUserInformation ( UserInfo );
+		UserInformation userInfo = ProposedUserInformation;
+		association_request.SetUserInformation ( userInfo );
 
 		association_request.Write(*socket_);
 
@@ -163,7 +183,10 @@ namespace dicom
 
         std::vector<primitive::PresentationContextAccept>::size_type unaccepted =
             std::count_if(acknowledgement.PresContextAccepts_.begin(),acknowledgement.PresContextAccepts_.end(),IsBad);
-        return (AcceptedPresentationContexts_.size()>unaccepted);
+		const bool accepted = AcceptedPresentationContexts_.size()>unaccepted;
+		if(accepted)
+			ApplyAssociationNegotiationAsRequestor(acknowledgement);
+        return accepted;
 
 	}
 

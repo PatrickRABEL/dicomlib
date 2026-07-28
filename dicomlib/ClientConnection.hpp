@@ -67,6 +67,10 @@ namespace dicom
 			std::string LocalAET,std::string RemoteAET,
 			//const std::vector<PresentationContext>& ProposedPresentationContexts);
 			const PresentationContexts& ProposedPresentationContexts);
+		ClientConnection(std::string Host, unsigned short Port,
+			std::string LocalAET,std::string RemoteAET,
+			const PresentationContexts& ProposedPresentationContexts,
+			const primitive::UserInformation& ProposedUserInformation);
 		virtual ~ClientConnection();
 
 		//!Send a dataset, return response  (i.e. perform a C-STORE)

@@ -16,7 +16,7 @@ namespace dicom
 			this->Put<VR_US>(TAG_MSG_ID, msgID);
 			this->Put<VR_US>(TAG_DATA_SET_TYPE,DataSetStatus::NO_DATA_SET);
 		}
-		
+
 		/*!
 			Defined in Part 7, table 9.1-5
 		*/
@@ -192,12 +192,20 @@ namespace dicom
 
 		NEventReportRSP::NEventReportRSP(UINT16 msgID, const UID& classUID, UINT16 stat,
 			UINT16 eventTypID, UINT16 dsType)
+			:NEventReportRSP(msgID,classUID,UID(""),stat,eventTypID,dsType)
+		{
+		}
+
+		NEventReportRSP::NEventReportRSP(UINT16 msgID, const UID& classUID,
+			const UID& instUID, UINT16 stat, UINT16 eventTypID, UINT16 dsType)
 		{
 			this->Put<VR_UI>(TAG_AFF_SOP_CLASS_UID, classUID);
 			this->Put<VR_US>(TAG_CMD_FIELD, Command::N_EVENT_REPORT_RSP);
 			this->Put<VR_US>(TAG_MSG_ID_RSP, msgID);
 			this->Put<VR_US>(TAG_DATA_SET_TYPE, dsType);
 			this->Put<VR_US>(TAG_STATUS, stat);
+			if(instUID.str().size()!=0)
+				this->Put<VR_UI>(TAG_AFF_SOP_INST_UID, instUID);
 			if (stat == Status::SUCCESS)
 				this->Put<VR_US>(TAG_EVENT_TYPE_ID, eventTypID);
 		}
@@ -210,17 +218,25 @@ namespace dicom
 			this->Put<VR_US>(TAG_MSG_ID, msgID);
 			this->Put<VR_US>(TAG_DATA_SET_TYPE, DataSetStatus::NO_DATA_SET);
 			this->Put<VR_UI>(TAG_REQ_SOP_INST_UID,  instUID);
-			//  this->Put<>(
-			//    TAG_ATTR_ID_LIST, attrList);
+			for(std::vector<Tag>::const_iterator I=attrList.begin(); I!=attrList.end(); ++I)
+				this->Put<VR_AT>(TAG_ATTR_ID_LIST, *I);
 		}
 
 		NGetRSP::NGetRSP(UINT16 msgID, const UID& classUID, UINT16 stat, UINT16 dsType)
+			:NGetRSP(msgID,classUID,UID(""),stat,dsType)
+		{
+		}
+
+		NGetRSP::NGetRSP(UINT16 msgID, const UID& classUID, const UID& instUID,
+			UINT16 stat, UINT16 dsType)
 		{
 			this->Put<VR_UI>(TAG_AFF_SOP_CLASS_UID, classUID);
 			this->Put<VR_US>(TAG_CMD_FIELD, Command::N_GET_RSP);
 			this->Put<VR_US>(TAG_MSG_ID_RSP, msgID);
 			this->Put<VR_US>(TAG_DATA_SET_TYPE, dsType);
 			this->Put<VR_US>(TAG_STATUS, stat);
+			if(instUID.str().size()!=0)
+				this->Put<VR_UI>(TAG_AFF_SOP_INST_UID, instUID);
 		}
 
 		NSetRQ::NSetRQ(UINT16 msgID, const UID& classUID, const UID& instUID)
@@ -233,12 +249,20 @@ namespace dicom
 		}
 
 		NSetRSP::NSetRSP(UINT16 msgID, const UID& classUID, UINT16 stat, UINT16 dsType)
+			:NSetRSP(msgID,classUID,UID(""),stat,dsType)
+		{
+		}
+
+		NSetRSP::NSetRSP(UINT16 msgID, const UID& classUID, const UID& instUID,
+			UINT16 stat, UINT16 dsType)
 		{
 			this->Put<VR_UI>(TAG_AFF_SOP_CLASS_UID, classUID);
 			this->Put<VR_US>(TAG_CMD_FIELD, Command::N_SET_RSP);
 			this->Put<VR_US>(TAG_MSG_ID_RSP, msgID);
-			this->Put<VR_US>(TAG_MSG_ID_RSP, msgID);
+			this->Put<VR_US>(TAG_DATA_SET_TYPE, dsType);
 			this->Put<VR_US>(TAG_STATUS, stat);
+			if(instUID.str().size()!=0)
+				this->Put<VR_UI>(TAG_AFF_SOP_INST_UID, instUID);
 		}
 
 		NActionRQ::NActionRQ(UINT16 msgID, const UID& classUID, const UID& instUID,
@@ -247,19 +271,27 @@ namespace dicom
 			this->Put<VR_UI>(TAG_REQ_SOP_CLASS_UID,classUID);
 			this->Put<VR_US>(TAG_CMD_FIELD, Command::N_ACTION_RQ);
 			this->Put<VR_US>(TAG_MSG_ID, msgID);
-			this->Put<VR_US>(TAG_MSG_ID_RSP, msgID);
+			this->Put<VR_US>(TAG_DATA_SET_TYPE, dsType);
 			this->Put<VR_UI>(TAG_REQ_SOP_INST_UID,instUID);
 			this->Put<VR_US>(TAG_ACTION_TYPE_ID, actionTypID);
 		}
 
 		NActionRSP::NActionRSP(UINT16 msgID, const UID& classUID, UINT16 stat,
 			UINT16 actionTypID, UINT16 dsType)
+			:NActionRSP(msgID,classUID,UID(""),stat,actionTypID,dsType)
+		{
+		}
+
+		NActionRSP::NActionRSP(UINT16 msgID, const UID& classUID,
+			const UID& instUID, UINT16 stat, UINT16 actionTypID, UINT16 dsType)
 		{
 			this->Put<VR_UI>(TAG_AFF_SOP_CLASS_UID, classUID);
 			this->Put<VR_US>(TAG_CMD_FIELD, Command::N_ACTION_RSP);
 			this->Put<VR_US>(TAG_MSG_ID_RSP, msgID);
-			this->Put<VR_US>(TAG_MSG_ID_RSP, msgID);
+			this->Put<VR_US>(TAG_DATA_SET_TYPE, dsType);
 			this->Put<VR_US>(TAG_STATUS, stat);
+			if(instUID.str().size()!=0)
+				this->Put<VR_UI>(TAG_AFF_SOP_INST_UID, instUID);
 			if (stat == Status::SUCCESS)
 				this->Put<VR_US>(TAG_ACTION_TYPE_ID, actionTypID);
 		}
@@ -269,7 +301,7 @@ namespace dicom
 			this->Put<VR_UI>(TAG_AFF_SOP_CLASS_UID, classUID);
 			this->Put<VR_US>(TAG_CMD_FIELD, Command::N_CREATE_RQ);
 			this->Put<VR_US>(TAG_MSG_ID, msgID);
-			this->Put<VR_US>(TAG_MSG_ID_RSP, msgID);
+			this->Put<VR_US>(TAG_DATA_SET_TYPE, dsType);
 		}
 
 		NCreateRQ::NCreateRQ(UINT16 msgID, const UID& classUID, const UID& instUID,
@@ -278,7 +310,7 @@ namespace dicom
 			this->Put<VR_UI>(TAG_AFF_SOP_CLASS_UID, classUID);
 			this->Put<VR_US>(TAG_CMD_FIELD, Command::N_CREATE_RQ);
 			this->Put<VR_US>(TAG_MSG_ID, msgID);
-			this->Put<VR_US>(TAG_MSG_ID_RSP, msgID);
+			this->Put<VR_US>(TAG_DATA_SET_TYPE, dsType);
 			this->Put<VR_UI>(TAG_AFF_SOP_INST_UID, instUID);
 		}
 
@@ -288,7 +320,7 @@ namespace dicom
 			this->Put<VR_UI>(TAG_AFF_SOP_CLASS_UID, classUID);
 			this->Put<VR_US>(TAG_CMD_FIELD, Command::N_CREATE_RSP);
 			this->Put<VR_US>(TAG_MSG_ID_RSP, msgID);
-			this->Put<VR_US>(TAG_MSG_ID_RSP, msgID);
+			this->Put<VR_US>(TAG_DATA_SET_TYPE, dsType);
 			this->Put<VR_US>(TAG_STATUS, stat);
 			if (stat == Status::SUCCESS)
 				this->Put<VR_UI>(TAG_AFF_SOP_INST_UID, instUID);
@@ -304,12 +336,20 @@ namespace dicom
 		}
 
 		NDeleteRSP::NDeleteRSP(UINT16 msgID, const UID& classUID, UINT16 stat)
+			:NDeleteRSP(msgID,classUID,UID(""),stat)
+		{
+		}
+
+		NDeleteRSP::NDeleteRSP(UINT16 msgID, const UID& classUID, const UID& instUID,
+			UINT16 stat)
 		{
 			this->Put<VR_UI>(TAG_AFF_SOP_CLASS_UID, classUID);
 			this->Put<VR_US>(TAG_CMD_FIELD, Command::N_DELETE_RSP);
 			this->Put<VR_US>(TAG_MSG_ID_RSP, msgID);
 			this->Put<VR_US>(TAG_DATA_SET_TYPE, DataSetStatus::NO_DATA_SET);
 			this->Put<VR_US>(TAG_STATUS, stat);
+			if(instUID.str().size()!=0)
+				this->Put<VR_UI>(TAG_AFF_SOP_INST_UID, instUID);
 		}
 
 

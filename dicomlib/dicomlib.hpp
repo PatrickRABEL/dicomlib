@@ -24,6 +24,7 @@
 #include "DataDictionary.hpp"
 #include "Dumper.hpp"
 #include "File.hpp"
+#include "Ndimse.hpp"
 #include "QueryRetrieve.hpp"
 #include "ValueToStream.hpp"
 #include "UIDs.hpp"

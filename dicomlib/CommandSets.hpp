@@ -143,6 +143,9 @@ namespace dicom
 		public:
 			NEventReportRSP(UINT16 msgID, const dicom::UID& classUID, UINT16 stat,
 				UINT16 eventTypID, UINT16 dsType);
+			NEventReportRSP(UINT16 msgID, const dicom::UID& classUID,
+				const dicom::UID& instUID, UINT16 stat, UINT16 eventTypID,
+				UINT16 dsType);
 		};
 
 		class NGetRQ : public dicom::DataSet
@@ -156,6 +159,8 @@ namespace dicom
 		{
 		public:
 			NGetRSP(UINT16 msgID, const dicom::UID& classUID, UINT16 stat, UINT16 dsType);
+			NGetRSP(UINT16 msgID, const dicom::UID& classUID, const dicom::UID& instUID,
+				UINT16 stat, UINT16 dsType);
 		};
 
 		class NSetRQ : public dicom::DataSet
@@ -168,6 +173,8 @@ namespace dicom
 		{
 		public:
 			NSetRSP(UINT16 msgID, const dicom::UID& classUID, UINT16 stat, UINT16 dsType);
+			NSetRSP(UINT16 msgID, const dicom::UID& classUID, const dicom::UID& instUID,
+				UINT16 stat, UINT16 dsType);
 		};
 
 		class NActionRQ : public dicom::DataSet
@@ -182,6 +189,9 @@ namespace dicom
 		public:
 			NActionRSP(UINT16 msgID, const dicom::UID& classUID, UINT16 stat,
 				UINT16 actionTypID, UINT16 dsType);
+			NActionRSP(UINT16 msgID, const dicom::UID& classUID,
+				const dicom::UID& instUID, UINT16 stat, UINT16 actionTypID,
+				UINT16 dsType);
 		};
 
 		class NCreateRQ : public dicom::DataSet
@@ -205,10 +215,12 @@ namespace dicom
 			NDeleteRQ(UINT16 msgID, const dicom::UID& classUID, const dicom::UID& instUID);
 		};
 
-		class NDeleteRSP : public dicom::DataSet  
+		class NDeleteRSP : public dicom::DataSet
 		{
 		public:
 			NDeleteRSP(UINT16 msgID, const dicom::UID& classUID, UINT16 stat);
+			NDeleteRSP(UINT16 msgID, const dicom::UID& classUID, const dicom::UID& instUID,
+				UINT16 stat);
 		};
 	}//namespace CommandSet
 

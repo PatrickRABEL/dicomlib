@@ -24,8 +24,24 @@ namespace dicom
 {
 	using namespace primitive;
 
+	namespace
+	{
+		const primitive::SCPSCURoleSelect* FindRoleSelection(
+			const std::vector<primitive::SCPSCURoleSelect>& roles,
+			const UID& uid)
+		{
+			for(std::vector<primitive::SCPSCURoleSelect>::const_iterator I=roles.begin();I!=roles.end();++I)
+				if(I->UID_==uid)
+					return &(*I);
+			return 0;
+		}
+	}
+
 	ServiceBase::ServiceBase()
 		:CurrentPresentationContextID_(0) //0 is not a valid number for Presentation Context ID -Sam
+		,HasNegotiatedAsynchronousOperationsWindow_(false)
+		,MaximumNumberOperationsInvoked_(1)
+		,MaximumNumberOperationsPerformed_(1)
 	{}
 
 	//ServiceBase::ServiceBase(Network::Socket* socket):socket_(socket)
@@ -302,8 +318,8 @@ namespace dicom
  	//	}
  		return;
  	}
-	void ServiceBase::ParseRawVRIntoDataSet(Buffer& p_data_tf_buffer,const MessageControlHeader::Code& msgHead, DataSet& command_or_data)
-	{
+		void ServiceBase::ParseRawVRIntoDataSet(Buffer& p_data_tf_buffer,const MessageControlHeader::Code& msgHead, DataSet& command_or_data)
+		{
 		//first thing: determine the endian of the buffer
 
 		if(p_data_tf_buffer.position()!=p_data_tf_buffer.begin())
@@ -446,6 +462,158 @@ namespace dicom
 	void ServiceBase::ClearCancelRequest(UINT16 messageID)
 	{
 		CancelRequestedMessageIDs_.erase(messageID);
+	}
+
+	ServiceBase::AssociationRole::AssociationRole()
+		:SCU_(false)
+		,SCP_(false)
+	{
+	}
+
+	ServiceBase::AssociationRole::AssociationRole(bool scu, bool scp)
+		:SCU_(scu)
+		,SCP_(scp)
+	{
+	}
+
+	void ServiceBase::ClearNegotiatedAssociationOptions()
+	{
+		NegotiatedRoles_.clear();
+		NegotiatedSOPClassExtendedInformation_.clear();
+		HasNegotiatedAsynchronousOperationsWindow_ = false;
+		MaximumNumberOperationsInvoked_ = 1;
+		MaximumNumberOperationsPerformed_ = 1;
+	}
+
+	void ServiceBase::ApplyAssociationNegotiationAsRequestor(
+		const primitive::AAssociateAC& acknowledgement)
+	{
+		ClearNegotiatedAssociationOptions();
+		for(size_t Index=0; Index<AAssociateRQ_.ProposedPresentationContexts_.size(); ++Index)
+		{
+			const primitive::PresentationContext& context =
+				AAssociateRQ_.ProposedPresentationContexts_.at(Index);
+			bool accepted = false;
+			for(size_t AcceptedIndex=0; AcceptedIndex<acknowledgement.PresContextAccepts_.size(); ++AcceptedIndex)
+			{
+				const primitive::PresentationContextAccept& acceptedContext =
+					acknowledgement.PresContextAccepts_.at(AcceptedIndex);
+				if(acceptedContext.PresentationContextID_==context.ID_ && acceptedContext.Result_==0)
+				{
+					accepted = true;
+					break;
+				}
+			}
+			if(!accepted)
+				continue;
+
+			const primitive::SCPSCURoleSelect* role =
+				FindRoleSelection(acknowledgement.UserInfo_.SCPSCURoles_,context.AbsSyntax_.UID_);
+			if(role)
+				NegotiatedRoles_[context.AbsSyntax_.UID_] =
+					AssociationRole(role->SCURole_!=0,role->SCPRole_!=0);
+			else
+				NegotiatedRoles_[context.AbsSyntax_.UID_] = AssociationRole(true,false);
+		}
+		if(acknowledgement.UserInfo_.HasAsynchronousOperationsWindow_)
+		{
+			HasNegotiatedAsynchronousOperationsWindow_ = true;
+			MaximumNumberOperationsInvoked_ =
+				acknowledgement.UserInfo_.AsyncOperationsWindow_.MaximumNumberOperationsInvoked_;
+			MaximumNumberOperationsPerformed_ =
+				acknowledgement.UserInfo_.AsyncOperationsWindow_.MaximumNumberOperationsPerformed_;
+		}
+		for(size_t Index=0; Index<acknowledgement.UserInfo_.SOPClassExtendedNegotiations_.size(); ++Index)
+		{
+			const primitive::SOPClassExtendedNegotiation& negotiation =
+				acknowledgement.UserInfo_.SOPClassExtendedNegotiations_.at(Index);
+			NegotiatedSOPClassExtendedInformation_[negotiation.UID_] =
+				negotiation.ServiceClassApplicationInformation_;
+		}
+	}
+
+	void ServiceBase::ApplyAssociationNegotiationAsAcceptor(
+		const primitive::UserInformation& acceptedUserInfo)
+	{
+		ClearNegotiatedAssociationOptions();
+		for(size_t Index=0; Index<AAssociateRQ_.ProposedPresentationContexts_.size(); ++Index)
+		{
+			const primitive::PresentationContext& context =
+				AAssociateRQ_.ProposedPresentationContexts_.at(Index);
+			if(Index>=AcceptedPresentationContexts_.size() ||
+				AcceptedPresentationContexts_.at(Index).Result_!=0)
+				continue;
+
+			const primitive::SCPSCURoleSelect* role =
+				FindRoleSelection(acceptedUserInfo.SCPSCURoles_,context.AbsSyntax_.UID_);
+			if(role)
+				NegotiatedRoles_[context.AbsSyntax_.UID_] =
+					AssociationRole(role->SCPRole_!=0,role->SCURole_!=0);
+			else
+				NegotiatedRoles_[context.AbsSyntax_.UID_] = AssociationRole(false,true);
+		}
+		if(acceptedUserInfo.HasAsynchronousOperationsWindow_)
+		{
+			HasNegotiatedAsynchronousOperationsWindow_ = true;
+			MaximumNumberOperationsInvoked_ =
+				acceptedUserInfo.AsyncOperationsWindow_.MaximumNumberOperationsInvoked_;
+			MaximumNumberOperationsPerformed_ =
+				acceptedUserInfo.AsyncOperationsWindow_.MaximumNumberOperationsPerformed_;
+		}
+		for(size_t Index=0; Index<acceptedUserInfo.SOPClassExtendedNegotiations_.size(); ++Index)
+		{
+			const primitive::SOPClassExtendedNegotiation& negotiation =
+				acceptedUserInfo.SOPClassExtendedNegotiations_.at(Index);
+			NegotiatedSOPClassExtendedInformation_[negotiation.UID_] =
+				negotiation.ServiceClassApplicationInformation_;
+		}
+	}
+
+	bool ServiceBase::HasNegotiatedRole(const UID& uid) const
+	{
+		return NegotiatedRoles_.find(uid)!=NegotiatedRoles_.end();
+	}
+
+	bool ServiceBase::CanActAsSCU(const UID& uid) const
+	{
+		std::map<UID,AssociationRole>::const_iterator I = NegotiatedRoles_.find(uid);
+		return I!=NegotiatedRoles_.end() && I->second.SCU_;
+	}
+
+	bool ServiceBase::CanActAsSCP(const UID& uid) const
+	{
+		std::map<UID,AssociationRole>::const_iterator I = NegotiatedRoles_.find(uid);
+		return I!=NegotiatedRoles_.end() && I->second.SCP_;
+	}
+
+	bool ServiceBase::HasNegotiatedAsynchronousOperationsWindow() const
+	{
+		return HasNegotiatedAsynchronousOperationsWindow_;
+	}
+
+	UINT16 ServiceBase::MaximumNumberOperationsInvoked() const
+	{
+		return MaximumNumberOperationsInvoked_;
+	}
+
+	UINT16 ServiceBase::MaximumNumberOperationsPerformed() const
+	{
+		return MaximumNumberOperationsPerformed_;
+	}
+
+	bool ServiceBase::HasNegotiatedSOPClassExtended(const UID& uid) const
+	{
+		return NegotiatedSOPClassExtendedInformation_.find(uid)!=
+			NegotiatedSOPClassExtendedInformation_.end();
+	}
+
+	const std::vector<BYTE>& ServiceBase::GetNegotiatedSOPClassExtendedInformation(const UID& uid) const
+	{
+		std::map<UID,std::vector<BYTE> >::const_iterator I =
+			NegotiatedSOPClassExtendedInformation_.find(uid);
+		if(I==NegotiatedSOPClassExtendedInformation_.end())
+			throw exception("SOP Class Extended Negotiation was not negotiated for SOP Class");
+		return I->second;
 	}
 
 	//bool ServiceBase::GetTransferSyntaxUID(BYTE PCID, UID& uid)

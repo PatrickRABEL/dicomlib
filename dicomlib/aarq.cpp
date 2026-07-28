@@ -104,6 +104,11 @@ namespace dicom
 
 		const BYTE SCPSCURoleSelect::ItemType_;
 		const BYTE SCPSCURoleSelect::Reserved_;
+		const BYTE AsynchronousOperationsWindow::ItemType_;
+		const BYTE AsynchronousOperationsWindow::Reserved_;
+		const UINT16 AsynchronousOperationsWindow::ItemLength_;
+		const BYTE SOPClassExtendedNegotiation::ItemType_;
+		const BYTE SOPClassExtendedNegotiation::Reserved_;
 #endif
 
 		/*
@@ -478,6 +483,8 @@ namespace dicom
 
 		SCPSCURoleSelect::SCPSCURoleSelect()
 			:UID_("")
+			,SCURole_(0)
+			,SCPRole_(0)
 		{}
 
 
@@ -521,6 +528,110 @@ namespace dicom
 			return ( ItemLength + sizeof(BYTE) + sizeof(BYTE) + sizeof(UINT16) );
 		}
 
+		/******** Asynchronous Operations Window ***********/
+
+		AsynchronousOperationsWindow::AsynchronousOperationsWindow()
+			:MaximumNumberOperationsInvoked_(1)
+			,MaximumNumberOperationsPerformed_(1)
+		{
+		}
+
+		AsynchronousOperationsWindow::AsynchronousOperationsWindow(UINT16 invoked, UINT16 performed)
+			:MaximumNumberOperationsInvoked_(invoked)
+			,MaximumNumberOperationsPerformed_(performed)
+		{
+		}
+
+		void AsynchronousOperationsWindow::Write(Network::Socket& socket)
+		{
+			socket << ItemType_;
+			socket << Reserved_;
+			socket << ItemLength_;
+			socket << MaximumNumberOperationsInvoked_;
+			socket << MaximumNumberOperationsPerformed_;
+		}
+
+		UINT32 AsynchronousOperationsWindow::ReadDynamic(Network::Socket& socket)
+		{
+			UINT32 byteread=0;
+			socket >> tmpBYTE;
+			UINT16 length;
+			socket >> length;
+			byteread+=sizeof(tmpBYTE)+sizeof(length);
+			if(length!=ItemLength_)
+				throw dicom::exception("itemlength of AsynchronousOperationsWindow must be 0x04");
+			socket >> MaximumNumberOperationsInvoked_;
+			socket >> MaximumNumberOperationsPerformed_;
+			byteread+=sizeof(MaximumNumberOperationsInvoked_)+sizeof(MaximumNumberOperationsPerformed_);
+			return byteread;
+		}
+
+		UINT32 AsynchronousOperationsWindow::Size()
+		{
+			return ItemLength_ + sizeof(BYTE) + sizeof(BYTE) + sizeof(UINT16);
+		}
+
+		/******** SOP Class Extended Negotiation ***********/
+
+		SOPClassExtendedNegotiation::SOPClassExtendedNegotiation()
+			:ItemLength_(0)
+			,UID_("")
+		{
+		}
+
+		SOPClassExtendedNegotiation::SOPClassExtendedNegotiation(
+			const UID& uid,
+			const std::vector<BYTE>& information)
+			:ItemLength_(0)
+			,UID_(uid)
+			,ServiceClassApplicationInformation_(information)
+		{
+		}
+
+		void SOPClassExtendedNegotiation::Write(Network::Socket& socket)
+		{
+			socket << ItemType_;
+			socket << Reserved_;
+			socket << static_cast<UINT16>(Size()-4);
+			socket << static_cast<UINT16>(UID_.str().size());
+			socket.Send(UID_.str());
+			if(!ServiceClassApplicationInformation_.empty())
+				socket << ServiceClassApplicationInformation_;
+		}
+
+		UINT32 SOPClassExtendedNegotiation::ReadDynamic(Network::Socket& socket)
+		{
+			UINT32 byteread=0;
+			socket >> tmpBYTE;
+			socket >> ItemLength_;
+			byteread+=sizeof(tmpBYTE)+sizeof(ItemLength_);
+			UINT16 UIDLength;
+			socket >> UIDLength;
+			byteread+=sizeof(UIDLength);
+			if(ItemLength_ < sizeof(UIDLength) || UIDLength > ItemLength_ - sizeof(UIDLength))
+				throw dicom::exception("SOP Class Extended Negotiation UID length exceeds item length");
+			std::string s(UIDLength,' ');
+			socket.Read(s);
+			byteread+=UIDLength;
+			UID_=UID(s);
+			const UINT16 informationLength = static_cast<UINT16>(ItemLength_ - sizeof(UIDLength) - UIDLength);
+			ServiceClassApplicationInformation_.assign(informationLength,0);
+			if(informationLength != 0)
+				socket.Read(ServiceClassApplicationInformation_);
+			byteread+=informationLength;
+			return byteread;
+		}
+
+		UINT32 SOPClassExtendedNegotiation::Size()
+		{
+			const size_t length =
+				sizeof(UINT16) + UID_.str().size() + ServiceClassApplicationInformation_.size();
+			if(length > 0xffff)
+				throw dicom::exception("SOP Class Extended Negotiation item too long");
+			ItemLength_ = static_cast<UINT16>(length);
+			return ItemLength_ + sizeof(BYTE) + sizeof(BYTE) + sizeof(UINT16);
+		}
+
 		/************************************************************************
 		*
 		* User Information
@@ -530,8 +641,8 @@ namespace dicom
 		UserInformation::UserInformation()
 			:UserInfoBaggage_ (0)
 			,ImpClass_(UID(""))
+			,HasAsynchronousOperationsWindow_(false)
 		{
-			
 		}
 
 
@@ -540,6 +651,34 @@ namespace dicom
 		void UserInformation::SetMax(MaximumSubLength	&Max)
 		{
 			MaxSubLength_ = Max;
+		}
+
+		void UserInformation::AddSCPSCURoleSelection(const UID& uid, bool scuRole, bool scpRole)
+		{
+			SCPSCURoleSelect role;
+			role.UID_ = uid;
+			role.SCURole_ = scuRole ? 1 : 0;
+			role.SCPRole_ = scpRole ? 1 : 0;
+			SCPSCURoles_.push_back(role);
+		}
+
+		void UserInformation::SetAsynchronousOperationsWindow(UINT16 invoked, UINT16 performed)
+		{
+			AsyncOperationsWindow_ = AsynchronousOperationsWindow(invoked,performed);
+			HasAsynchronousOperationsWindow_ = true;
+		}
+
+		void UserInformation::ClearAsynchronousOperationsWindow()
+		{
+			HasAsynchronousOperationsWindow_ = false;
+			AsyncOperationsWindow_ = AsynchronousOperationsWindow();
+		}
+
+		void UserInformation::AddSOPClassExtendedNegotiation(
+			const UID& uid,
+			const std::vector<BYTE>& information)
+		{
+			SOPClassExtendedNegotiations_.push_back(SOPClassExtendedNegotiation(uid,information));
 		}
 
 		//UINT32 UserInformation::GetMax()
@@ -562,13 +701,14 @@ namespace dicom
 
 			//should only send this if it really exists...
 			ImpVersion_.Write(socket);
-		
-			/*
-				Note that we don't currently support writing the 
-				SCPSCURoleSelect Sub-item (which is optional.)
-			*/
-		
-		
+
+			for_each(SCPSCURoles_.begin(),SCPSCURoles_.end(),WriteToSocket(socket));
+			if(HasAsynchronousOperationsWindow_)
+				AsyncOperationsWindow_.Write(socket);
+			for_each(
+				SOPClassExtendedNegotiations_.begin(),
+				SOPClassExtendedNegotiations_.end(),
+				WriteToSocket(socket));
 		}
 		UINT32 UserInformation::ReadDynamic(Network::Socket& socket)
 		{
@@ -589,6 +729,12 @@ namespace dicom
 				byteread+=sizeof(tmpBYTE);
 				switch ( tmpBYTE )
 				{
+				case	0x53:
+					tmp_read=AsyncOperationsWindow_.ReadDynamic(socket);
+					byteread+=tmp_read;
+					BytesLeftToRead = BytesLeftToRead - tmp_read;
+					HasAsynchronousOperationsWindow_ = true;
+					break;
 				case	0x51:
 					tmp_read=MaxSubLength_.ReadDynamic(socket);
 					byteread+=tmp_read;
@@ -608,12 +754,21 @@ namespace dicom
 					tmp_read=SCPSCURole_.ReadDynamic(socket);
 					byteread+=tmp_read;
 					BytesLeftToRead = BytesLeftToRead - tmp_read;//SCPSCURole_.Size();
-					UserInfoBaggage_ += SCPSCURole_.Size();
+					SCPSCURoles_.push_back(SCPSCURole_);
 					break;
 				case	0x55:
 					tmp_read=ImpVersion_.ReadDynamic(socket);//optional!
 					byteread+=tmp_read;
 					BytesLeftToRead = BytesLeftToRead - tmp_read;//ImpVersion_.Size();
+					break;
+				case	0x56:
+					{
+						SOPClassExtendedNegotiation negotiation;
+						tmp_read=negotiation.ReadDynamic(socket);
+						byteread+=tmp_read;
+						BytesLeftToRead = BytesLeftToRead - tmp_read;
+						SOPClassExtendedNegotiations_.push_back(negotiation);
+					}
 					break;
 				default:
 					throw BadItemType(tmpBYTE,0);
@@ -694,14 +849,13 @@ We should maybe branch to try this out
 			*/
 			
 			length += ImpVersion_.Size();
+			for(size_t Index = 0; Index < SCPSCURoles_.size(); ++Index)
+				length += SCPSCURoles_[Index].Size();
+			if(HasAsynchronousOperationsWindow_)
+				length += AsyncOperationsWindow_.Size();
+			for(size_t Index = 0; Index < SOPClassExtendedNegotiations_.size(); ++Index)
+				length += SOPClassExtendedNegotiations_[Index].Size();
 
-
-	//		Length_=length;//should this be before previous line?
-
-			length+=UserInfoBaggage_;//need to do this better.
-			//problem is, SCP/SCU role is an optional sub-item
-
-			
 			return length+4;
 
 			//return ( Length_ + UserInfoBaggage + sizeof(BYTE) + sizeof(BYTE) + sizeof(UINT16));

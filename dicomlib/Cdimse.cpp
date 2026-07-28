@@ -61,6 +61,18 @@ namespace dicom
 			response.setFailed(result.failed);
 			response.setWarning(result.warning);
 		}
+
+		void RequireSCURole(ServiceBase& service, const UID& classUID)
+		{
+			if(service.HasNegotiatedRole(classUID) && !service.CanActAsSCU(classUID))
+				throw exception("Association did not negotiate local SCU role for SOP Class");
+		}
+
+		void RequireSCPRole(ServiceBase& service, const UID& classUID)
+		{
+			if(service.HasNegotiatedRole(classUID) && !service.CanActAsSCP(classUID))
+				throw exception("Association did not negotiate local SCP role for SOP Class");
+		}
 	}
 
 	CSubOperationResult::CSubOperationResult(
@@ -83,6 +95,7 @@ namespace dicom
 	*/
 	void HandleCEcho(ServiceBase& pdu, const DataSet& command,const UID& classUID)
 	{
+		RequireSCPRole(pdu,classUID);
 		UINT16 msgID;
 		command(TAG_MSG_ID)>>msgID;
 		CommandSet::CEchoRSP response(msgID,classUID);
@@ -91,6 +104,7 @@ namespace dicom
 
 	void HandleCStore(CStoreFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID)
 	{
+		RequireSCPRole(pdu,classUID);
 		UINT16 msgID,data_set_status;
 		UID instuid;
 		command(TAG_MSG_ID)>>msgID;
@@ -123,6 +137,7 @@ namespace dicom
 
 	void HandleCFind(CFindStatusFunction handler,ServiceBase& pdu, const DataSet& command, const UID& classUID)
 	{
+		RequireSCPRole(pdu,classUID);
 #ifdef _DEBUG
 		cout  << "HandleCFind:" << endl << command;
 #endif
@@ -193,7 +208,7 @@ namespace dicom
 
 	void HandleCGet(CGetFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID)
 	{
-		(void)classUID;
+		RequireSCPRole(pdu,classUID);
 		UINT16 msgID,data_set_status;
 		command(TAG_MSG_ID)>>msgID;
 		pdu.ClearCancelRequest(msgID);
@@ -208,6 +223,7 @@ namespace dicom
 
 	void HandleCGet(CGetStatusFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID)
 	{
+		RequireSCPRole(pdu,classUID);
 		UINT16 msgID,data_set_status;
 		command(TAG_MSG_ID)>>msgID;
 		pdu.ClearCancelRequest(msgID);
@@ -378,6 +394,7 @@ namespace dicom
 			(*I)(TAG_SOP_CLASS_UID) >> classUID;
 			(*I)(TAG_SOP_INST_UID) >> instUID;
 
+			RequireSCURole(pdu,classUID);
 			CStoreSCU storeSCU(pdu,classUID);
 			storeSCU.writeRQ(instUID,*I);
 
@@ -440,6 +457,7 @@ namespace dicom
 			(*I)(TAG_SOP_CLASS_UID) >> classUID;
 			(*I)(TAG_SOP_INST_UID) >> instUID;
 
+			RequireSCURole(destination,classUID);
 			CStoreSCU storeSCU(destination,classUID);
 			storeSCU.writeMoveRQ(instUID,*I,moveOriginatorAET,moveOriginatorMessageID);
 
@@ -504,7 +522,7 @@ namespace dicom
 	void HandleCMove(CMoveFunction handler,ServiceBase& pdu,
 		const DataSet& command, const UID& classUID)
 	{
-		(void)classUID;
+		RequireSCPRole(pdu,classUID);
 		UINT16 msgID,data_set_status;
 		command(TAG_MSG_ID)>>msgID;
 		pdu.ClearCancelRequest(msgID);
@@ -522,6 +540,7 @@ namespace dicom
 	void HandleCMove(CMoveStatusFunction handler,ServiceBase& pdu,
 		const DataSet& command, const UID& classUID)
 	{
+		RequireSCPRole(pdu,classUID);
 		UINT16 msgID,data_set_status;
 		command(TAG_MSG_ID)>>msgID;
 		pdu.ClearCancelRequest(msgID);
@@ -556,6 +575,7 @@ namespace dicom
 
 	void CEchoSCU::writeRQ()
 	{
+		RequireSCURole(service_,classUID_);
 		lastMessageID_ = uniq16odd();
 		CommandSet::CEchoRQ rq(lastMessageID_, classUID_);
 		service_.WriteCommand(rq, classUID_) ;
@@ -581,6 +601,7 @@ namespace dicom
 
 	void CStoreSCU::writeRQ(const UID& instUID, const DataSet& data,/*TS ts,*/ UINT16 priority)
 	{
+		RequireSCURole(service_,classUID_);
 		lastMessageID_ = uniq16odd();
 		CommandSet::CStoreRQ rq(lastMessageID_, classUID_, instUID, priority);
 		service_.WriteCommand(rq, classUID_);
@@ -594,6 +615,7 @@ namespace dicom
 		UINT16 moveOriginatorMessageID,
 		UINT16 priority)
 	{
+		RequireSCURole(service_,classUID_);
 		lastMessageID_ = uniq16odd();
 		CommandSet::CStoreRQ rq(
 			lastMessageID_,
@@ -630,6 +652,7 @@ namespace dicom
 
 	void CFindSCU::writeRQ(const DataSet& data, UINT16 priority)
 	{
+		RequireSCURole(service_,classUID_);
 		lastMessageID_ = uniq16odd();
 		CommandSet::CFindRQ rq(lastMessageID_, classUID_, priority);
 		service_.WriteCommand(rq, classUID_);
@@ -671,6 +694,7 @@ namespace dicom
 
 	void CGetSCU::writeRQ(const DataSet& data, UINT16 priority)
 	{
+		RequireSCURole(service_,classUID_);
 		lastMessageID_ = uniq16odd();
 		CommandSet::CGetRQ rq(lastMessageID_, classUID_, priority);
 		service_.WriteCommand(rq, classUID_);
@@ -742,6 +766,7 @@ namespace dicom
 	void CMoveSCU::writeRQ(const string& destAET,
 							const DataSet& data, UINT16 priority)
 	{
+		RequireSCURole(service_,classUID_);
 		lastMessageID_ = uniq16odd();
 		CommandSet::CMoveRQ rq(lastMessageID_, classUID_, destAET, priority);
 		service_.WriteCommand(rq, classUID_);

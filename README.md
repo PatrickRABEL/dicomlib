@@ -203,7 +203,26 @@ application code and asynchronous operations are not yet claimed. Generic
 C-DIMSE status helpers classify the implemented `Success`,
 `Pending`, `Cancel`, `Warning`, and final/non-final response states; SOP-class
 specific validators are provided for C-ECHO, C-STORE, and Query/Retrieve
-C-FIND, C-GET, and C-MOVE response statuses.
+C-FIND, C-GET, and C-MOVE response statuses. Generic N-DIMSE status validators
+classify PS3.7 Annex C Success, Warning, Failure, and final response status
+classes for N-EVENT-REPORT, N-GET, N-SET, N-ACTION, N-CREATE, and N-DELETE; the
+N-DIMSE command set constructors are covered for their core command fields.
+N-EVENT-REPORT, N-GET, N-SET, N-ACTION, N-CREATE, and N-DELETE SCU request and
+response paths are covered over local P-DATA, including response command field,
+Message ID Being Responded To, status validation, optional response data set
+reading, and negotiated SCU role enforcement. N-DIMSE SCP handlers are exposed
+for N-EVENT-REPORT, N-GET, N-SET, N-ACTION, N-CREATE, and N-DELETE, and server
+dispatch is covered through `Server`/`ClientConnection` tests. `NGetRQ` encodes
+the Attribute Identifier List as multi-valued `AT`. A-ASSOCIATE-RQ/AC
+user-information round trips preserve SCP/SCU Role Selection, SOP Class
+Extended Negotiation, and Asynchronous Operations Window sub-items, and
+`ClientConnection` can send caller-provided User Information proposals.
+`ServiceBase` exposes the negotiated local SCU/SCP roles and asynchronous
+operation window values. Negotiated C-DIMSE and N-DIMSE SCU/SCP roles are
+enforced when association role state exists. `Server::SetSOPClassExtendedNegotiationCallback()`
+lets application code generate SOP Class Extended Negotiation response bytes for
+accepted SOP Classes. Asynchronous C-DIMSE operation scheduling is not yet
+claimed.
 
 The detailed C-DIMSE implementation plan and remaining work are maintained in
 [`docs/CDIMSE_PLAN.md`](docs/CDIMSE_PLAN.md).

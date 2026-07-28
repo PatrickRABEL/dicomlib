@@ -1,7 +1,9 @@
 #ifndef SERVICE_BASE_HPP_23847239487238
 #define SERVICE_BASE_HPP_23847239487238
+#include <map>
 #include <set>
 #include <string>
+#include <vector>
 #include "socket/Socket.hpp"
 #include "Buffer.hpp"
 #include "DataSet.hpp"
@@ -39,7 +41,7 @@ namespace dicom
 
 		Keeps track of conditions under which association was set up
 	*/
-    struct ServiceBase
+	struct ServiceBase
 	{
 		ServiceBase(const ServiceBase&) = delete;
 		ServiceBase& operator=(const ServiceBase&) = delete;
@@ -73,6 +75,27 @@ namespace dicom
 		void RequestCancel(UINT16 messageID);
 		bool IsCancelRequested(UINT16 messageID) const;
 		void ClearCancelRequest(UINT16 messageID);
+
+		struct AssociationRole
+		{
+			bool SCU_;
+			bool SCP_;
+
+			AssociationRole();
+			AssociationRole(bool scu, bool scp);
+		};
+
+		void ClearNegotiatedAssociationOptions();
+		void ApplyAssociationNegotiationAsRequestor(const primitive::AAssociateAC& acknowledgement);
+		void ApplyAssociationNegotiationAsAcceptor(const primitive::UserInformation& acceptedUserInfo);
+		bool HasNegotiatedRole(const UID& uid) const;
+		bool CanActAsSCU(const UID& uid) const;
+		bool CanActAsSCP(const UID& uid) const;
+		bool HasNegotiatedAsynchronousOperationsWindow() const;
+		UINT16 MaximumNumberOperationsInvoked() const;
+		UINT16 MaximumNumberOperationsPerformed() const;
+		bool HasNegotiatedSOPClassExtended(const UID& uid) const;
+		const std::vector<BYTE>& GetNegotiatedSOPClassExtendedInformation(const UID& uid) const;
 	
 
 		//Following two parameters keep a record of the conditions under which
@@ -94,6 +117,12 @@ namespace dicom
 
 		//!Message IDs referenced by valid C-CANCEL-RQ commands on this association.
 		std::set<UINT16> CancelRequestedMessageIDs_;
+
+		std::map<UID,AssociationRole> NegotiatedRoles_;
+		bool HasNegotiatedAsynchronousOperationsWindow_;
+		UINT16 MaximumNumberOperationsInvoked_;
+		UINT16 MaximumNumberOperationsPerformed_;
+		std::map<UID,std::vector<BYTE> > NegotiatedSOPClassExtendedInformation_;
 
 		//this function should only be called on the client side because client decides which 
 		//transfer syntax to use. -Sam

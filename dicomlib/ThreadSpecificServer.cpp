@@ -146,6 +146,9 @@ namespace dicom
 				throw dicom::exception(os.str());
 			}
 
+			if(HasNegotiatedRole(classUID) && !CanActAsSCP(classUID))
+				throw dicom::exception("Association did not negotiate local SCP role for SOP Class");
+
 			/*
 			cmd must be one of the command values specified in Tag.hpp
 			*/
@@ -259,9 +262,9 @@ namespace dicom
 			}
 			break;
 
-			case Command::C_GET_RQ:
-			{
-				if(server_.HasCancellableGetHandler(classUID))
+				case Command::C_GET_RQ:
+				{
+					if(server_.HasCancellableGetHandler(classUID))
 				{
 					CGetStatusFunction handler=server_.GetCancellableGetHandler(classUID);
 					HandleCGet(handler,*this,command,classUID);
@@ -271,17 +274,60 @@ namespace dicom
 					HandlerFunction handler=server_.GetHandler(classUID);
 					HandleCGet(handler,*this,command,classUID);
 				}
-			}
-			break;
+				}
+				break;
 
-// 			case Command::N_CREATE_RQ:
-// 				return
-// 				return NCreateSCP(getNHandler(m_mapNCreate, classUID)).handle(pdu, rq, classUID);
-// 			case Command::N_SET_RQ:
-// 				return NSetSCP(getNHandler(m
-			default:
-				throw dicom::exception("unsupported operation requested");
-			}
+				case Command::N_EVENT_REPORT_RQ:
+				{
+					NHandlerFunction handler=server_.GetNEventReportHandler(classUID);
+					HandleNEventReport(handler,*this,command,classUID);
+					server_.LogMessage("Handled an N-EVENT-REPORT");
+				}
+				break;
+
+				case Command::N_GET_RQ:
+				{
+					NHandlerFunction handler=server_.GetNGetHandler(classUID);
+					HandleNGet(handler,*this,command,classUID);
+					server_.LogMessage("Handled an N-GET");
+				}
+				break;
+
+				case Command::N_SET_RQ:
+				{
+					NHandlerFunction handler=server_.GetNSetHandler(classUID);
+					HandleNSet(handler,*this,command,classUID);
+					server_.LogMessage("Handled an N-SET");
+				}
+				break;
+
+				case Command::N_ACTION_RQ:
+				{
+					NHandlerFunction handler=server_.GetNActionHandler(classUID);
+					HandleNAction(handler,*this,command,classUID);
+					server_.LogMessage("Handled an N-ACTION");
+				}
+				break;
+
+				case Command::N_CREATE_RQ:
+				{
+					NHandlerFunction handler=server_.GetNCreateHandler(classUID);
+					HandleNCreate(handler,*this,command,classUID);
+					server_.LogMessage("Handled an N-CREATE");
+				}
+				break;
+
+				case Command::N_DELETE_RQ:
+				{
+					NHandlerFunction handler=server_.GetNDeleteHandler(classUID);
+					HandleNDelete(handler,*this,command,classUID);
+					server_.LogMessage("Handled an N-DELETE");
+				}
+				break;
+
+				default:
+					throw dicom::exception("unsupported operation requested");
+				}
 
 		}
 
@@ -412,9 +458,63 @@ namespace dicom
 			server_.GetImplementationClass(UserInfo.ImpClass_);
 			server_.GetImplementationVersion(UserInfo.ImpVersion_);
 			UserInfo.SetMax(MaxSubLength);
+			if(association_request.UserInfo_.HasAsynchronousOperationsWindow_)
+				UserInfo.SetAsynchronousOperationsWindow(1,1);
+			for(size_t RoleIndex=0; RoleIndex<association_request.UserInfo_.SCPSCURoles_.size(); ++RoleIndex)
+			{
+				const SCPSCURoleSelect& requestedRole =
+					association_request.UserInfo_.SCPSCURoles_.at(RoleIndex);
+				bool abstractSyntaxAccepted = false;
+				for(size_t ContextIndex=0; ContextIndex<ProposedPresentationContexts.size(); ++ContextIndex)
+				{
+					if(ProposedPresentationContexts.at(ContextIndex).AbsSyntax_.UID_==requestedRole.UID_ &&
+						ContextIndex<AcceptedPresentationContexts_.size() &&
+						AcceptedPresentationContexts_.at(ContextIndex).Result_==0)
+					{
+						abstractSyntaxAccepted = true;
+						break;
+					}
+				}
+				if(abstractSyntaxAccepted)
+					UserInfo.AddSCPSCURoleSelection(
+						requestedRole.UID_,
+						requestedRole.SCURole_!=0,
+						requestedRole.SCPRole_!=0);
+			}
+			for(size_t NegotiationIndex=0;
+				NegotiationIndex<association_request.UserInfo_.SOPClassExtendedNegotiations_.size();
+				++NegotiationIndex)
+			{
+				const SOPClassExtendedNegotiation& requestNegotiation =
+					association_request.UserInfo_.SOPClassExtendedNegotiations_.at(NegotiationIndex);
+				bool abstractSyntaxAccepted = false;
+				for(size_t ContextIndex=0; ContextIndex<ProposedPresentationContexts.size(); ++ContextIndex)
+				{
+					if(ProposedPresentationContexts.at(ContextIndex).AbsSyntax_.UID_==requestNegotiation.UID_ &&
+						ContextIndex<AcceptedPresentationContexts_.size() &&
+						AcceptedPresentationContexts_.at(ContextIndex).Result_==0)
+					{
+						abstractSyntaxAccepted = true;
+						break;
+					}
+				}
+				if(!abstractSyntaxAccepted)
+					continue;
+				std::vector<BYTE> responseInformation;
+				if(server_.NegotiateSOPClassExtended(
+					requestNegotiation.UID_,
+					requestNegotiation.ServiceClassApplicationInformation_,
+					responseInformation))
+				{
+					UserInfo.AddSOPClassExtendedNegotiation(
+						requestNegotiation.UID_,
+						responseInformation);
+				}
+			}
 
 			Acceptance.PresContextAccepts_=AcceptedPresentationContexts_;//do this later outside of while loop -Sam
 			Acceptance.SetUserInformation ( UserInfo );
+			ApplyAssociationNegotiationAsAcceptor(UserInfo);
 
 
 			Acceptance.Write(*socket_);

@@ -193,6 +193,45 @@ namespace dicom
 
 		};
 
+		/*!
+			Part 7, Table D.3-7 and D.3-8
+		*/
+		struct AsynchronousOperationsWindow
+		{
+			static const BYTE ItemType_ = 0x53;
+			static const BYTE Reserved_ = 0x00;
+			static const UINT16 ItemLength_ = 0x04;
+
+			UINT16 MaximumNumberOperationsInvoked_;
+			UINT16 MaximumNumberOperationsPerformed_;
+
+			AsynchronousOperationsWindow();
+			AsynchronousOperationsWindow(UINT16 invoked, UINT16 performed);
+
+			void Write(Network::Socket&);
+			UINT32 ReadDynamic(Network::Socket&);
+			UINT32 Size();
+		};
+
+		/*!
+			Part 7, Table D.3-11
+		*/
+		struct SOPClassExtendedNegotiation
+		{
+			static const BYTE ItemType_ = 0x56;
+			static const BYTE Reserved_ = 0x00;
+			UINT16 ItemLength_;
+			UID UID_;
+			std::vector<BYTE> ServiceClassApplicationInformation_;
+
+			SOPClassExtendedNegotiation();
+			SOPClassExtendedNegotiation(const UID& uid, const std::vector<BYTE>& information);
+
+			void Write(Network::Socket&);
+			UINT32 ReadDynamic(Network::Socket&);
+			UINT32 Size();
+		};
+
 
 		/*!
 			defined in Part 8, table 9-13
@@ -268,14 +307,22 @@ namespace dicom
 			UINT32						UserInfoBaggage_;
 			MaximumSubLength			MaxSubLength_;
 			ImplementationClass			ImpClass_;
-			ImplementationVersion		ImpVersion_;//this is an optional field. 
+			ImplementationVersion		ImpVersion_;//this is an optional field.
 
 			//this is an optional field.  How do we indicate that?
 			SCPSCURoleSelect			SCPSCURole_;
+			std::vector<SCPSCURoleSelect> SCPSCURoles_;
+			bool HasAsynchronousOperationsWindow_;
+			AsynchronousOperationsWindow AsyncOperationsWindow_;
+			std::vector<SOPClassExtendedNegotiation> SOPClassExtendedNegotiations_;
 		public:
 			UserInformation();
 
 			void		SetMax(MaximumSubLength	&);
+			void		AddSCPSCURoleSelection(const UID& uid, bool scuRole, bool scpRole);
+			void		SetAsynchronousOperationsWindow(UINT16 invoked, UINT16 performed);
+			void		ClearAsynchronousOperationsWindow();
+			void		AddSOPClassExtendedNegotiation(const UID& uid, const std::vector<BYTE>& information);
 			//UINT32		GetMax();
 			void		Write(Network::Socket &);
 			//bool		Read(Network::Socket &);

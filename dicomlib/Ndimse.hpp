@@ -13,7 +13,9 @@
 #include "DataSet.hpp"
 #include "UID.hpp"
 #include "ServiceBase.hpp"
+#include "CommandSets.hpp"
 #include <functional>
+#include <vector>
 
 /*
 	Is inheritance the correct mechanism to use here, or 
@@ -27,13 +29,94 @@
 	with function objects as our abstraction mechanism of choice.
 */
 
-#ifdef THIS_ISNT_IMPLEMENTED_YET
 namespace dicom
 {
+	bool IsNdimseSuccessStatus(UINT16 status);
+	bool IsNdimseWarningStatus(UINT16 status);
+	bool IsNdimseFailureStatus(UINT16 status);
+	bool IsNdimseFinalStatus(UINT16 status);
+	bool IsNEventReportResponseStatus(UINT16 status);
+	bool IsNGetResponseStatus(UINT16 status);
+	bool IsNSetResponseStatus(UINT16 status);
+	bool IsNActionResponseStatus(UINT16 status);
+	bool IsNCreateResponseStatus(UINT16 status);
+	bool IsNDeleteResponseStatus(UINT16 status);
 
-
-	typedef std::function<void(ServiceBase&,const DataSet&,DataSet&)>
+	typedef std::function<UINT16(ServiceBase&,const DataSet&,const DataSet&,DataSet&)>
 		NHandlerFunction;
+
+	void HandleNEventReport(NHandlerFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID);
+	void HandleNGet(NHandlerFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID);
+	void HandleNSet(NHandlerFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID);
+	void HandleNAction(NHandlerFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID);
+	void HandleNCreate(NHandlerFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID);
+	void HandleNDelete(NHandlerFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID);
+
+	class NSCU
+	{
+	protected:
+		ServiceBase& service_;
+		UID classUID_;
+		UINT16 lastMessageID_;
+
+		NSCU(ServiceBase& service, const UID& classUID);
+		void readRSP(UINT16& status, DataSet& response, DataSet& data, Command::Code expectedCommand);
+	};
+
+	class NEventReportSCU : public NSCU
+	{
+	public:
+		NEventReportSCU(ServiceBase& service, const UID& classUID);
+		void writeRQ(const UID& instUID, UINT16 eventTypeID, const DataSet& data);
+		void writeRQ(const UID& instUID, UINT16 eventTypeID);
+		void readRSP(UINT16& status, DataSet& response, DataSet& data);
+	};
+
+	class NGetSCU : public NSCU
+	{
+	public:
+		NGetSCU(ServiceBase& service, const UID& classUID);
+		void writeRQ(const UID& instUID, const std::vector<Tag>& attrList);
+		void readRSP(UINT16& status, DataSet& response, DataSet& data);
+	};
+
+	class NSetSCU : public NSCU
+	{
+	public:
+		NSetSCU(ServiceBase& service, const UID& classUID);
+		void writeRQ(const UID& instUID, const DataSet& data);
+		void readRSP(UINT16& status, DataSet& response, DataSet& data);
+	};
+
+	class NActionSCU : public NSCU
+	{
+	public:
+		NActionSCU(ServiceBase& service, const UID& classUID);
+		void writeRQ(const UID& instUID, UINT16 actionTypeID, const DataSet& data);
+		void writeRQ(const UID& instUID, UINT16 actionTypeID);
+		void readRSP(UINT16& status, DataSet& response, DataSet& data);
+	};
+
+	class NCreateSCU : public NSCU
+	{
+	public:
+		NCreateSCU(ServiceBase& service, const UID& classUID);
+		void writeRQ(const UID& instUID, const DataSet& data);
+		void writeRQ(const UID& instUID);
+		void writeRQ(const DataSet& data);
+		void writeRQ();
+		void readRSP(UINT16& status, DataSet& response, DataSet& data);
+	};
+
+	class NDeleteSCU : public NSCU
+	{
+	public:
+		NDeleteSCU(ServiceBase& service, const UID& classUID);
+		void writeRQ(const UID& instUID);
+		void readRSP(UINT16& status, DataSet& response, DataSet& data);
+	};
+
+#ifdef THIS_ISNT_IMPLEMENTED_YET
 
 			//handler(pdu,rspData,command,data);
 	//class NHandler
@@ -85,9 +168,9 @@ namespace dicom
 		bool readRSP(UINT16& status, dicom::DataSet& data, ServiceBase& pdu);
 		bool readRSP(UINT16& status, dicom::DataSet& response, dicom::DataSet& data, ServiceBase& pdu);
 	};
-}//namespace dicom
-
 #endif //THIS_ISNT_IMPLEMENTED_YET
+
+}//namespace dicom
 
 
 #endif //NDIMSE_HPP_INCLUDE_GUARD_5834956123

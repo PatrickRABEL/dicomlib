@@ -13,6 +13,7 @@
 
 #include "socket/Socket.hpp"
 #include "Cdimse.hpp"
+#include "Ndimse.hpp"
 #include "ServiceBase.hpp"
 #include "DataSet.hpp"
 #include "aarq.hpp"
@@ -40,6 +41,8 @@ namespace dicom
 
 	typedef std::function<bool(const std::string&,MoveDestinationEndpoint&)>
 		MoveDestinationResolverFunction;
+	typedef std::function<bool(const UID&,const std::vector<BYTE>&,std::vector<BYTE>&)>
+		SOPClassExtendedNegotiationFunction;
 
 
 	//!Thrown if we don't have a handler function for the requested service class.
@@ -120,9 +123,15 @@ namespace dicom
 
 
 		std::map<UID,HandlerFunction> Handlers_;
-		std::map<UID,CGetStatusFunction> CancellableGetHandlers_;
-		std::map<UID,CMoveStatusFunction> CancellableMoveHandlers_;
-		std::map<UID,CMoveStoreFunction> MoveStoreHandlers_;
+			std::map<UID,CGetStatusFunction> CancellableGetHandlers_;
+			std::map<UID,CMoveStatusFunction> CancellableMoveHandlers_;
+			std::map<UID,CMoveStoreFunction> MoveStoreHandlers_;
+			std::map<UID,NHandlerFunction> NEventReportHandlers_;
+			std::map<UID,NHandlerFunction> NGetHandlers_;
+			std::map<UID,NHandlerFunction> NSetHandlers_;
+			std::map<UID,NHandlerFunction> NActionHandlers_;
+			std::map<UID,NHandlerFunction> NCreateHandlers_;
+			std::map<UID,NHandlerFunction> NDeleteHandlers_;
 
 		/*
 			Would it be cleaner to explicitly specify CMoveHandlers_, CGetHandlers_ etc,
@@ -145,6 +154,7 @@ namespace dicom
 		StringCheckFunction2 CheckRemoteAET;
 
 		MoveDestinationResolverFunction ResolveMoveDestinationCallback_;
+		SOPClassExtendedNegotiationFunction SOPClassExtendedNegotiationCallback_;
 
 		//!Mutex for AET check functions.
 		/*!
@@ -217,13 +227,20 @@ namespace dicom
 		void SetCheckLocalAETCallback(StringCheckFunction f);
 		void SetCheckRemoteAETCallback(StringCheckFunction2 f);
 		void SetMoveDestinationResolverCallback(MoveDestinationResolverFunction f);
+		void SetSOPClassExtendedNegotiationCallback(SOPClassExtendedNegotiationFunction f);
 
 		void AddHandler(const UID& uid,HandlerFunction f);
 		void AddFindHandler(const UID& uid,CFindFunction Handler);
 		void AddCancellableFindHandler(const UID& uid,CFindStatusFunction Handler);
-		void AddCancellableGetHandler(const UID& uid,CGetStatusFunction Handler);
-		void AddCancellableMoveHandler(const UID& uid,CMoveStatusFunction Handler);
-		void AddMoveStoreHandler(const UID& uid,CMoveStoreFunction Handler);
+			void AddCancellableGetHandler(const UID& uid,CGetStatusFunction Handler);
+			void AddCancellableMoveHandler(const UID& uid,CMoveStatusFunction Handler);
+			void AddMoveStoreHandler(const UID& uid,CMoveStoreFunction Handler);
+			void AddNEventReportHandler(const UID& uid,NHandlerFunction Handler);
+			void AddNGetHandler(const UID& uid,NHandlerFunction Handler);
+			void AddNSetHandler(const UID& uid,NHandlerFunction Handler);
+			void AddNActionHandler(const UID& uid,NHandlerFunction Handler);
+			void AddNCreateHandler(const UID& uid,NHandlerFunction Handler);
+			void AddNDeleteHandler(const UID& uid,NHandlerFunction Handler);
 
 		HandlerFunction GetHandler(const UID& uid);
 		CFindFunction GetFindHandler(const UID& uid);
@@ -231,14 +248,21 @@ namespace dicom
 		bool HasCancellableFindHandler(const UID& uid);
 		CGetStatusFunction GetCancellableGetHandler(const UID& uid);
 		bool HasCancellableGetHandler(const UID& uid);
-		CMoveStatusFunction GetCancellableMoveHandler(const UID& uid);
-		bool HasCancellableMoveHandler(const UID& uid);
-		CMoveStoreFunction GetMoveStoreHandler(const UID& uid);
-		bool HasMoveStoreHandler(const UID& uid);
+			CMoveStatusFunction GetCancellableMoveHandler(const UID& uid);
+			bool HasCancellableMoveHandler(const UID& uid);
+			CMoveStoreFunction GetMoveStoreHandler(const UID& uid);
+			bool HasMoveStoreHandler(const UID& uid);
+			NHandlerFunction GetNEventReportHandler(const UID& uid);
+			NHandlerFunction GetNGetHandler(const UID& uid);
+			NHandlerFunction GetNSetHandler(const UID& uid);
+			NHandlerFunction GetNActionHandler(const UID& uid);
+			NHandlerFunction GetNCreateHandler(const UID& uid);
+			NHandlerFunction GetNDeleteHandler(const UID& uid);
 
 		bool IsAcceptableRemoteApplicationTitle		(const std::string& Title,std::string ip);
 		bool IsAcceptableLocalApplicationTitle		(const std::string& Title);
 		bool ResolveMoveDestination					(const std::string& Title,MoveDestinationEndpoint& endpoint);
+		bool NegotiateSOPClassExtended				(const UID& uid,const std::vector<BYTE>& request,std::vector<BYTE>& response);
 		bool IsAcceptableApplicationContext			(const UID& uid);
 		bool IsAcceptableAbstractSyntax				(const UID& uid);
 

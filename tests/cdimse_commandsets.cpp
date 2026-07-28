@@ -3,6 +3,7 @@
 #include "dicomlib/ClientConnection.hpp"
 #include "dicomlib/CommandSets.hpp"
 #include "dicomlib/ImplementationUID.hpp"
+#include "dicomlib/Ndimse.hpp"
 #include "dicomlib/PresentationContexts.hpp"
 #include "dicomlib/Server.hpp"
 
@@ -115,6 +116,19 @@ namespace
 		return accepted;
 	}
 
+	void makeSocketPair(int sockets[2]);
+
+	dicom::primitive::UserInformation makeUserInformation()
+	{
+		dicom::primitive::MaximumSubLength maxSubLength;
+		maxSubLength.Set(16384);
+		dicom::primitive::UserInformation userInfo;
+		userInfo.ImpClass_.UID_ = dicom::ImplementationClassUID;
+		userInfo.ImpVersion_.Name = dicom::ImplementationVersionName;
+		userInfo.SetMax(maxSubLength);
+		return userInfo;
+	}
+
 	void negotiateAssociation(
 		PairedService& scuSide,
 		PairedService& scpSide,
@@ -123,13 +137,7 @@ namespace
 		dicom::PresentationContexts contexts;
 		contexts.Add(classUID, dicom::TS(dicom::IMPL_VR_LE_TRANSFER_SYNTAX));
 
-		dicom::primitive::MaximumSubLength maxSubLength;
-		maxSubLength.Set(16384);
-
-		dicom::primitive::UserInformation userInfo;
-		userInfo.ImpClass_.UID_ = dicom::ImplementationClassUID;
-		userInfo.ImpVersion_.Name = dicom::ImplementationVersionName;
-		userInfo.SetMax(maxSubLength);
+		dicom::primitive::UserInformation userInfo = makeUserInformation();
 
 		scuSide.AAssociateRQ_.CalledAppTitle_ = "SCP_AE";
 		scuSide.AAssociateRQ_.CallingAppTitle_ = "SCU_AE";
@@ -167,6 +175,130 @@ namespace
 		configureAssociation(scuSide, contexts, readAcknowledgement);
 	}
 
+	void checkAssociationExtendedNegotiation()
+	{
+		int sockets[2];
+		makeSocketPair(sockets);
+		PairedSocket requestWriter(sockets[0]);
+		PairedSocket requestReader(sockets[1]);
+
+		const dicom::UID classUID = dicom::CT_IMAGE_STORAGE_SOP_CLASS;
+		dicom::PresentationContexts contexts;
+		contexts.Add(classUID, dicom::TS(dicom::IMPL_VR_LE_TRANSFER_SYNTAX));
+
+		dicom::primitive::MaximumSubLength maxSubLength;
+		maxSubLength.Set(32768);
+
+		dicom::primitive::UserInformation requestInfo;
+		requestInfo.ImpClass_.UID_ = dicom::ImplementationClassUID;
+		requestInfo.ImpVersion_.Name = dicom::ImplementationVersionName;
+		requestInfo.SetMax(maxSubLength);
+		requestInfo.AddSCPSCURoleSelection(classUID,true,true);
+		requestInfo.SetAsynchronousOperationsWindow(4,2);
+		std::vector<BYTE> requestApplicationInfo;
+		requestApplicationInfo.push_back(0x01);
+		requestApplicationInfo.push_back(0x02);
+		requestApplicationInfo.push_back(0x03);
+		requestInfo.AddSOPClassExtendedNegotiation(classUID,requestApplicationInfo);
+
+		dicom::primitive::AAssociateRQ request;
+		request.CalledAppTitle_ = "SCP_AE";
+		request.CallingAppTitle_ = "SCU_AE";
+		request.ProposedPresentationContexts_ = contexts;
+		request.SetUserInformation(requestInfo);
+		request.Write(requestWriter);
+
+		dicom::primitive::AAssociateRQ readRequest;
+		readRequest.Read(requestReader);
+		assert(readRequest.UserInfo_.SCPSCURoles_.size() == 1);
+		assert(readRequest.UserInfo_.SCPSCURoles_.at(0).UID_ == classUID);
+		assert(readRequest.UserInfo_.SCPSCURoles_.at(0).SCURole_ == 1);
+		assert(readRequest.UserInfo_.SCPSCURoles_.at(0).SCPRole_ == 1);
+		assert(readRequest.UserInfo_.HasAsynchronousOperationsWindow_);
+		assert(readRequest.UserInfo_.AsyncOperationsWindow_.MaximumNumberOperationsInvoked_ == 4);
+		assert(readRequest.UserInfo_.AsyncOperationsWindow_.MaximumNumberOperationsPerformed_ == 2);
+		assert(readRequest.UserInfo_.SOPClassExtendedNegotiations_.size() == 1);
+		assert(readRequest.UserInfo_.SOPClassExtendedNegotiations_.at(0).UID_ == classUID);
+		assert(readRequest.UserInfo_.SOPClassExtendedNegotiations_.at(0).ServiceClassApplicationInformation_ == requestApplicationInfo);
+
+		int responseSockets[2];
+		makeSocketPair(responseSockets);
+		PairedSocket responseWriter(responseSockets[0]);
+		PairedSocket responseReader(responseSockets[1]);
+
+		dicom::primitive::UserInformation responseInfo;
+		responseInfo.ImpClass_.UID_ = dicom::ImplementationClassUID;
+		responseInfo.ImpVersion_.Name = dicom::ImplementationVersionName;
+		responseInfo.SetMax(maxSubLength);
+		responseInfo.AddSCPSCURoleSelection(classUID,true,false);
+		responseInfo.SetAsynchronousOperationsWindow(2,1);
+		std::vector<BYTE> responseApplicationInfo;
+		responseApplicationInfo.push_back(0x05);
+		responseInfo.AddSOPClassExtendedNegotiation(classUID,responseApplicationInfo);
+
+		dicom::primitive::PresentationContextAccept accepted =
+			acceptFirstContext(contexts, dicom::IMPL_VR_LE_TRANSFER_SYNTAX);
+
+		dicom::primitive::AAssociateAC acknowledgement;
+		acknowledgement.CalledAppTitle_ = readRequest.CalledAppTitle_;
+		acknowledgement.CallingAppTitle_ = readRequest.CallingAppTitle_;
+		acknowledgement.AppContext_ = readRequest.AppContext_;
+		acknowledgement.PresContextAccepts_.push_back(accepted);
+		acknowledgement.SetUserInformation(responseInfo);
+		acknowledgement.Write(responseWriter);
+
+		dicom::primitive::AAssociateAC readAcknowledgement;
+		readAcknowledgement.Read(responseReader);
+		assert(readAcknowledgement.UserInfo_.SCPSCURoles_.size() == 1);
+		assert(readAcknowledgement.UserInfo_.SCPSCURoles_.at(0).UID_ == classUID);
+		assert(readAcknowledgement.UserInfo_.SCPSCURoles_.at(0).SCURole_ == 1);
+		assert(readAcknowledgement.UserInfo_.SCPSCURoles_.at(0).SCPRole_ == 0);
+		assert(readAcknowledgement.UserInfo_.HasAsynchronousOperationsWindow_);
+		assert(readAcknowledgement.UserInfo_.AsyncOperationsWindow_.MaximumNumberOperationsInvoked_ == 2);
+		assert(readAcknowledgement.UserInfo_.AsyncOperationsWindow_.MaximumNumberOperationsPerformed_ == 1);
+		assert(readAcknowledgement.UserInfo_.SOPClassExtendedNegotiations_.size() == 1);
+		assert(readAcknowledgement.UserInfo_.SOPClassExtendedNegotiations_.at(0).UID_ == classUID);
+		assert(readAcknowledgement.UserInfo_.SOPClassExtendedNegotiations_.at(0).ServiceClassApplicationInformation_ == responseApplicationInfo);
+
+		NullService requestorState;
+		requestorState.AAssociateRQ_.ProposedPresentationContexts_ = contexts;
+		requestorState.ApplyAssociationNegotiationAsRequestor(readAcknowledgement);
+		assert(requestorState.CanActAsSCU(classUID));
+		assert(!requestorState.CanActAsSCP(classUID));
+		assert(requestorState.HasNegotiatedAsynchronousOperationsWindow());
+		assert(requestorState.MaximumNumberOperationsInvoked() == 2);
+		assert(requestorState.MaximumNumberOperationsPerformed() == 1);
+		assert(requestorState.HasNegotiatedSOPClassExtended(classUID));
+		assert(requestorState.GetNegotiatedSOPClassExtendedInformation(classUID) == responseApplicationInfo);
+
+		NullService acceptorState;
+		acceptorState.AAssociateRQ_.ProposedPresentationContexts_ = contexts;
+		acceptorState.AcceptedPresentationContexts_ = readAcknowledgement.PresContextAccepts_;
+		acceptorState.ApplyAssociationNegotiationAsAcceptor(readAcknowledgement.UserInfo_);
+		assert(!acceptorState.CanActAsSCU(classUID));
+		assert(acceptorState.CanActAsSCP(classUID));
+		assert(acceptorState.HasNegotiatedAsynchronousOperationsWindow());
+		assert(acceptorState.MaximumNumberOperationsInvoked() == 2);
+		assert(acceptorState.MaximumNumberOperationsPerformed() == 1);
+		assert(acceptorState.HasNegotiatedSOPClassExtended(classUID));
+		assert(acceptorState.GetNegotiatedSOPClassExtendedInformation(classUID) == responseApplicationInfo);
+
+		dicom::primitive::AAssociateAC defaultRolesAcknowledgement;
+		defaultRolesAcknowledgement.PresContextAccepts_.push_back(accepted);
+		NullService defaultRequestorState;
+		defaultRequestorState.AAssociateRQ_.ProposedPresentationContexts_ = contexts;
+		defaultRequestorState.ApplyAssociationNegotiationAsRequestor(defaultRolesAcknowledgement);
+		assert(defaultRequestorState.CanActAsSCU(classUID));
+		assert(!defaultRequestorState.CanActAsSCP(classUID));
+
+		NullService defaultAcceptorState;
+		defaultAcceptorState.AAssociateRQ_.ProposedPresentationContexts_ = contexts;
+		defaultAcceptorState.AcceptedPresentationContexts_ = defaultRolesAcknowledgement.PresContextAccepts_;
+		defaultAcceptorState.ApplyAssociationNegotiationAsAcceptor(defaultRolesAcknowledgement.UserInfo_);
+		assert(!defaultAcceptorState.CanActAsSCU(classUID));
+		assert(defaultAcceptorState.CanActAsSCP(classUID));
+	}
+
 	struct TestCFindSCU : public dicom::CFindSCU
 	{
 		TestCFindSCU(dicom::ServiceBase& service, const dicom::UID& classUID)
@@ -185,6 +317,12 @@ namespace
 		const int result = ::socketpair(AF_UNIX, SOCK_STREAM, 0, sockets);
 		if(result != 0)
 			throw SystemError("socketpair");
+	}
+
+	void requireRead(dicom::ServiceBase& service, dicom::DataSet& data)
+	{
+		if(!service.Read(data))
+			throw dicom::exception("Unexpected association release while reading test P-DATA");
 	}
 
 	short reserveLocalPort()
@@ -325,6 +463,164 @@ namespace
 		assert(get<UINT16>(rsp, dicom::TAG_NUM_WARN_SUBOP) == 0);
 	}
 
+	void checkNdimseCommandSets()
+	{
+		const dicom::UID classUID("1.2.826.0.1.3680043.10.1553.20");
+		const dicom::UID instUID("1.2.826.0.1.3680043.10.1553.20.1");
+		const UINT16 eventTypeID = 3;
+		const UINT16 actionTypeID = 5;
+
+		dicom::CommandSet::NEventReportRQ eventRQ(
+			21,
+			classUID,
+			instUID,
+			eventTypeID,
+			dicom::DataSetStatus::YES_DATA_SET);
+		assert(get<dicom::UID>(eventRQ, dicom::TAG_AFF_SOP_CLASS_UID) == classUID);
+		assert(get<dicom::UID>(eventRQ, dicom::TAG_AFF_SOP_INST_UID) == instUID);
+		assert(get<UINT16>(eventRQ, dicom::TAG_CMD_FIELD) == dicom::Command::N_EVENT_REPORT_RQ);
+		assert(get<UINT16>(eventRQ, dicom::TAG_MSG_ID) == 21);
+		assert(get<UINT16>(eventRQ, dicom::TAG_DATA_SET_TYPE) == dicom::DataSetStatus::YES_DATA_SET);
+		assert(get<UINT16>(eventRQ, dicom::TAG_EVENT_TYPE_ID) == eventTypeID);
+
+		dicom::CommandSet::NEventReportRSP eventRSP(
+			21,
+			classUID,
+			instUID,
+			dicom::Status::SUCCESS,
+			eventTypeID,
+			dicom::DataSetStatus::NO_DATA_SET);
+		assert(get<dicom::UID>(eventRSP, dicom::TAG_AFF_SOP_CLASS_UID) == classUID);
+		assert(get<dicom::UID>(eventRSP, dicom::TAG_AFF_SOP_INST_UID) == instUID);
+		assert(get<UINT16>(eventRSP, dicom::TAG_CMD_FIELD) == dicom::Command::N_EVENT_REPORT_RSP);
+		assert(get<UINT16>(eventRSP, dicom::TAG_MSG_ID_RSP) == 21);
+		assert(get<UINT16>(eventRSP, dicom::TAG_STATUS) == dicom::Status::SUCCESS);
+		assert(get<UINT16>(eventRSP, dicom::TAG_DATA_SET_TYPE) == dicom::DataSetStatus::NO_DATA_SET);
+		assert(get<UINT16>(eventRSP, dicom::TAG_EVENT_TYPE_ID) == eventTypeID);
+
+		std::vector<dicom::Tag> attrList;
+		attrList.push_back(dicom::TAG_PAT_NAME);
+		attrList.push_back(dicom::TAG_PAT_ID);
+		dicom::CommandSet::NGetRQ getRQ(23,classUID,instUID,attrList);
+		assert(get<dicom::UID>(getRQ, dicom::TAG_REQ_SOP_CLASS_UID) == classUID);
+		assert(get<dicom::UID>(getRQ, dicom::TAG_REQ_SOP_INST_UID) == instUID);
+		assert(get<UINT16>(getRQ, dicom::TAG_CMD_FIELD) == dicom::Command::N_GET_RQ);
+		assert(get<UINT16>(getRQ, dicom::TAG_MSG_ID) == 23);
+		assert(get<UINT16>(getRQ, dicom::TAG_DATA_SET_TYPE) == dicom::DataSetStatus::NO_DATA_SET);
+		std::vector<dicom::Value> attrValues = getRQ.Values(dicom::TAG_ATTR_ID_LIST);
+		assert(attrValues.size() == 2);
+		dicom::Tag attrTag = dicom::TAG_NULL;
+		attrValues.at(0) >> attrTag;
+		assert(attrTag == dicom::TAG_PAT_NAME);
+		attrValues.at(1) >> attrTag;
+		assert(attrTag == dicom::TAG_PAT_ID);
+		assert(!getRQ.exists(dicom::TAG_MSG_ID_RSP));
+
+		dicom::CommandSet::NGetRSP getRSP(
+			23,
+			classUID,
+			instUID,
+			dicom::Status::SUCCESS,
+			dicom::DataSetStatus::YES_DATA_SET);
+		assert(get<dicom::UID>(getRSP, dicom::TAG_AFF_SOP_CLASS_UID) == classUID);
+		assert(get<dicom::UID>(getRSP, dicom::TAG_AFF_SOP_INST_UID) == instUID);
+		assert(get<UINT16>(getRSP, dicom::TAG_CMD_FIELD) == dicom::Command::N_GET_RSP);
+		assert(get<UINT16>(getRSP, dicom::TAG_MSG_ID_RSP) == 23);
+		assert(get<UINT16>(getRSP, dicom::TAG_DATA_SET_TYPE) == dicom::DataSetStatus::YES_DATA_SET);
+		assert(get<UINT16>(getRSP, dicom::TAG_STATUS) == dicom::Status::SUCCESS);
+
+		dicom::CommandSet::NSetRQ setRQ(25,classUID,instUID);
+		assert(get<dicom::UID>(setRQ, dicom::TAG_REQ_SOP_CLASS_UID) == classUID);
+		assert(get<dicom::UID>(setRQ, dicom::TAG_REQ_SOP_INST_UID) == instUID);
+		assert(get<UINT16>(setRQ, dicom::TAG_CMD_FIELD) == dicom::Command::N_SET_RQ);
+		assert(get<UINT16>(setRQ, dicom::TAG_MSG_ID) == 25);
+		assert(get<UINT16>(setRQ, dicom::TAG_DATA_SET_TYPE) == dicom::DataSetStatus::YES_DATA_SET);
+		assert(!setRQ.exists(dicom::TAG_MSG_ID_RSP));
+
+		dicom::CommandSet::NSetRSP setRSP(
+			25,
+			classUID,
+			instUID,
+			dicom::Status::SUCCESS,
+			dicom::DataSetStatus::YES_DATA_SET);
+		assert(get<dicom::UID>(setRSP, dicom::TAG_AFF_SOP_CLASS_UID) == classUID);
+		assert(get<dicom::UID>(setRSP, dicom::TAG_AFF_SOP_INST_UID) == instUID);
+		assert(get<UINT16>(setRSP, dicom::TAG_CMD_FIELD) == dicom::Command::N_SET_RSP);
+		assert(get<UINT16>(setRSP, dicom::TAG_MSG_ID_RSP) == 25);
+		assert(get<UINT16>(setRSP, dicom::TAG_DATA_SET_TYPE) == dicom::DataSetStatus::YES_DATA_SET);
+		assert(get<UINT16>(setRSP, dicom::TAG_STATUS) == dicom::Status::SUCCESS);
+
+		dicom::CommandSet::NActionRQ actionRQ(
+			27,
+			classUID,
+			instUID,
+			actionTypeID,
+			dicom::DataSetStatus::YES_DATA_SET);
+		assert(get<dicom::UID>(actionRQ, dicom::TAG_REQ_SOP_CLASS_UID) == classUID);
+		assert(get<dicom::UID>(actionRQ, dicom::TAG_REQ_SOP_INST_UID) == instUID);
+		assert(get<UINT16>(actionRQ, dicom::TAG_CMD_FIELD) == dicom::Command::N_ACTION_RQ);
+		assert(get<UINT16>(actionRQ, dicom::TAG_MSG_ID) == 27);
+		assert(get<UINT16>(actionRQ, dicom::TAG_DATA_SET_TYPE) == dicom::DataSetStatus::YES_DATA_SET);
+		assert(get<UINT16>(actionRQ, dicom::TAG_ACTION_TYPE_ID) == actionTypeID);
+		assert(!actionRQ.exists(dicom::TAG_MSG_ID_RSP));
+
+		dicom::CommandSet::NActionRSP actionRSP(
+			27,
+			classUID,
+			instUID,
+			dicom::Status::SUCCESS,
+			actionTypeID,
+			dicom::DataSetStatus::NO_DATA_SET);
+		assert(get<dicom::UID>(actionRSP, dicom::TAG_AFF_SOP_CLASS_UID) == classUID);
+		assert(get<dicom::UID>(actionRSP, dicom::TAG_AFF_SOP_INST_UID) == instUID);
+		assert(get<UINT16>(actionRSP, dicom::TAG_CMD_FIELD) == dicom::Command::N_ACTION_RSP);
+		assert(get<UINT16>(actionRSP, dicom::TAG_MSG_ID_RSP) == 27);
+		assert(get<UINT16>(actionRSP, dicom::TAG_DATA_SET_TYPE) == dicom::DataSetStatus::NO_DATA_SET);
+		assert(get<UINT16>(actionRSP, dicom::TAG_STATUS) == dicom::Status::SUCCESS);
+		assert(get<UINT16>(actionRSP, dicom::TAG_ACTION_TYPE_ID) == actionTypeID);
+
+		dicom::CommandSet::NCreateRQ createRQ(
+			29,
+			classUID,
+			instUID,
+			dicom::DataSetStatus::YES_DATA_SET);
+		assert(get<dicom::UID>(createRQ, dicom::TAG_AFF_SOP_CLASS_UID) == classUID);
+		assert(get<dicom::UID>(createRQ, dicom::TAG_AFF_SOP_INST_UID) == instUID);
+		assert(get<UINT16>(createRQ, dicom::TAG_CMD_FIELD) == dicom::Command::N_CREATE_RQ);
+		assert(get<UINT16>(createRQ, dicom::TAG_MSG_ID) == 29);
+		assert(get<UINT16>(createRQ, dicom::TAG_DATA_SET_TYPE) == dicom::DataSetStatus::YES_DATA_SET);
+		assert(!createRQ.exists(dicom::TAG_MSG_ID_RSP));
+
+		dicom::CommandSet::NCreateRSP createRSP(
+			29,
+			classUID,
+			instUID,
+			dicom::Status::SUCCESS,
+			dicom::DataSetStatus::YES_DATA_SET);
+		assert(get<dicom::UID>(createRSP, dicom::TAG_AFF_SOP_CLASS_UID) == classUID);
+		assert(get<dicom::UID>(createRSP, dicom::TAG_AFF_SOP_INST_UID) == instUID);
+		assert(get<UINT16>(createRSP, dicom::TAG_CMD_FIELD) == dicom::Command::N_CREATE_RSP);
+		assert(get<UINT16>(createRSP, dicom::TAG_MSG_ID_RSP) == 29);
+		assert(get<UINT16>(createRSP, dicom::TAG_DATA_SET_TYPE) == dicom::DataSetStatus::YES_DATA_SET);
+		assert(get<UINT16>(createRSP, dicom::TAG_STATUS) == dicom::Status::SUCCESS);
+
+		dicom::CommandSet::NDeleteRQ deleteRQ(31,classUID,instUID);
+		assert(get<dicom::UID>(deleteRQ, dicom::TAG_REQ_SOP_CLASS_UID) == classUID);
+		assert(get<dicom::UID>(deleteRQ, dicom::TAG_REQ_SOP_INST_UID) == instUID);
+		assert(get<UINT16>(deleteRQ, dicom::TAG_CMD_FIELD) == dicom::Command::N_DELETE_RQ);
+		assert(get<UINT16>(deleteRQ, dicom::TAG_MSG_ID) == 31);
+		assert(get<UINT16>(deleteRQ, dicom::TAG_DATA_SET_TYPE) == dicom::DataSetStatus::NO_DATA_SET);
+		assert(!deleteRQ.exists(dicom::TAG_MSG_ID_RSP));
+
+		dicom::CommandSet::NDeleteRSP deleteRSP(31,classUID,instUID,dicom::Status::SUCCESS);
+		assert(get<dicom::UID>(deleteRSP, dicom::TAG_AFF_SOP_CLASS_UID) == classUID);
+		assert(get<dicom::UID>(deleteRSP, dicom::TAG_AFF_SOP_INST_UID) == instUID);
+		assert(get<UINT16>(deleteRSP, dicom::TAG_CMD_FIELD) == dicom::Command::N_DELETE_RSP);
+		assert(get<UINT16>(deleteRSP, dicom::TAG_MSG_ID_RSP) == 31);
+		assert(get<UINT16>(deleteRSP, dicom::TAG_DATA_SET_TYPE) == dicom::DataSetStatus::NO_DATA_SET);
+		assert(get<UINT16>(deleteRSP, dicom::TAG_STATUS) == dicom::Status::SUCCESS);
+	}
+
 	void checkCdimseStatusHelpers()
 	{
 		assert(dicom::IsCdimseSuccessStatus(dicom::Status::SUCCESS));
@@ -398,6 +694,601 @@ namespace
 		assert(dicom::IsCMoveResponseStatus(0xc123));
 		assert(!dicom::IsCMoveResponseStatus(dicom::Status::PENDING1));
 		assert(!dicom::IsCMoveResponseStatus(0xa700));
+	}
+
+	void checkNdimseStatusHelpers()
+	{
+		assert(dicom::IsNdimseSuccessStatus(dicom::Status::SUCCESS));
+		assert(!dicom::IsNdimseSuccessStatus(0x0001));
+
+		assert(dicom::IsNdimseWarningStatus(0x0001));
+		assert(dicom::IsNdimseWarningStatus(0x0107));
+		assert(dicom::IsNdimseWarningStatus(0x0116));
+		assert(dicom::IsNdimseWarningStatus(0xb000));
+		assert(dicom::IsNdimseWarningStatus(0xb123));
+		assert(!dicom::IsNdimseWarningStatus(0x0110));
+
+		assert(dicom::IsNdimseFailureStatus(0x0101));
+		assert(dicom::IsNdimseFailureStatus(0x0110));
+		assert(dicom::IsNdimseFailureStatus(0x0122));
+		assert(dicom::IsNdimseFailureStatus(0x0210));
+		assert(dicom::IsNdimseFailureStatus(0x0213));
+		assert(dicom::IsNdimseFailureStatus(0xa001));
+		assert(dicom::IsNdimseFailureStatus(0xc123));
+		assert(!dicom::IsNdimseFailureStatus(0x0107));
+		assert(!dicom::IsNdimseFailureStatus(0x0116));
+		assert(!dicom::IsNdimseFailureStatus(dicom::Status::SUCCESS));
+
+		assert(dicom::IsNdimseFinalStatus(dicom::Status::SUCCESS));
+		assert(dicom::IsNdimseFinalStatus(0x0001));
+		assert(dicom::IsNdimseFinalStatus(0x0110));
+		assert(!dicom::IsNdimseFinalStatus(dicom::Status::CANCEL));
+		assert(!dicom::IsNdimseFinalStatus(dicom::Status::PENDING));
+		assert(!dicom::IsNdimseFinalStatus(dicom::Status::PENDING1));
+
+		assert(dicom::IsNEventReportResponseStatus(0x0000));
+		assert(dicom::IsNGetResponseStatus(0x0107));
+		assert(dicom::IsNSetResponseStatus(0x0116));
+		assert(dicom::IsNActionResponseStatus(0x0212));
+		assert(dicom::IsNCreateResponseStatus(0xb000));
+		assert(dicom::IsNDeleteResponseStatus(0xc123));
+		assert(!dicom::IsNEventReportResponseStatus(dicom::Status::CANCEL));
+		assert(!dicom::IsNGetResponseStatus(dicom::Status::PENDING));
+	}
+
+	void checkNdimseSCUOverPData()
+	{
+		const dicom::UID classUID("1.2.826.0.1.3680043.10.1553.21");
+		const dicom::UID instUID("1.2.826.0.1.3680043.10.1553.21.1");
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService scuService(sockets[0], classUID);
+			PairedService scpService(sockets[1], classUID);
+
+			dicom::NEventReportSCU scu(scuService,classUID);
+			scu.writeRQ(instUID,3);
+
+			dicom::DataSet command;
+			requireRead(scpService,command);
+			const UINT16 messageID = get<UINT16>(command, dicom::TAG_MSG_ID);
+			assert(get<UINT16>(command, dicom::TAG_CMD_FIELD) == dicom::Command::N_EVENT_REPORT_RQ);
+			assert(get<dicom::UID>(command, dicom::TAG_AFF_SOP_CLASS_UID) == classUID);
+			assert(get<dicom::UID>(command, dicom::TAG_AFF_SOP_INST_UID) == instUID);
+			assert(get<UINT16>(command, dicom::TAG_EVENT_TYPE_ID) == 3);
+			assert(get<UINT16>(command, dicom::TAG_DATA_SET_TYPE) == dicom::DataSetStatus::NO_DATA_SET);
+
+			dicom::CommandSet::NEventReportRSP responseCommand(
+				messageID,
+				classUID,
+				instUID,
+				dicom::Status::SUCCESS,
+				3,
+				dicom::DataSetStatus::NO_DATA_SET);
+			scpService.WriteCommand(responseCommand,classUID);
+
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			scu.readRSP(status,response,data);
+			assert(status == dicom::Status::SUCCESS);
+			assert(get<UINT16>(response, dicom::TAG_CMD_FIELD) == dicom::Command::N_EVENT_REPORT_RSP);
+			assert(data.empty());
+		}
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService scuService(sockets[0], classUID);
+			PairedService scpService(sockets[1], classUID);
+
+			std::vector<dicom::Tag> attrList;
+			attrList.push_back(dicom::TAG_PAT_NAME);
+			attrList.push_back(dicom::TAG_PAT_ID);
+			dicom::NGetSCU scu(scuService,classUID);
+			scu.writeRQ(instUID,attrList);
+
+			dicom::DataSet command;
+			requireRead(scpService,command);
+			const UINT16 messageID = get<UINT16>(command, dicom::TAG_MSG_ID);
+			assert(get<UINT16>(command, dicom::TAG_CMD_FIELD) == dicom::Command::N_GET_RQ);
+			assert(get<dicom::UID>(command, dicom::TAG_REQ_SOP_CLASS_UID) == classUID);
+			assert(get<dicom::UID>(command, dicom::TAG_REQ_SOP_INST_UID) == instUID);
+			assert(command.Values(dicom::TAG_ATTR_ID_LIST).size() == 2);
+
+			dicom::CommandSet::NGetRSP responseCommand(
+				messageID,
+				classUID,
+				instUID,
+				dicom::Status::SUCCESS,
+				dicom::DataSetStatus::YES_DATA_SET);
+			scpService.WriteCommand(responseCommand,classUID);
+			dicom::DataSet responseData;
+			responseData.Put<dicom::VR_UI>(dicom::TAG_SOP_CLASS_UID, classUID);
+			responseData.Put<dicom::VR_UI>(dicom::TAG_SOP_INST_UID, instUID);
+			scpService.WriteDataSet(responseData,classUID);
+
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			scu.readRSP(status,response,data);
+			assert(status == dicom::Status::SUCCESS);
+			assert(get<UINT16>(response, dicom::TAG_CMD_FIELD) == dicom::Command::N_GET_RSP);
+			assert(get<dicom::UID>(data, dicom::TAG_SOP_INST_UID) == instUID);
+		}
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService scuService(sockets[0], classUID);
+			PairedService scpService(sockets[1], classUID);
+
+			dicom::DataSet requestData;
+			requestData.Put<dicom::VR_UI>(dicom::TAG_SOP_INST_UID, instUID);
+			dicom::NSetSCU scu(scuService,classUID);
+			scu.writeRQ(instUID,requestData);
+
+			dicom::DataSet command;
+			requireRead(scpService,command);
+			const UINT16 messageID = get<UINT16>(command, dicom::TAG_MSG_ID);
+			assert(get<UINT16>(command, dicom::TAG_CMD_FIELD) == dicom::Command::N_SET_RQ);
+			dicom::DataSet readRequestData;
+			requireRead(scpService,readRequestData);
+			assert(get<dicom::UID>(readRequestData, dicom::TAG_SOP_INST_UID) == instUID);
+
+			dicom::CommandSet::NSetRSP responseCommand(
+				messageID,
+				classUID,
+				instUID,
+				dicom::Status::SUCCESS,
+				dicom::DataSetStatus::NO_DATA_SET);
+			scpService.WriteCommand(responseCommand,classUID);
+
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			scu.readRSP(status,response,data);
+			assert(status == dicom::Status::SUCCESS);
+			assert(get<UINT16>(response, dicom::TAG_CMD_FIELD) == dicom::Command::N_SET_RSP);
+			assert(data.empty());
+		}
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService scuService(sockets[0], classUID);
+			PairedService scpService(sockets[1], classUID);
+
+			dicom::NActionSCU scu(scuService,classUID);
+			scu.writeRQ(instUID,7);
+
+			dicom::DataSet command;
+			requireRead(scpService,command);
+			const UINT16 messageID = get<UINT16>(command, dicom::TAG_MSG_ID);
+			assert(get<UINT16>(command, dicom::TAG_CMD_FIELD) == dicom::Command::N_ACTION_RQ);
+			assert(get<UINT16>(command, dicom::TAG_ACTION_TYPE_ID) == 7);
+
+			dicom::CommandSet::NActionRSP responseCommand(
+				messageID,
+				classUID,
+				instUID,
+				dicom::Status::SUCCESS,
+				7,
+				dicom::DataSetStatus::NO_DATA_SET);
+			scpService.WriteCommand(responseCommand,classUID);
+
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			scu.readRSP(status,response,data);
+			assert(status == dicom::Status::SUCCESS);
+			assert(get<UINT16>(response, dicom::TAG_CMD_FIELD) == dicom::Command::N_ACTION_RSP);
+			assert(data.empty());
+		}
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService scuService(sockets[0], classUID);
+			PairedService scpService(sockets[1], classUID);
+
+			dicom::DataSet requestData;
+			requestData.Put<dicom::VR_UI>(dicom::TAG_SOP_INST_UID, instUID);
+			dicom::NCreateSCU scu(scuService,classUID);
+			scu.writeRQ(instUID,requestData);
+
+			dicom::DataSet command;
+			requireRead(scpService,command);
+			const UINT16 messageID = get<UINT16>(command, dicom::TAG_MSG_ID);
+			assert(get<UINT16>(command, dicom::TAG_CMD_FIELD) == dicom::Command::N_CREATE_RQ);
+			dicom::DataSet readRequestData;
+			requireRead(scpService,readRequestData);
+			assert(get<dicom::UID>(readRequestData, dicom::TAG_SOP_INST_UID) == instUID);
+
+			dicom::CommandSet::NCreateRSP responseCommand(
+				messageID,
+				classUID,
+				instUID,
+				dicom::Status::SUCCESS,
+				dicom::DataSetStatus::NO_DATA_SET);
+			scpService.WriteCommand(responseCommand,classUID);
+
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			scu.readRSP(status,response,data);
+			assert(status == dicom::Status::SUCCESS);
+			assert(get<UINT16>(response, dicom::TAG_CMD_FIELD) == dicom::Command::N_CREATE_RSP);
+			assert(data.empty());
+		}
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService scuService(sockets[0], classUID);
+			PairedService scpService(sockets[1], classUID);
+
+			dicom::NDeleteSCU scu(scuService,classUID);
+			scu.writeRQ(instUID);
+
+			dicom::DataSet command;
+			requireRead(scpService,command);
+			const UINT16 messageID = get<UINT16>(command, dicom::TAG_MSG_ID);
+			assert(get<UINT16>(command, dicom::TAG_CMD_FIELD) == dicom::Command::N_DELETE_RQ);
+			assert(get<dicom::UID>(command, dicom::TAG_REQ_SOP_INST_UID) == instUID);
+
+			dicom::CommandSet::NDeleteRSP responseCommand(
+				messageID,
+				classUID,
+				instUID,
+				dicom::Status::SUCCESS);
+			scpService.WriteCommand(responseCommand,classUID);
+
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			scu.readRSP(status,response,data);
+			assert(status == dicom::Status::SUCCESS);
+			assert(get<UINT16>(response, dicom::TAG_CMD_FIELD) == dicom::Command::N_DELETE_RSP);
+			assert(data.empty());
+		}
+	}
+
+	void checkNdimseSCUValidation()
+	{
+		const dicom::UID classUID("1.2.826.0.1.3680043.10.1553.22");
+		const dicom::UID instUID("1.2.826.0.1.3680043.10.1553.22.1");
+
+		dicom::PresentationContexts contexts;
+		contexts.Add(classUID, dicom::TS(dicom::IMPL_VR_LE_TRANSFER_SYNTAX));
+		dicom::primitive::PresentationContextAccept accepted =
+			acceptFirstContext(contexts, dicom::IMPL_VR_LE_TRANSFER_SYNTAX);
+
+		dicom::primitive::AAssociateAC acknowledgement;
+		acknowledgement.PresContextAccepts_.push_back(accepted);
+		acknowledgement.UserInfo_ = makeUserInformation();
+		acknowledgement.UserInfo_.AddSCPSCURoleSelection(classUID,false,true);
+
+		NullService requestorState;
+		requestorState.AAssociateRQ_.ProposedPresentationContexts_ = contexts;
+		requestorState.ApplyAssociationNegotiationAsRequestor(acknowledgement);
+
+		bool roleRejected = false;
+		try
+		{
+			dicom::NDeleteSCU scu(requestorState,classUID);
+			scu.writeRQ(instUID);
+		}
+		catch(const dicom::exception&)
+		{
+			roleRejected = true;
+		}
+		if(!roleRejected)
+			throw dicom::exception("N-DIMSE SCU role selection was not enforced");
+
+		int sockets[2];
+		makeSocketPair(sockets);
+		PairedService scuService(sockets[0], classUID);
+		PairedService scpService(sockets[1], classUID);
+
+		dicom::NDeleteSCU scu(scuService,classUID);
+		scu.writeRQ(instUID);
+
+		dicom::DataSet command;
+		requireRead(scpService,command);
+		const UINT16 messageID = get<UINT16>(command, dicom::TAG_MSG_ID);
+		dicom::CommandSet::NDeleteRSP responseCommand(
+			messageID,
+			classUID,
+			instUID,
+			dicom::Status::PENDING);
+		scpService.WriteCommand(responseCommand,classUID);
+
+		bool statusRejected = false;
+		try
+		{
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			scu.readRSP(status,response,data);
+		}
+		catch(const dicom::exception&)
+		{
+			statusRejected = true;
+		}
+			if(!statusRejected)
+				throw dicom::exception("N-DIMSE non-final response status was not rejected");
+
+			dicom::primitive::AAssociateAC scpDeniedAcknowledgement;
+			scpDeniedAcknowledgement.PresContextAccepts_.push_back(accepted);
+			scpDeniedAcknowledgement.UserInfo_ = makeUserInformation();
+			scpDeniedAcknowledgement.UserInfo_.AddSCPSCURoleSelection(classUID,false,true);
+
+			NullService acceptorState;
+			acceptorState.AAssociateRQ_.ProposedPresentationContexts_ = contexts;
+			acceptorState.AcceptedPresentationContexts_ = scpDeniedAcknowledgement.PresContextAccepts_;
+			acceptorState.ApplyAssociationNegotiationAsAcceptor(scpDeniedAcknowledgement.UserInfo_);
+
+			dicom::CommandSet::NDeleteRQ deniedRequest(3,classUID,instUID);
+			bool scpRoleRejected = false;
+			try
+			{
+				dicom::HandleNDelete(
+					[](dicom::ServiceBase&, const dicom::DataSet&, const dicom::DataSet&, dicom::DataSet&)
+					{
+						return dicom::Status::SUCCESS;
+					},
+					acceptorState,
+					deniedRequest,
+					classUID);
+			}
+			catch(const dicom::exception&)
+			{
+				scpRoleRejected = true;
+			}
+			if(!scpRoleRejected)
+				throw dicom::exception("N-DIMSE SCP role selection was not enforced");
+
+			NullService invalidStatusService;
+			invalidStatusService.AAssociateRQ_.ProposedPresentationContexts_ = contexts;
+			invalidStatusService.AcceptedPresentationContexts_.push_back(accepted);
+			bool scpStatusRejected = false;
+			try
+			{
+				dicom::HandleNDelete(
+					[](dicom::ServiceBase&, const dicom::DataSet&, const dicom::DataSet&, dicom::DataSet&)
+					{
+						return dicom::Status::PENDING;
+					},
+					invalidStatusService,
+					deniedRequest,
+					classUID);
+			}
+			catch(const dicom::exception&)
+			{
+				scpStatusRejected = true;
+			}
+			if(!scpStatusRejected)
+				throw dicom::exception("N-DIMSE SCP invalid response status was not rejected");
+	}
+
+	void checkNdimseSCPOverPData()
+	{
+		const dicom::UID classUID("1.2.826.0.1.3680043.10.1553.23");
+		const dicom::UID instUID("1.2.826.0.1.3680043.10.1553.23.1");
+
+		dicom::NHandlerFunction successHandler =
+			[](dicom::ServiceBase&, const dicom::DataSet&, const dicom::DataSet&, dicom::DataSet& responseData)
+			{
+				responseData.Put<dicom::VR_UI>(dicom::TAG_SOP_INST_UID, dicom::UID("1.2.826.0.1.3680043.10.1553.23.99"));
+				return dicom::Status::SUCCESS;
+			};
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService scuService(sockets[0], classUID);
+			PairedService scpService(sockets[1], classUID);
+
+			dicom::NEventReportSCU scu(scuService,classUID);
+			scu.writeRQ(instUID,3);
+
+			dicom::DataSet command;
+			requireRead(scpService,command);
+			dicom::HandleNEventReport(successHandler,scpService,command,classUID);
+
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			scu.readRSP(status,response,data);
+			assert(status == dicom::Status::SUCCESS);
+			assert(get<UINT16>(response, dicom::TAG_CMD_FIELD) == dicom::Command::N_EVENT_REPORT_RSP);
+			assert(get<UINT16>(response, dicom::TAG_EVENT_TYPE_ID) == 3);
+			assert(get<dicom::UID>(data, dicom::TAG_SOP_INST_UID) == dicom::UID("1.2.826.0.1.3680043.10.1553.23.99"));
+		}
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService scuService(sockets[0], classUID);
+			PairedService scpService(sockets[1], classUID);
+
+			std::vector<dicom::Tag> attrList;
+			attrList.push_back(dicom::TAG_PAT_NAME);
+			attrList.push_back(dicom::TAG_PAT_ID);
+			dicom::NGetSCU scu(scuService,classUID);
+			scu.writeRQ(instUID,attrList);
+
+			dicom::DataSet command;
+			requireRead(scpService,command);
+			assert(command.Values(dicom::TAG_ATTR_ID_LIST).size() == 2);
+			dicom::HandleNGet(successHandler,scpService,command,classUID);
+
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			scu.readRSP(status,response,data);
+			assert(status == dicom::Status::SUCCESS);
+			assert(get<UINT16>(response, dicom::TAG_CMD_FIELD) == dicom::Command::N_GET_RSP);
+			assert(get<dicom::UID>(data, dicom::TAG_SOP_INST_UID) == dicom::UID("1.2.826.0.1.3680043.10.1553.23.99"));
+		}
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService scuService(sockets[0], classUID);
+			PairedService scpService(sockets[1], classUID);
+
+			dicom::DataSet requestData;
+			requestData.Put<dicom::VR_UI>(dicom::TAG_SOP_INST_UID, instUID);
+			dicom::NSetSCU scu(scuService,classUID);
+			scu.writeRQ(instUID,requestData);
+
+			dicom::DataSet command;
+			requireRead(scpService,command);
+			dicom::HandleNSet(successHandler,scpService,command,classUID);
+
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			scu.readRSP(status,response,data);
+			assert(status == dicom::Status::SUCCESS);
+			assert(get<UINT16>(response, dicom::TAG_CMD_FIELD) == dicom::Command::N_SET_RSP);
+			assert(get<dicom::UID>(data, dicom::TAG_SOP_INST_UID) == dicom::UID("1.2.826.0.1.3680043.10.1553.23.99"));
+		}
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService scuService(sockets[0], classUID);
+			PairedService scpService(sockets[1], classUID);
+
+			dicom::NActionSCU scu(scuService,classUID);
+			scu.writeRQ(instUID,7);
+
+			dicom::DataSet command;
+			requireRead(scpService,command);
+			dicom::HandleNAction(successHandler,scpService,command,classUID);
+
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			scu.readRSP(status,response,data);
+			assert(status == dicom::Status::SUCCESS);
+			assert(get<UINT16>(response, dicom::TAG_CMD_FIELD) == dicom::Command::N_ACTION_RSP);
+			assert(get<UINT16>(response, dicom::TAG_ACTION_TYPE_ID) == 7);
+			assert(get<dicom::UID>(data, dicom::TAG_SOP_INST_UID) == dicom::UID("1.2.826.0.1.3680043.10.1553.23.99"));
+		}
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService scuService(sockets[0], classUID);
+			PairedService scpService(sockets[1], classUID);
+
+			dicom::DataSet requestData;
+			requestData.Put<dicom::VR_UI>(dicom::TAG_SOP_INST_UID, instUID);
+			dicom::NCreateSCU scu(scuService,classUID);
+			scu.writeRQ(instUID,requestData);
+
+			dicom::DataSet command;
+			requireRead(scpService,command);
+			dicom::HandleNCreate(successHandler,scpService,command,classUID);
+
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			scu.readRSP(status,response,data);
+			assert(status == dicom::Status::SUCCESS);
+			assert(get<UINT16>(response, dicom::TAG_CMD_FIELD) == dicom::Command::N_CREATE_RSP);
+			assert(get<dicom::UID>(data, dicom::TAG_SOP_INST_UID) == dicom::UID("1.2.826.0.1.3680043.10.1553.23.99"));
+		}
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService scuService(sockets[0], classUID);
+			PairedService scpService(sockets[1], classUID);
+
+			dicom::NDeleteSCU scu(scuService,classUID);
+			scu.writeRQ(instUID);
+
+			dicom::DataSet command;
+			requireRead(scpService,command);
+			dicom::HandleNDelete(successHandler,scpService,command,classUID);
+
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			scu.readRSP(status,response,data);
+			assert(status == dicom::Status::SUCCESS);
+			assert(get<UINT16>(response, dicom::TAG_CMD_FIELD) == dicom::Command::N_DELETE_RSP);
+			assert(data.empty());
+		}
+	}
+
+	void checkCdimseRoleEnforcement()
+	{
+		const dicom::UID classUID = dicom::CT_IMAGE_STORAGE_SOP_CLASS;
+		const dicom::UID instanceUID("1.2.826.0.1.3680043.10.1553.11.1");
+
+		dicom::PresentationContexts contexts;
+		contexts.Add(classUID, dicom::TS(dicom::IMPL_VR_LE_TRANSFER_SYNTAX));
+		dicom::primitive::PresentationContextAccept accepted =
+			acceptFirstContext(contexts, dicom::IMPL_VR_LE_TRANSFER_SYNTAX);
+
+		dicom::primitive::AAssociateAC acknowledgement;
+		acknowledgement.PresContextAccepts_.push_back(accepted);
+		acknowledgement.UserInfo_ = makeUserInformation();
+		acknowledgement.UserInfo_.AddSCPSCURoleSelection(classUID,false,true);
+
+		NullService requestorState;
+		requestorState.AAssociateRQ_.ProposedPresentationContexts_ = contexts;
+		requestorState.ApplyAssociationNegotiationAsRequestor(acknowledgement);
+		assert(!requestorState.CanActAsSCU(classUID));
+		assert(requestorState.CanActAsSCP(classUID));
+
+		dicom::DataSet stored;
+		stored.Put<dicom::VR_UI>(dicom::TAG_SOP_CLASS_UID, classUID);
+		stored.Put<dicom::VR_UI>(dicom::TAG_SOP_INST_UID, instanceUID);
+
+		bool scuRejected = false;
+		try
+		{
+			dicom::CStoreSCU storeSCU(requestorState,classUID);
+			storeSCU.writeRQ(instanceUID,stored);
+		}
+		catch(const dicom::exception&)
+		{
+			scuRejected = true;
+		}
+		assert(scuRejected);
+
+		NullService acceptorState;
+		acceptorState.AAssociateRQ_.ProposedPresentationContexts_ = contexts;
+		acceptorState.AcceptedPresentationContexts_ = acknowledgement.PresContextAccepts_;
+		acceptorState.ApplyAssociationNegotiationAsAcceptor(acknowledgement.UserInfo_);
+		assert(acceptorState.CanActAsSCU(classUID));
+		assert(!acceptorState.CanActAsSCP(classUID));
+
+		dicom::CommandSet::CStoreRQ request(1,classUID,instanceUID);
+		bool scpRejected = false;
+		try
+		{
+			dicom::HandleCStore(
+				[](dicom::ServiceBase&, const dicom::DataSet&, dicom::DataSet&)
+				{
+				},
+				acceptorState,
+				request,
+				classUID);
+		}
+		catch(const dicom::exception&)
+		{
+			scpRejected = true;
+		}
+		assert(scpRejected);
 	}
 
 	void checkCCancel()
@@ -555,6 +1446,226 @@ namespace
 
 		server.Stop();
 		assert(completed);
+	}
+
+	void checkServerClientNdimseDispatch()
+	{
+		const short port = reserveLocalPort();
+		const dicom::UID classUID("1.2.826.0.1.3680043.10.1553.24");
+		const dicom::UID instUID("1.2.826.0.1.3680043.10.1553.24.1");
+		const dicom::UID responseUID("1.2.826.0.1.3680043.10.1553.24.99");
+		std::atomic<bool> nGetAttributeListHandled(false);
+
+		QuietLogger logger;
+		dicom::Server server;
+		server.SetLogger(&logger);
+		server.SetCheckLocalAETCallback(acceptAnyLocalAET);
+		server.SetCheckRemoteAETCallback(acceptAnyRemoteAET);
+
+		dicom::NHandlerFunction handler =
+			[classUID,responseUID](
+				dicom::ServiceBase& service,
+				const dicom::DataSet&,
+				const dicom::DataSet&,
+				dicom::DataSet& responseData)
+			{
+				assert(service.HasNegotiatedRole(classUID));
+				assert(service.CanActAsSCP(classUID));
+				responseData.Put<dicom::VR_UI>(dicom::TAG_SOP_INST_UID, responseUID);
+				return dicom::Status::SUCCESS;
+			};
+		server.AddNEventReportHandler(classUID,handler);
+		server.AddNGetHandler(
+			classUID,
+			[classUID,responseUID,&nGetAttributeListHandled](
+				dicom::ServiceBase& service,
+				const dicom::DataSet& command,
+				const dicom::DataSet&,
+				dicom::DataSet& responseData)
+			{
+				assert(service.HasNegotiatedRole(classUID));
+				assert(service.CanActAsSCP(classUID));
+				assert(command.Values(dicom::TAG_ATTR_ID_LIST).size() == 2);
+				responseData.Put<dicom::VR_UI>(dicom::TAG_SOP_INST_UID, responseUID);
+				nGetAttributeListHandled = true;
+				return dicom::Status::SUCCESS;
+			});
+		server.AddNSetHandler(classUID,handler);
+		server.AddNActionHandler(classUID,handler);
+		server.AddNCreateHandler(classUID,handler);
+		server.AddNDeleteHandler(
+			classUID,
+			[classUID](dicom::ServiceBase& service, const dicom::DataSet&, const dicom::DataSet&, dicom::DataSet&)
+			{
+				assert(service.HasNegotiatedRole(classUID));
+				assert(service.CanActAsSCP(classUID));
+				return dicom::Status::SUCCESS;
+			});
+		server.ServeInNewThread(port);
+
+		dicom::PresentationContexts contexts;
+		contexts.Add(classUID, dicom::TS(dicom::IMPL_VR_LE_TRANSFER_SYNTAX));
+		dicom::primitive::UserInformation userInfo = makeUserInformation();
+		userInfo.AddSCPSCURoleSelection(classUID,true,false);
+
+		bool completed = false;
+		for(int attempt = 0; attempt < 20 && !completed; ++attempt)
+		{
+			try
+			{
+				dicom::ClientConnection client("127.0.0.1", port, "SCU_AE", "SCP_AE", contexts, userInfo);
+				assert(client.HasNegotiatedRole(classUID));
+				assert(client.CanActAsSCU(classUID));
+				assert(!client.CanActAsSCP(classUID));
+
+				UINT16 status = 0;
+				dicom::DataSet response;
+				dicom::DataSet data;
+
+				dicom::NEventReportSCU eventSCU(client,classUID);
+				eventSCU.writeRQ(instUID,3);
+				eventSCU.readRSP(status,response,data);
+				assert(status == dicom::Status::SUCCESS);
+				assert(get<UINT16>(response, dicom::TAG_CMD_FIELD) == dicom::Command::N_EVENT_REPORT_RSP);
+				assert(get<dicom::UID>(data, dicom::TAG_SOP_INST_UID) == responseUID);
+
+				std::vector<dicom::Tag> attrList;
+				attrList.push_back(dicom::TAG_PAT_NAME);
+				attrList.push_back(dicom::TAG_PAT_ID);
+				response.clear();
+				data.clear();
+				dicom::NGetSCU getSCU(client,classUID);
+				getSCU.writeRQ(instUID,attrList);
+				getSCU.readRSP(status,response,data);
+				assert(status == dicom::Status::SUCCESS);
+				assert(get<UINT16>(response, dicom::TAG_CMD_FIELD) == dicom::Command::N_GET_RSP);
+				assert(get<dicom::UID>(data, dicom::TAG_SOP_INST_UID) == responseUID);
+
+				dicom::DataSet requestData;
+				requestData.Put<dicom::VR_UI>(dicom::TAG_SOP_INST_UID, instUID);
+				response.clear();
+				data.clear();
+				dicom::NSetSCU setSCU(client,classUID);
+				setSCU.writeRQ(instUID,requestData);
+				setSCU.readRSP(status,response,data);
+				assert(status == dicom::Status::SUCCESS);
+				assert(get<UINT16>(response, dicom::TAG_CMD_FIELD) == dicom::Command::N_SET_RSP);
+				assert(get<dicom::UID>(data, dicom::TAG_SOP_INST_UID) == responseUID);
+
+				response.clear();
+				data.clear();
+				dicom::NActionSCU actionSCU(client,classUID);
+				actionSCU.writeRQ(instUID,7);
+				actionSCU.readRSP(status,response,data);
+				assert(status == dicom::Status::SUCCESS);
+				assert(get<UINT16>(response, dicom::TAG_CMD_FIELD) == dicom::Command::N_ACTION_RSP);
+				assert(get<dicom::UID>(data, dicom::TAG_SOP_INST_UID) == responseUID);
+
+				response.clear();
+				data.clear();
+				dicom::NCreateSCU createSCU(client,classUID);
+				createSCU.writeRQ(instUID,requestData);
+				createSCU.readRSP(status,response,data);
+				assert(status == dicom::Status::SUCCESS);
+				assert(get<UINT16>(response, dicom::TAG_CMD_FIELD) == dicom::Command::N_CREATE_RSP);
+				assert(get<dicom::UID>(data, dicom::TAG_SOP_INST_UID) == responseUID);
+
+				response.clear();
+				data.clear();
+				dicom::NDeleteSCU deleteSCU(client,classUID);
+				deleteSCU.writeRQ(instUID);
+				deleteSCU.readRSP(status,response,data);
+				assert(status == dicom::Status::SUCCESS);
+				assert(get<UINT16>(response, dicom::TAG_CMD_FIELD) == dicom::Command::N_DELETE_RSP);
+				assert(data.empty());
+
+				completed = true;
+			}
+			catch(const SystemError&)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(50));
+			}
+		}
+
+		server.Stop();
+		assert(completed);
+		assert(nGetAttributeListHandled);
+	}
+
+	void checkServerClientExtendedNegotiationState()
+	{
+		const short port = reserveLocalPort();
+		const dicom::UID classUID = dicom::CT_IMAGE_STORAGE_SOP_CLASS;
+		std::atomic<bool> extendedNegotiationHandled(false);
+
+		QuietLogger logger;
+		dicom::Server server;
+		server.SetLogger(&logger);
+		server.SetCheckLocalAETCallback(acceptAnyLocalAET);
+		server.SetCheckRemoteAETCallback(acceptAnyRemoteAET);
+		server.AddHandler(
+			classUID,
+			[](dicom::ServiceBase&, const dicom::DataSet&, dicom::DataSet&)
+			{
+			});
+		server.SetSOPClassExtendedNegotiationCallback(
+			[&](const dicom::UID& uid, const std::vector<BYTE>& request, std::vector<BYTE>& response)
+			{
+				assert(uid == classUID);
+				assert(request.size() == 1);
+				assert(request.at(0) == 0x01);
+				response.push_back(0x09);
+				extendedNegotiationHandled = true;
+				return true;
+			});
+		server.ServeInNewThread(port);
+
+		dicom::PresentationContexts contexts;
+		contexts.Add(classUID, dicom::TS(dicom::IMPL_VR_LE_TRANSFER_SYNTAX));
+
+		dicom::primitive::MaximumSubLength maxSubLength;
+		maxSubLength.Set(32768);
+		dicom::primitive::UserInformation userInfo;
+		userInfo.ImpClass_.UID_ = dicom::ImplementationClassUID;
+		userInfo.ImpVersion_.Name = dicom::ImplementationVersionName;
+		userInfo.SetMax(maxSubLength);
+		userInfo.AddSCPSCURoleSelection(classUID,true,true);
+		userInfo.SetAsynchronousOperationsWindow(4,2);
+		std::vector<BYTE> applicationInfo;
+		applicationInfo.push_back(0x01);
+		userInfo.AddSOPClassExtendedNegotiation(classUID,applicationInfo);
+
+		bool completed = false;
+		for(int attempt = 0; attempt < 20 && !completed; ++attempt)
+		{
+			try
+			{
+				dicom::ClientConnection client(
+					"127.0.0.1",
+					port,
+					"SCU_AE",
+					"SCP_AE",
+					contexts,
+					userInfo);
+				assert(client.CanActAsSCU(classUID));
+				assert(client.CanActAsSCP(classUID));
+				assert(client.HasNegotiatedAsynchronousOperationsWindow());
+				assert(client.MaximumNumberOperationsInvoked() == 1);
+				assert(client.MaximumNumberOperationsPerformed() == 1);
+				assert(client.HasNegotiatedSOPClassExtended(classUID));
+				assert(client.GetNegotiatedSOPClassExtendedInformation(classUID).size() == 1);
+				assert(client.GetNegotiatedSOPClassExtendedInformation(classUID).at(0) == 0x09);
+				completed = extendedNegotiationHandled;
+			}
+			catch(const SystemError&)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(50));
+			}
+		}
+
+		server.Stop();
+		assert(completed);
+		assert(extendedNegotiationHandled);
 	}
 
 	void checkServerClientCStore()
@@ -1115,6 +2226,9 @@ namespace
 		dicom::PresentationContexts contexts;
 		contexts.Add(getClassUID, dicom::TS(dicom::IMPL_VR_LE_TRANSFER_SYNTAX));
 		contexts.Add(storeClassUID, dicom::TS(dicom::IMPL_VR_LE_TRANSFER_SYNTAX));
+		dicom::primitive::UserInformation userInfo = makeUserInformation();
+		userInfo.AddSCPSCURoleSelection(getClassUID,true,false);
+		userInfo.AddSCPSCURoleSelection(storeClassUID,false,true);
 
 		bool completed = false;
 		for(int attempt = 0; attempt < 20 && !completed; ++attempt)
@@ -1125,7 +2239,7 @@ namespace
 				query.Put<dicom::VR_CS>(dicom::TAG_QR_LEVEL, std::string("STUDY"));
 				query.Put<dicom::VR_UI>(dicom::TAG_STUDY_INST_UID, studyUID);
 
-				dicom::ClientConnection client("127.0.0.1", port, "SCU_AE", "SCP_AE", contexts);
+				dicom::ClientConnection client("127.0.0.1", port, "SCU_AE", "SCP_AE", contexts, userInfo);
 				dicom::CGetSCU getSCU(client, getClassUID);
 				getSCU.writeRQ(query);
 
@@ -1221,6 +2335,9 @@ namespace
 		dicom::PresentationContexts contexts;
 		contexts.Add(getClassUID, dicom::TS(dicom::IMPL_VR_LE_TRANSFER_SYNTAX));
 		contexts.Add(storeClassUID, dicom::TS(dicom::IMPL_VR_LE_TRANSFER_SYNTAX));
+		dicom::primitive::UserInformation userInfo = makeUserInformation();
+		userInfo.AddSCPSCURoleSelection(getClassUID,true,false);
+		userInfo.AddSCPSCURoleSelection(storeClassUID,false,true);
 
 		bool completed = false;
 		for(int attempt = 0; attempt < 20 && !completed; ++attempt)
@@ -1231,7 +2348,7 @@ namespace
 				query.Put<dicom::VR_CS>(dicom::TAG_QR_LEVEL, std::string("STUDY"));
 				query.Put<dicom::VR_UI>(dicom::TAG_STUDY_INST_UID, studyUID);
 
-				dicom::ClientConnection client("127.0.0.1", port, "SCU_AE", "SCP_AE", contexts);
+				dicom::ClientConnection client("127.0.0.1", port, "SCU_AE", "SCP_AE", contexts, userInfo);
 				dicom::CGetSCU getSCU(client, getClassUID);
 				getSCU.writeRQ(query);
 
@@ -1739,12 +2856,21 @@ int main()
 	checkCStore();
 	checkCFind();
 	checkCGet();
+	checkNdimseCommandSets();
 	checkCdimseStatusHelpers();
+	checkNdimseStatusHelpers();
+	checkNdimseSCUOverPData();
+	checkNdimseSCUValidation();
+	checkNdimseSCPOverPData();
+	checkCdimseRoleEnforcement();
 	checkCCancel();
 	checkCCancelOverPData();
 	checkSCUResponseValidationOverPData();
+	checkAssociationExtendedNegotiation();
 	checkAssociationNegotiationAndCEcho();
 	checkServerClientCEcho();
+	checkServerClientNdimseDispatch();
+	checkServerClientExtendedNegotiationState();
 	checkServerClientCStore();
 	checkServerClientCFind();
 	checkServerClientCMove();

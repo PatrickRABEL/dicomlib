@@ -257,6 +257,11 @@ namespace dicom
 		std::lock_guard<std::mutex> scoped_lock(AETMutex_);
 		ResolveMoveDestinationCallback_=f;
 	}
+	void Server::SetSOPClassExtendedNegotiationCallback(SOPClassExtendedNegotiationFunction f)
+	{
+		std::lock_guard<std::mutex> scoped_lock(AETMutex_);
+		SOPClassExtendedNegotiationCallback_=f;
+	}
 
 
 
@@ -294,6 +299,17 @@ namespace dicom
 			:
 			ResolveMoveDestinationCallback_(title,endpoint);
 	}
+	bool Server::NegotiateSOPClassExtended(
+		const UID& uid,
+		const std::vector<BYTE>& request,
+		std::vector<BYTE>& response)
+	{
+		std::lock_guard<std::mutex> scoped_lock(AETMutex_);
+		return !SOPClassExtendedNegotiationCallback_?
+			false
+			:
+			SOPClassExtendedNegotiationCallback_(uid,request,response);
+	}
 	void Server::AddHandler(const UID& uid,HandlerFunction Handler)
 	{
 		std::lock_guard<std::mutex> scoped_lock(mutex_);
@@ -319,11 +335,47 @@ namespace dicom
 		std::lock_guard<std::mutex> scoped_lock(mutex_);
 		CancellableMoveHandlers_[uid]=Handler;
 	}
-	void Server::AddMoveStoreHandler(const UID& uid,CMoveStoreFunction Handler)
-	{
-		std::lock_guard<std::mutex> scoped_lock(mutex_);
-		MoveStoreHandlers_[uid]=Handler;
-	}
+		void Server::AddMoveStoreHandler(const UID& uid,CMoveStoreFunction Handler)
+		{
+			std::lock_guard<std::mutex> scoped_lock(mutex_);
+			MoveStoreHandlers_[uid]=Handler;
+		}
+
+		void Server::AddNEventReportHandler(const UID& uid,NHandlerFunction Handler)
+		{
+			std::lock_guard<std::mutex> scoped_lock(mutex_);
+			NEventReportHandlers_[uid]=Handler;
+		}
+
+		void Server::AddNGetHandler(const UID& uid,NHandlerFunction Handler)
+		{
+			std::lock_guard<std::mutex> scoped_lock(mutex_);
+			NGetHandlers_[uid]=Handler;
+		}
+
+		void Server::AddNSetHandler(const UID& uid,NHandlerFunction Handler)
+		{
+			std::lock_guard<std::mutex> scoped_lock(mutex_);
+			NSetHandlers_[uid]=Handler;
+		}
+
+		void Server::AddNActionHandler(const UID& uid,NHandlerFunction Handler)
+		{
+			std::lock_guard<std::mutex> scoped_lock(mutex_);
+			NActionHandlers_[uid]=Handler;
+		}
+
+		void Server::AddNCreateHandler(const UID& uid,NHandlerFunction Handler)
+		{
+			std::lock_guard<std::mutex> scoped_lock(mutex_);
+			NCreateHandlers_[uid]=Handler;
+		}
+
+		void Server::AddNDeleteHandler(const UID& uid,NHandlerFunction Handler)
+		{
+			std::lock_guard<std::mutex> scoped_lock(mutex_);
+			NDeleteHandlers_[uid]=Handler;
+		}
 
 	bool Server::HasCancellableFindHandler(const UID& uid)
 	{
@@ -401,8 +453,8 @@ namespace dicom
 			return I->second;
 	}
 
-	CFindFunction Server::GetFindHandler(const UID& uid)
-	{
+		CFindFunction Server::GetFindHandler(const UID& uid)
+		{
 		std::lock_guard<std::mutex> scoped_lock(mutex_);
 		std::map<UID,CFindFunction>::iterator I = FindHandlers_.find(uid);
 		if(I==FindHandlers_.end())
@@ -411,10 +463,64 @@ namespace dicom
 			throw NoAvailableHandler();//or something
 		}
 		else
-			return I->second;
-	}
-	HandlerFunction Server::GetHandler(const UID& uid)
-	{
+				return I->second;
+		}
+
+		namespace
+		{
+			NHandlerFunction GetNHandler(
+				std::map<UID,NHandlerFunction>& handlers,
+				const UID& uid,
+				Server& server)
+			{
+				std::map<UID,NHandlerFunction>::iterator I = handlers.find(uid);
+				if(I==handlers.end())
+				{
+					server.LogError("No available handler.");
+					throw NoAvailableHandler();
+				}
+				return I->second;
+			}
+		}
+
+		NHandlerFunction Server::GetNEventReportHandler(const UID& uid)
+		{
+			std::lock_guard<std::mutex> scoped_lock(mutex_);
+			return GetNHandler(NEventReportHandlers_,uid,*this);
+		}
+
+		NHandlerFunction Server::GetNGetHandler(const UID& uid)
+		{
+			std::lock_guard<std::mutex> scoped_lock(mutex_);
+			return GetNHandler(NGetHandlers_,uid,*this);
+		}
+
+		NHandlerFunction Server::GetNSetHandler(const UID& uid)
+		{
+			std::lock_guard<std::mutex> scoped_lock(mutex_);
+			return GetNHandler(NSetHandlers_,uid,*this);
+		}
+
+		NHandlerFunction Server::GetNActionHandler(const UID& uid)
+		{
+			std::lock_guard<std::mutex> scoped_lock(mutex_);
+			return GetNHandler(NActionHandlers_,uid,*this);
+		}
+
+		NHandlerFunction Server::GetNCreateHandler(const UID& uid)
+		{
+			std::lock_guard<std::mutex> scoped_lock(mutex_);
+			return GetNHandler(NCreateHandlers_,uid,*this);
+		}
+
+		NHandlerFunction Server::GetNDeleteHandler(const UID& uid)
+		{
+			std::lock_guard<std::mutex> scoped_lock(mutex_);
+			return GetNHandler(NDeleteHandlers_,uid,*this);
+		}
+
+		HandlerFunction Server::GetHandler(const UID& uid)
+		{
 		std::lock_guard<std::mutex> scoped_lock(mutex_);
 		std::map<UID,HandlerFunction>::iterator I = Handlers_.find(uid);
 		if(I==Handlers_.end())
@@ -434,10 +540,16 @@ namespace dicom
 		if((Handlers_.find(uid)!=Handlers_.end()) ||
 			(FindHandlers_.find(uid)!=FindHandlers_.end()) ||
 			(CancellableFindHandlers_.find(uid)!=CancellableFindHandlers_.end()) ||
-			(CancellableGetHandlers_.find(uid)!=CancellableGetHandlers_.end()) ||
-			(CancellableMoveHandlers_.find(uid)!=CancellableMoveHandlers_.end()) ||
-			(MoveStoreHandlers_.find(uid)!=MoveStoreHandlers_.end()))
-			return true;
+				(CancellableGetHandlers_.find(uid)!=CancellableGetHandlers_.end()) ||
+				(CancellableMoveHandlers_.find(uid)!=CancellableMoveHandlers_.end()) ||
+				(MoveStoreHandlers_.find(uid)!=MoveStoreHandlers_.end()) ||
+				(NEventReportHandlers_.find(uid)!=NEventReportHandlers_.end()) ||
+				(NGetHandlers_.find(uid)!=NGetHandlers_.end()) ||
+				(NSetHandlers_.find(uid)!=NSetHandlers_.end()) ||
+				(NActionHandlers_.find(uid)!=NActionHandlers_.end()) ||
+				(NCreateHandlers_.find(uid)!=NCreateHandlers_.end()) ||
+				(NDeleteHandlers_.find(uid)!=NDeleteHandlers_.end()))
+				return true;
 		if(VERIFICATION_SOP_CLASS==uid)
 			return true;//we accept this by default.
 		return false;
