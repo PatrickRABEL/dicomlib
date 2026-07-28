@@ -6,6 +6,7 @@
 #include "dicomlib/PresentationContexts.hpp"
 #include "dicomlib/Server.hpp"
 
+#include <atomic>
 #include <cassert>
 #include <chrono>
 #include <cstring>
@@ -452,6 +453,61 @@ namespace
 		assert(completed);
 	}
 
+	void checkServerClientCStore()
+	{
+		const short port = reserveLocalPort();
+		const dicom::UID classUID = dicom::SC_IMAGE_STORAGE_SOP_CLASS;
+		const dicom::UID instanceUID("1.2.826.0.1.3680043.10.1553.1");
+		std::atomic<bool> handled(false);
+
+		QuietLogger logger;
+		dicom::Server server;
+		server.SetLogger(&logger);
+		server.SetCheckLocalAETCallback(acceptAnyLocalAET);
+		server.SetCheckRemoteAETCallback(acceptAnyRemoteAET);
+		server.AddHandler(
+			classUID,
+			[&](dicom::ServiceBase&, const dicom::DataSet& command, dicom::DataSet& data)
+			{
+				assert(get<UINT16>(command, dicom::TAG_CMD_FIELD) == dicom::Command::C_STORE_RQ);
+				assert(get<dicom::UID>(command, dicom::TAG_AFF_SOP_CLASS_UID) == classUID);
+				assert(get<dicom::UID>(command, dicom::TAG_AFF_SOP_INST_UID) == instanceUID);
+				assert(get<dicom::UID>(data, dicom::TAG_SOP_CLASS_UID) == classUID);
+				assert(get<dicom::UID>(data, dicom::TAG_SOP_INST_UID) == instanceUID);
+				handled = true;
+			});
+		server.ServeInNewThread(port);
+
+		dicom::PresentationContexts contexts;
+		contexts.Add(classUID, dicom::TS(dicom::IMPL_VR_LE_TRANSFER_SYNTAX));
+
+		bool completed = false;
+		for(int attempt = 0; attempt < 20 && !completed; ++attempt)
+		{
+			try
+			{
+				dicom::DataSet instance;
+				instance.Put<dicom::VR_UI>(dicom::TAG_SOP_CLASS_UID, classUID);
+				instance.Put<dicom::VR_UI>(dicom::TAG_SOP_INST_UID, instanceUID);
+
+				dicom::ClientConnection client("127.0.0.1", port, "SCU_AE", "SCP_AE", contexts);
+				dicom::DataSet response = client.Store(instance);
+				assert(get<UINT16>(response, dicom::TAG_CMD_FIELD) == dicom::Command::C_STORE_RSP);
+				assert(get<UINT16>(response, dicom::TAG_STATUS) == dicom::Status::SUCCESS);
+				assert(get<dicom::UID>(response, dicom::TAG_AFF_SOP_INST_UID) == instanceUID);
+				completed = true;
+			}
+			catch(const SystemError&)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(50));
+			}
+		}
+
+		server.Stop();
+		assert(completed);
+		assert(handled);
+	}
+
 	void checkCMove()
 	{
 		const dicom::UID classUID("1.2.840.10008.5.1.4.1.2.2.2");
@@ -481,6 +537,7 @@ int main()
 	checkSCUResponseValidationOverPData();
 	checkAssociationNegotiationAndCEcho();
 	checkServerClientCEcho();
+	checkServerClientCStore();
 	checkCMove();
 	return 0;
 }
