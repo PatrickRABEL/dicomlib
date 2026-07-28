@@ -312,7 +312,7 @@ namespace dicom
 
 				case Command::N_CREATE_RQ:
 				{
-					NHandlerFunction handler=server_.GetNCreateHandler(classUID);
+					NCreateHandlerFunction handler=server_.GetNCreateHandler(classUID);
 					HandleNCreate(handler,*this,command,classUID);
 					server_.LogMessage("Handled an N-CREATE");
 				}

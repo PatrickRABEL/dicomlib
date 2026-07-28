@@ -184,8 +184,9 @@ checked against the invoked service class; C-STORE responses also check
 Affected SOP Instance UID when present. SCU response readers apply the
 service-specific status validators for C-ECHO, C-STORE, C-FIND, C-GET, and
 C-MOVE, reject C-ECHO-RSP and C-STORE-RSP commands that announce a Data Set,
-and reject association release before a response command or expected response
-Data Set. SCP dispatch handles C-ECHO, C-STORE, C-FIND, C-MOVE, and routes
+validate Query/Retrieve Identifier presence for tested C-FIND, C-GET, and
+C-MOVE response statuses, and reject association release before a response
+command or expected response Data Set. SCP dispatch handles C-ECHO, C-STORE, C-FIND, C-MOVE, and routes
 C-GET to the registered application handler after reading the Identifier.
 C-DIMSE SCP handlers reject unexpected request command fields, mismatched
 Affected SOP Class UIDs, C-ECHO-RQ commands that announce a Data Set, and
@@ -225,16 +226,27 @@ N-EVENT-REPORT, N-GET, N-SET, N-ACTION, N-CREATE, and N-DELETE SCU request and
 response paths are covered over local P-DATA, including response command field,
 Message ID Being Responded To, status validation, optional response data set
 reading, response SOP Class UID validation, response SOP Instance UID validation
-when the request instance is known and the response includes the field, and
+when the request instance is known and the response includes the field,
+N-CREATE response SOP Instance UID presence and non-empty value rules for tested
+success/non-success cases, N-CREATE Invalid Attribute Value response Attribute
+List reading, N-GET Success response Attribute List presence validation, and
 N-EVENT-REPORT Event Type ID and N-ACTION Action Type ID validation when present
-in the response. N-DELETE-RSP commands that announce a Data Set are rejected.
+in the response.
+N-DELETE-RSP commands that announce a Data Set are rejected.
 N-EVENT-REPORT-RSP and N-ACTION-RSP commands that announce a Data Set are
-rejected when the response status is not `Success`.
+rejected when the response status is not `Success`, and their response data sets
+require the matching Event Type ID or Action Type ID command field.
 Negotiated SCU role enforcement is covered. N-DIMSE SCP handlers are exposed
 for N-EVENT-REPORT, N-GET, N-SET, N-ACTION, N-CREATE, and N-DELETE; they validate
-the request command field, enforce SOP Class UID consistency, apply the PS3.7
-`Command Data Set Type` rule that `0101H` means no Data Set and any other value
-means a Data Set is present, and server dispatch is covered through
+the request command field, enforce SOP Class UID consistency, enforce mandatory
+request SOP Instance UIDs for N-EVENT-REPORT, N-GET, N-SET, N-ACTION, and
+N-DELETE, enforce N-EVENT-REPORT request Event Type ID and N-ACTION request
+Action Type ID, apply the PS3.7 `Command Data Set Type` rule that `0101H` means
+no Data Set and any other value means a Data Set is present, expose a dedicated
+N-CREATE callback UID for SCP-created SOP Instances, reject N-CREATE success
+responses when no SOP Instance UID is available, reject N-GET success responses
+without an Attribute List data set, allow tested N-CREATE Invalid Attribute
+Value callback response data sets, and server dispatch is covered through
 `Server`/`ClientConnection` tests. SCU response validation also rejects
 unexpected SOP Class UIDs. `NGetRQ` encodes the Attribute Identifier List as
 multi-valued `AT`. A-ASSOCIATE-RQ/AC

@@ -1202,6 +1202,185 @@ namespace
 		}
 
 		{
+			int createFailureSockets[2];
+			makeSocketPair(createFailureSockets);
+			PairedService createFailureSCUService(createFailureSockets[0], classUID);
+			PairedService createFailureSCPService(createFailureSockets[1], classUID);
+
+			dicom::NCreateSCU createFailureSCU(createFailureSCUService,classUID);
+			createFailureSCU.writeRQ(instUID);
+
+			dicom::DataSet createFailureRequest;
+			requireRead(createFailureSCPService,createFailureRequest);
+			const UINT16 createFailureMessageID = get<UINT16>(createFailureRequest, dicom::TAG_MSG_ID);
+			dicom::DataSet createFailureResponse;
+			createFailureResponse.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_CLASS_UID,classUID);
+			createFailureResponse.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD,dicom::Command::N_CREATE_RSP);
+			createFailureResponse.Put<dicom::VR_US>(dicom::TAG_MSG_ID_RSP,createFailureMessageID);
+			createFailureResponse.Put<dicom::VR_US>(dicom::TAG_DATA_SET_TYPE,dicom::DataSetStatus::NO_DATA_SET);
+			createFailureResponse.Put<dicom::VR_US>(dicom::TAG_STATUS,UINT16(0x0110));
+			createFailureResponse.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_INST_UID,instUID);
+			createFailureSCPService.WriteCommand(createFailureResponse,classUID);
+
+			bool createFailureRejected = false;
+			try
+			{
+				UINT16 status = 0;
+				dicom::DataSet response;
+				dicom::DataSet data;
+				createFailureSCU.readRSP(status,response,data);
+			}
+			catch(const dicom::exception&)
+			{
+				createFailureRejected = true;
+			}
+			if(!createFailureRejected)
+				throw dicom::exception("N-CREATE non-success response SOP Instance UID was not rejected");
+		}
+
+		{
+			int createFailureDataSockets[2];
+			makeSocketPair(createFailureDataSockets);
+			PairedService createFailureDataSCUService(createFailureDataSockets[0], classUID);
+			PairedService createFailureDataSCPService(createFailureDataSockets[1], classUID);
+
+			dicom::NCreateSCU createFailureDataSCU(createFailureDataSCUService,classUID);
+			createFailureDataSCU.writeRQ(instUID);
+
+			dicom::DataSet createFailureDataRequest;
+			requireRead(createFailureDataSCPService,createFailureDataRequest);
+			const UINT16 createFailureDataMessageID = get<UINT16>(createFailureDataRequest, dicom::TAG_MSG_ID);
+			dicom::DataSet createFailureDataResponse;
+			createFailureDataResponse.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_CLASS_UID,classUID);
+			createFailureDataResponse.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD,dicom::Command::N_CREATE_RSP);
+			createFailureDataResponse.Put<dicom::VR_US>(dicom::TAG_MSG_ID_RSP,createFailureDataMessageID);
+			createFailureDataResponse.Put<dicom::VR_US>(dicom::TAG_DATA_SET_TYPE,dicom::DataSetStatus::YES_DATA_SET);
+			createFailureDataResponse.Put<dicom::VR_US>(dicom::TAG_STATUS,UINT16(0x0106));
+			dicom::DataSet createFailureData;
+			createFailureData.Put<dicom::VR_LO>(dicom::TAG_PAT_ID, std::string("NCREATE0106"));
+			createFailureDataSCPService.WriteCommand(createFailureDataResponse,classUID);
+			createFailureDataSCPService.WriteDataSet(createFailureData,classUID);
+
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			createFailureDataSCU.readRSP(status,response,data);
+			assert(status == 0x0106);
+			assert(get<std::string>(data,dicom::TAG_PAT_ID) == "NCREATE0106");
+		}
+
+		{
+			int createSuccessSockets[2];
+			makeSocketPair(createSuccessSockets);
+			PairedService createSuccessSCUService(createSuccessSockets[0], classUID);
+			PairedService createSuccessSCPService(createSuccessSockets[1], classUID);
+
+			dicom::NCreateSCU createSuccessSCU(createSuccessSCUService,classUID);
+			createSuccessSCU.writeRQ();
+
+			dicom::DataSet createSuccessRequest;
+			requireRead(createSuccessSCPService,createSuccessRequest);
+			const UINT16 createSuccessMessageID = get<UINT16>(createSuccessRequest, dicom::TAG_MSG_ID);
+			dicom::DataSet createSuccessResponse;
+			createSuccessResponse.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_CLASS_UID,classUID);
+			createSuccessResponse.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD,dicom::Command::N_CREATE_RSP);
+			createSuccessResponse.Put<dicom::VR_US>(dicom::TAG_MSG_ID_RSP,createSuccessMessageID);
+			createSuccessResponse.Put<dicom::VR_US>(dicom::TAG_DATA_SET_TYPE,dicom::DataSetStatus::NO_DATA_SET);
+			createSuccessResponse.Put<dicom::VR_US>(dicom::TAG_STATUS,dicom::Status::SUCCESS);
+			createSuccessSCPService.WriteCommand(createSuccessResponse,classUID);
+
+			bool createSuccessRejected = false;
+			try
+			{
+				UINT16 status = 0;
+				dicom::DataSet response;
+				dicom::DataSet data;
+				createSuccessSCU.readRSP(status,response,data);
+			}
+			catch(const dicom::exception&)
+			{
+				createSuccessRejected = true;
+			}
+			if(!createSuccessRejected)
+				throw dicom::exception("N-CREATE success response missing SOP Instance UID was not rejected");
+		}
+
+		{
+			int createEmptyInstanceSockets[2];
+			makeSocketPair(createEmptyInstanceSockets);
+			PairedService createEmptyInstanceSCUService(createEmptyInstanceSockets[0], classUID);
+			PairedService createEmptyInstanceSCPService(createEmptyInstanceSockets[1], classUID);
+
+			dicom::NCreateSCU createEmptyInstanceSCU(createEmptyInstanceSCUService,classUID);
+			createEmptyInstanceSCU.writeRQ();
+
+			dicom::DataSet createEmptyInstanceRequest;
+			requireRead(createEmptyInstanceSCPService,createEmptyInstanceRequest);
+			const UINT16 createEmptyInstanceMessageID = get<UINT16>(createEmptyInstanceRequest, dicom::TAG_MSG_ID);
+			dicom::DataSet createEmptyInstanceResponse;
+			createEmptyInstanceResponse.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_CLASS_UID,classUID);
+			createEmptyInstanceResponse.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD,dicom::Command::N_CREATE_RSP);
+			createEmptyInstanceResponse.Put<dicom::VR_US>(dicom::TAG_MSG_ID_RSP,createEmptyInstanceMessageID);
+			createEmptyInstanceResponse.Put<dicom::VR_US>(dicom::TAG_DATA_SET_TYPE,dicom::DataSetStatus::NO_DATA_SET);
+			createEmptyInstanceResponse.Put<dicom::VR_US>(dicom::TAG_STATUS,dicom::Status::SUCCESS);
+			createEmptyInstanceResponse.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_INST_UID,dicom::UID(""));
+			createEmptyInstanceSCPService.WriteCommand(createEmptyInstanceResponse,classUID);
+
+			bool createEmptyInstanceRejected = false;
+			try
+			{
+				UINT16 status = 0;
+				dicom::DataSet response;
+				dicom::DataSet data;
+				createEmptyInstanceSCU.readRSP(status,response,data);
+			}
+			catch(const dicom::exception&)
+			{
+				createEmptyInstanceRejected = true;
+			}
+			if(!createEmptyInstanceRejected)
+				throw dicom::exception("N-CREATE success response empty SOP Instance UID was not rejected");
+		}
+
+		{
+			int getSuccessSockets[2];
+			makeSocketPair(getSuccessSockets);
+			PairedService getSuccessSCUService(getSuccessSockets[0], classUID);
+			PairedService getSuccessSCPService(getSuccessSockets[1], classUID);
+
+			std::vector<dicom::Tag> attrList;
+			attrList.push_back(dicom::TAG_PAT_NAME);
+			dicom::NGetSCU getSuccessSCU(getSuccessSCUService,classUID);
+			getSuccessSCU.writeRQ(instUID,attrList);
+
+			dicom::DataSet getSuccessRequest;
+			requireRead(getSuccessSCPService,getSuccessRequest);
+			const UINT16 getSuccessMessageID = get<UINT16>(getSuccessRequest, dicom::TAG_MSG_ID);
+			dicom::CommandSet::NGetRSP getSuccessResponse(
+				getSuccessMessageID,
+				classUID,
+				instUID,
+				dicom::Status::SUCCESS,
+				dicom::DataSetStatus::NO_DATA_SET);
+			getSuccessSCPService.WriteCommand(getSuccessResponse,classUID);
+
+			bool getSuccessRejected = false;
+			try
+			{
+				UINT16 status = 0;
+				dicom::DataSet response;
+				dicom::DataSet data;
+				getSuccessSCU.readRSP(status,response,data);
+			}
+			catch(const dicom::exception&)
+			{
+				getSuccessRejected = true;
+			}
+			if(!getSuccessRejected)
+				throw dicom::exception("N-GET success response without Attribute List was not rejected");
+		}
+
+		{
 			int dataSetTypeSockets[2];
 			makeSocketPair(dataSetTypeSockets);
 			PairedService dataSetTypeSCUService(dataSetTypeSockets[0], classUID);
@@ -1276,6 +1455,43 @@ namespace
 		}
 
 		{
+			int eventReplySockets[2];
+			makeSocketPair(eventReplySockets);
+			PairedService eventReplySCUService(eventReplySockets[0], classUID);
+			PairedService eventReplySCPService(eventReplySockets[1], classUID);
+
+			dicom::NEventReportSCU eventReplySCU(eventReplySCUService,classUID);
+			eventReplySCU.writeRQ(instUID,3);
+
+			dicom::DataSet eventReplyRequest;
+			requireRead(eventReplySCPService,eventReplyRequest);
+			const UINT16 eventReplyMessageID = get<UINT16>(eventReplyRequest, dicom::TAG_MSG_ID);
+			dicom::DataSet eventReplyResponse;
+			eventReplyResponse.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_CLASS_UID,classUID);
+			eventReplyResponse.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD,dicom::Command::N_EVENT_REPORT_RSP);
+			eventReplyResponse.Put<dicom::VR_US>(dicom::TAG_MSG_ID_RSP,eventReplyMessageID);
+			eventReplyResponse.Put<dicom::VR_US>(dicom::TAG_DATA_SET_TYPE,dicom::DataSetStatus::YES_DATA_SET);
+			eventReplyResponse.Put<dicom::VR_US>(dicom::TAG_STATUS,dicom::Status::SUCCESS);
+			eventReplyResponse.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_INST_UID,instUID);
+			eventReplySCPService.WriteCommand(eventReplyResponse,classUID);
+
+			bool eventReplyRejected = false;
+			try
+			{
+				UINT16 status = 0;
+				dicom::DataSet response;
+				dicom::DataSet data;
+				eventReplySCU.readRSP(status,response,data);
+			}
+			catch(const dicom::exception&)
+			{
+				eventReplyRejected = true;
+			}
+			if(!eventReplyRejected)
+				throw dicom::exception("N-EVENT-REPORT response data set without Event Type ID was not rejected");
+		}
+
+		{
 			int actionDataSockets[2];
 			makeSocketPair(actionDataSockets);
 			PairedService actionDataSCUService(actionDataSockets[0], classUID);
@@ -1310,6 +1526,43 @@ namespace
 			}
 			if(!actionDataRejected)
 				throw dicom::exception("N-ACTION non-success response data set was not rejected");
+		}
+
+		{
+			int actionReplySockets[2];
+			makeSocketPair(actionReplySockets);
+			PairedService actionReplySCUService(actionReplySockets[0], classUID);
+			PairedService actionReplySCPService(actionReplySockets[1], classUID);
+
+			dicom::NActionSCU actionReplySCU(actionReplySCUService,classUID);
+			actionReplySCU.writeRQ(instUID,7);
+
+			dicom::DataSet actionReplyRequest;
+			requireRead(actionReplySCPService,actionReplyRequest);
+			const UINT16 actionReplyMessageID = get<UINT16>(actionReplyRequest, dicom::TAG_MSG_ID);
+			dicom::DataSet actionReplyResponse;
+			actionReplyResponse.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_CLASS_UID,classUID);
+			actionReplyResponse.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD,dicom::Command::N_ACTION_RSP);
+			actionReplyResponse.Put<dicom::VR_US>(dicom::TAG_MSG_ID_RSP,actionReplyMessageID);
+			actionReplyResponse.Put<dicom::VR_US>(dicom::TAG_DATA_SET_TYPE,dicom::DataSetStatus::YES_DATA_SET);
+			actionReplyResponse.Put<dicom::VR_US>(dicom::TAG_STATUS,dicom::Status::SUCCESS);
+			actionReplyResponse.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_INST_UID,instUID);
+			actionReplySCPService.WriteCommand(actionReplyResponse,classUID);
+
+			bool actionReplyRejected = false;
+			try
+			{
+				UINT16 status = 0;
+				dicom::DataSet response;
+				dicom::DataSet data;
+				actionReplySCU.readRSP(status,response,data);
+			}
+			catch(const dicom::exception&)
+			{
+				actionReplyRejected = true;
+			}
+			if(!actionReplyRejected)
+				throw dicom::exception("N-ACTION response data set without Action Type ID was not rejected");
 		}
 
 		dicom::primitive::AAssociateAC scpDeniedAcknowledgement;
@@ -1459,6 +1712,80 @@ namespace
 		if(!nDeleteResponseDataRejected)
 			throw dicom::exception("N-DELETE response data set was not rejected");
 
+		dicom::CommandSet::NGetRQ getRequest(14,classUID,instUID,std::vector<dicom::Tag>());
+		bool nGetSuccessWithoutDataRejected = false;
+		try
+		{
+			dicom::HandleNGet(
+				[](dicom::ServiceBase&, const dicom::DataSet&, const dicom::DataSet&, dicom::DataSet&)
+				{
+					return dicom::Status::SUCCESS;
+				},
+				invalidStatusService,
+				getRequest,
+				classUID);
+		}
+		catch(const dicom::exception&)
+		{
+			nGetSuccessWithoutDataRejected = true;
+		}
+		if(!nGetSuccessWithoutDataRejected)
+			throw dicom::exception("N-GET SCP success without Attribute List was not rejected");
+
+		dicom::DataSet createWithoutInstanceRequest;
+		createWithoutInstanceRequest.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_CLASS_UID, classUID);
+		createWithoutInstanceRequest.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD, dicom::Command::N_CREATE_RQ);
+		createWithoutInstanceRequest.Put<dicom::VR_US>(dicom::TAG_MSG_ID, UINT16(15));
+		createWithoutInstanceRequest.Put<dicom::VR_US>(dicom::TAG_DATA_SET_TYPE, dicom::DataSetStatus::NO_DATA_SET);
+		bool nCreateSuccessWithoutInstanceRejected = false;
+		try
+		{
+			dicom::HandleNCreate(
+				[](dicom::ServiceBase&, const dicom::DataSet&, const dicom::DataSet&, dicom::DataSet&)
+				{
+					return dicom::Status::SUCCESS;
+				},
+				invalidStatusService,
+				createWithoutInstanceRequest,
+				classUID);
+		}
+		catch(const dicom::exception&)
+		{
+			nCreateSuccessWithoutInstanceRejected = true;
+		}
+		if(!nCreateSuccessWithoutInstanceRejected)
+			throw dicom::exception("N-CREATE SCP success without SOP Instance UID was not rejected");
+
+		dicom::DataSet createWithInstanceRequest;
+		createWithInstanceRequest.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_CLASS_UID, classUID);
+		createWithInstanceRequest.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD, dicom::Command::N_CREATE_RQ);
+		createWithInstanceRequest.Put<dicom::VR_US>(dicom::TAG_MSG_ID, UINT16(16));
+		createWithInstanceRequest.Put<dicom::VR_US>(dicom::TAG_DATA_SET_TYPE, dicom::DataSetStatus::NO_DATA_SET);
+		createWithInstanceRequest.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_INST_UID, instUID);
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService requestorSide(sockets[0], classUID);
+			PairedService scpSide(sockets[1], classUID);
+			dicom::HandleNCreate(
+				[](dicom::ServiceBase&, const dicom::DataSet&, const dicom::DataSet&, dicom::DataSet& responseData)
+				{
+					responseData.Put<dicom::VR_LO>(dicom::TAG_PAT_ID, std::string("NCREATE0106"));
+					return UINT16(0x0106);
+				},
+				scpSide,
+				createWithInstanceRequest,
+				classUID);
+
+			dicom::DataSet responseCommand;
+			dicom::DataSet responseData;
+			requireRead(requestorSide,responseCommand);
+			requireRead(requestorSide,responseData);
+			assert(get<UINT16>(responseCommand,dicom::TAG_CMD_FIELD) == dicom::Command::N_CREATE_RSP);
+			assert(get<UINT16>(responseCommand,dicom::TAG_STATUS) == 0x0106);
+			assert(get<std::string>(responseData,dicom::TAG_PAT_ID) == "NCREATE0106");
+		}
+
 		dicom::DataSet eventReportRequestWithData;
 		eventReportRequestWithData.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_CLASS_UID, classUID);
 		eventReportRequestWithData.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD, dicom::Command::N_EVENT_REPORT_RQ);
@@ -1553,6 +1880,136 @@ namespace
 		}
 		if(!wrongClassRejected)
 			throw dicom::exception("N-DIMSE request SOP Class UID mismatch was not rejected");
+
+		dicom::NHandlerFunction instanceUIDHandler =
+			[](dicom::ServiceBase&, const dicom::DataSet&, const dicom::DataSet&, dicom::DataSet& responseData)
+			{
+				responseData.Put<dicom::VR_UI>(dicom::TAG_SOP_INST_UID, dicom::UID("1.2.826.0.1.3680043.10.1553.22.6"));
+				return dicom::Status::SUCCESS;
+			};
+
+		dicom::DataSet eventMissingInstanceRequest;
+		eventMissingInstanceRequest.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_CLASS_UID, classUID);
+		eventMissingInstanceRequest.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD, dicom::Command::N_EVENT_REPORT_RQ);
+		eventMissingInstanceRequest.Put<dicom::VR_US>(dicom::TAG_MSG_ID, UINT16(21));
+		eventMissingInstanceRequest.Put<dicom::VR_US>(dicom::TAG_DATA_SET_TYPE, dicom::DataSetStatus::NO_DATA_SET);
+		eventMissingInstanceRequest.Put<dicom::VR_US>(dicom::TAG_EVENT_TYPE_ID, UINT16(3));
+		bool eventMissingInstanceRejected = false;
+		try
+		{
+			dicom::HandleNEventReport(instanceUIDHandler,invalidStatusService,eventMissingInstanceRequest,classUID);
+		}
+		catch(const dicom::exception&)
+		{
+			eventMissingInstanceRejected = true;
+		}
+		if(!eventMissingInstanceRejected)
+			throw dicom::exception("N-EVENT-REPORT request missing SOP Instance UID was not rejected");
+
+		dicom::DataSet getMissingInstanceRequest;
+		getMissingInstanceRequest.Put<dicom::VR_UI>(dicom::TAG_REQ_SOP_CLASS_UID, classUID);
+		getMissingInstanceRequest.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD, dicom::Command::N_GET_RQ);
+		getMissingInstanceRequest.Put<dicom::VR_US>(dicom::TAG_MSG_ID, UINT16(23));
+		getMissingInstanceRequest.Put<dicom::VR_US>(dicom::TAG_DATA_SET_TYPE, dicom::DataSetStatus::NO_DATA_SET);
+		bool getMissingInstanceRejected = false;
+		try
+		{
+			dicom::HandleNGet(instanceUIDHandler,invalidStatusService,getMissingInstanceRequest,classUID);
+		}
+		catch(const dicom::exception&)
+		{
+			getMissingInstanceRejected = true;
+		}
+		if(!getMissingInstanceRejected)
+			throw dicom::exception("N-GET request missing SOP Instance UID was not rejected");
+
+		dicom::DataSet setMissingInstanceRequest;
+		setMissingInstanceRequest.Put<dicom::VR_UI>(dicom::TAG_REQ_SOP_CLASS_UID, classUID);
+		setMissingInstanceRequest.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD, dicom::Command::N_SET_RQ);
+		setMissingInstanceRequest.Put<dicom::VR_US>(dicom::TAG_MSG_ID, UINT16(25));
+		setMissingInstanceRequest.Put<dicom::VR_US>(dicom::TAG_DATA_SET_TYPE, dicom::DataSetStatus::YES_DATA_SET);
+		bool setMissingInstanceRejected = false;
+		try
+		{
+			dicom::HandleNSet(instanceUIDHandler,invalidStatusService,setMissingInstanceRequest,classUID);
+		}
+		catch(const dicom::exception&)
+		{
+			setMissingInstanceRejected = true;
+		}
+		if(!setMissingInstanceRejected)
+			throw dicom::exception("N-SET request missing SOP Instance UID was not rejected");
+
+		dicom::DataSet actionMissingInstanceRequest;
+		actionMissingInstanceRequest.Put<dicom::VR_UI>(dicom::TAG_REQ_SOP_CLASS_UID, classUID);
+		actionMissingInstanceRequest.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD, dicom::Command::N_ACTION_RQ);
+		actionMissingInstanceRequest.Put<dicom::VR_US>(dicom::TAG_MSG_ID, UINT16(27));
+		actionMissingInstanceRequest.Put<dicom::VR_US>(dicom::TAG_DATA_SET_TYPE, dicom::DataSetStatus::NO_DATA_SET);
+		actionMissingInstanceRequest.Put<dicom::VR_US>(dicom::TAG_ACTION_TYPE_ID, UINT16(7));
+		bool actionMissingInstanceRejected = false;
+		try
+		{
+			dicom::HandleNAction(instanceUIDHandler,invalidStatusService,actionMissingInstanceRequest,classUID);
+		}
+		catch(const dicom::exception&)
+		{
+			actionMissingInstanceRejected = true;
+		}
+		if(!actionMissingInstanceRejected)
+			throw dicom::exception("N-ACTION request missing SOP Instance UID was not rejected");
+
+		dicom::DataSet deleteMissingInstanceRequest;
+		deleteMissingInstanceRequest.Put<dicom::VR_UI>(dicom::TAG_REQ_SOP_CLASS_UID, classUID);
+		deleteMissingInstanceRequest.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD, dicom::Command::N_DELETE_RQ);
+		deleteMissingInstanceRequest.Put<dicom::VR_US>(dicom::TAG_MSG_ID, UINT16(29));
+		deleteMissingInstanceRequest.Put<dicom::VR_US>(dicom::TAG_DATA_SET_TYPE, dicom::DataSetStatus::NO_DATA_SET);
+		bool deleteMissingInstanceRejected = false;
+		try
+		{
+			dicom::HandleNDelete(instanceUIDHandler,invalidStatusService,deleteMissingInstanceRequest,classUID);
+		}
+		catch(const dicom::exception&)
+		{
+			deleteMissingInstanceRejected = true;
+		}
+		if(!deleteMissingInstanceRejected)
+			throw dicom::exception("N-DELETE request missing SOP Instance UID was not rejected");
+
+		dicom::DataSet eventMissingTypeRequest;
+		eventMissingTypeRequest.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_CLASS_UID, classUID);
+		eventMissingTypeRequest.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD, dicom::Command::N_EVENT_REPORT_RQ);
+		eventMissingTypeRequest.Put<dicom::VR_US>(dicom::TAG_MSG_ID, UINT16(31));
+		eventMissingTypeRequest.Put<dicom::VR_US>(dicom::TAG_DATA_SET_TYPE, dicom::DataSetStatus::NO_DATA_SET);
+		eventMissingTypeRequest.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_INST_UID, instUID);
+		bool eventMissingTypeRejected = false;
+		try
+		{
+			dicom::HandleNEventReport(instanceUIDHandler,invalidStatusService,eventMissingTypeRequest,classUID);
+		}
+		catch(const dicom::exception&)
+		{
+			eventMissingTypeRejected = true;
+		}
+		if(!eventMissingTypeRejected)
+			throw dicom::exception("N-EVENT-REPORT request missing Event Type ID was not rejected");
+
+		dicom::DataSet actionMissingTypeRequest;
+		actionMissingTypeRequest.Put<dicom::VR_UI>(dicom::TAG_REQ_SOP_CLASS_UID, classUID);
+		actionMissingTypeRequest.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD, dicom::Command::N_ACTION_RQ);
+		actionMissingTypeRequest.Put<dicom::VR_US>(dicom::TAG_MSG_ID, UINT16(33));
+		actionMissingTypeRequest.Put<dicom::VR_US>(dicom::TAG_DATA_SET_TYPE, dicom::DataSetStatus::NO_DATA_SET);
+		actionMissingTypeRequest.Put<dicom::VR_UI>(dicom::TAG_REQ_SOP_INST_UID, instUID);
+		bool actionMissingTypeRejected = false;
+		try
+		{
+			dicom::HandleNAction(instanceUIDHandler,invalidStatusService,actionMissingTypeRequest,classUID);
+		}
+		catch(const dicom::exception&)
+		{
+			actionMissingTypeRejected = true;
+		}
+		if(!actionMissingTypeRejected)
+			throw dicom::exception("N-ACTION request missing Action Type ID was not rejected");
 	}
 
 	void checkNdimseSCPOverPData()
@@ -1685,6 +2142,45 @@ namespace
 			assert(status == dicom::Status::SUCCESS);
 			assert(get<UINT16>(response, dicom::TAG_CMD_FIELD) == dicom::Command::N_CREATE_RSP);
 			assert(get<dicom::UID>(data, dicom::TAG_SOP_INST_UID) == dicom::UID("1.2.826.0.1.3680043.10.1553.23.99"));
+		}
+
+		{
+			const dicom::UID createdUID("1.2.826.0.1.3680043.10.1553.23.100");
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService scuService(sockets[0], classUID);
+			PairedService scpService(sockets[1], classUID);
+
+			dicom::DataSet requestData;
+			requestData.Put<dicom::VR_LO>(dicom::TAG_PAT_ID, std::string("NCREATE100"));
+			dicom::NCreateSCU scu(scuService,classUID);
+			scu.writeRQ(requestData);
+
+			dicom::DataSet command;
+			requireRead(scpService,command);
+			assert(!command.exists(dicom::TAG_AFF_SOP_INST_UID));
+			dicom::HandleNCreate(
+				dicom::NCreateHandlerFunction(
+					[createdUID](dicom::ServiceBase&, const dicom::DataSet&, const dicom::DataSet& requestData,
+						dicom::UID& responseInstUID, dicom::DataSet& responseData)
+					{
+						assert(get<std::string>(requestData, dicom::TAG_PAT_ID) == "NCREATE100");
+						responseInstUID = createdUID;
+						responseData.Put<dicom::VR_UI>(dicom::TAG_SOP_INST_UID, createdUID);
+						return dicom::Status::SUCCESS;
+					}),
+				scpService,
+				command,
+				classUID);
+
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			scu.readRSP(status,response,data);
+			assert(status == dicom::Status::SUCCESS);
+			assert(get<UINT16>(response, dicom::TAG_CMD_FIELD) == dicom::Command::N_CREATE_RSP);
+			assert(get<dicom::UID>(response, dicom::TAG_AFF_SOP_INST_UID) == createdUID);
+			assert(get<dicom::UID>(data, dicom::TAG_SOP_INST_UID) == createdUID);
 		}
 
 		{
@@ -1865,6 +2361,105 @@ namespace
 				dicom::Status::SUCCESS,
 				dicom::DataSetStatus::NO_DATA_SET);
 			scpSide.WriteCommand(wrongMessageID, classUID);
+
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			bool rejected = false;
+			try
+			{
+				scu.readRSP(status, response, data);
+			}
+			catch(const std::exception&)
+			{
+				rejected = true;
+			}
+			assert(rejected);
+		}
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService scuSide(sockets[0], classUID);
+			PairedService scpSide(sockets[1], classUID);
+
+			dicom::CommandSet::CGetRSP successWithIdentifier(
+				39,
+				classUID,
+				dicom::Status::SUCCESS,
+				dicom::DataSetStatus::YES_DATA_SET);
+			scpSide.WriteCommand(successWithIdentifier, classUID);
+
+			TestCGetSCU scu(scuSide, classUID);
+			scu.setLastMessageID(39);
+
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			bool rejected = false;
+			try
+			{
+				scu.readRSP(
+					status,
+					response,
+					data,
+					[](dicom::ServiceBase&, const dicom::DataSet&, dicom::DataSet&)
+					{
+					});
+			}
+			catch(const std::exception&)
+			{
+				rejected = true;
+			}
+			assert(rejected);
+		}
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService scuSide(sockets[0], classUID);
+			PairedService scpSide(sockets[1], classUID);
+
+			dicom::CommandSet::CGetRSP successWithIdentifier(
+				39,
+				classUID,
+				dicom::Status::SUCCESS,
+				dicom::DataSetStatus::YES_DATA_SET);
+			scpSide.WriteCommand(successWithIdentifier, classUID);
+
+			TestCGetSCU scu(scuSide, classUID);
+			scu.setLastMessageID(39);
+
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			bool rejected = false;
+			try
+			{
+				scu.readRSP(status, response, data);
+			}
+			catch(const std::exception&)
+			{
+				rejected = true;
+			}
+			assert(rejected);
+		}
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService scuSide(sockets[0], classUID);
+			PairedService scpSide(sockets[1], classUID);
+
+			dicom::CommandSet::CMoveRSP pendingWithIdentifier(
+				41,
+				classUID,
+				dicom::Status::PENDING,
+				dicom::DataSetStatus::YES_DATA_SET);
+			scpSide.WriteCommand(pendingWithIdentifier, classUID);
+
+			TestCMoveSCU scu(scuSide, classUID);
+			scu.setLastMessageID(41);
 
 			UINT16 status = 0;
 			dicom::DataSet response;
@@ -2098,6 +2693,130 @@ namespace
 
 			TestCFindSCU scu(scuSide, classUID);
 			scu.setLastMessageID(29);
+
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			bool rejected = false;
+			try
+			{
+				scu.readRSP(status, response, data);
+			}
+			catch(const std::exception&)
+			{
+				rejected = true;
+			}
+			assert(rejected);
+		}
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService scuSide(sockets[0], classUID);
+			PairedService scpSide(sockets[1], classUID);
+
+			dicom::CommandSet::CFindRSP pendingNoIdentifier(
+				31,
+				classUID,
+				dicom::Status::PENDING,
+				dicom::DataSetStatus::NO_DATA_SET);
+			scpSide.WriteCommand(pendingNoIdentifier, classUID);
+
+			TestCFindSCU scu(scuSide, classUID);
+			scu.setLastMessageID(31);
+
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			bool rejected = false;
+			try
+			{
+				scu.readRSP(status, response, data);
+			}
+			catch(const std::exception&)
+			{
+				rejected = true;
+			}
+			assert(rejected);
+		}
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService scuSide(sockets[0], classUID);
+			PairedService scpSide(sockets[1], classUID);
+
+			dicom::CommandSet::CFindRSP finalWithIdentifier(
+				33,
+				classUID,
+				dicom::Status::SUCCESS,
+				dicom::DataSetStatus::YES_DATA_SET);
+			scpSide.WriteCommand(finalWithIdentifier, classUID);
+
+			TestCFindSCU scu(scuSide, classUID);
+			scu.setLastMessageID(33);
+
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			bool rejected = false;
+			try
+			{
+				scu.readRSP(status, response, data);
+			}
+			catch(const std::exception&)
+			{
+				rejected = true;
+			}
+			assert(rejected);
+		}
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService scuSide(sockets[0], classUID);
+			PairedService scpSide(sockets[1], classUID);
+
+			dicom::CommandSet::CGetRSP pendingWithIdentifier(
+				35,
+				classUID,
+				dicom::Status::PENDING,
+				dicom::DataSetStatus::YES_DATA_SET);
+			scpSide.WriteCommand(pendingWithIdentifier, classUID);
+
+			TestCGetSCU scu(scuSide, classUID);
+			scu.setLastMessageID(35);
+
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			bool rejected = false;
+			try
+			{
+				scu.readRSP(status, response, data);
+			}
+			catch(const std::exception&)
+			{
+				rejected = true;
+			}
+			assert(rejected);
+		}
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService scuSide(sockets[0], classUID);
+			PairedService scpSide(sockets[1], classUID);
+
+			dicom::CommandSet::CMoveRSP successWithIdentifier(
+				37,
+				classUID,
+				dicom::Status::SUCCESS,
+				dicom::DataSetStatus::YES_DATA_SET);
+			scpSide.WriteCommand(successWithIdentifier, classUID);
+
+			TestCMoveSCU scu(scuSide, classUID);
+			scu.setLastMessageID(37);
 
 			UINT16 status = 0;
 			dicom::DataSet response;
@@ -2629,7 +3348,22 @@ namespace
 			});
 		server.AddNSetHandler(classUID,handler);
 		server.AddNActionHandler(classUID,handler);
-		server.AddNCreateHandler(classUID,handler);
+		server.AddNCreateHandler(
+			classUID,
+			[classUID,responseUID](
+				dicom::ServiceBase& service,
+				const dicom::DataSet&,
+				const dicom::DataSet&,
+				dicom::UID& responseInstUID,
+				dicom::DataSet& responseData)
+			{
+				assert(service.HasNegotiatedRole(classUID));
+				assert(service.CanActAsSCP(classUID));
+				if(responseInstUID.str().empty())
+					responseInstUID = responseUID;
+				responseData.Put<dicom::VR_UI>(dicom::TAG_SOP_INST_UID, responseUID);
+				return dicom::Status::SUCCESS;
+			});
 		server.AddNDeleteHandler(
 			classUID,
 			[classUID](dicom::ServiceBase& service, const dicom::DataSet&, const dicom::DataSet&, dicom::DataSet&)
@@ -2705,6 +3439,15 @@ namespace
 				createSCU.readRSP(status,response,data);
 				assert(status == dicom::Status::SUCCESS);
 				assert(get<UINT16>(response, dicom::TAG_CMD_FIELD) == dicom::Command::N_CREATE_RSP);
+				assert(get<dicom::UID>(data, dicom::TAG_SOP_INST_UID) == responseUID);
+
+				response.clear();
+				data.clear();
+				createSCU.writeRQ(requestData);
+				createSCU.readRSP(status,response,data);
+				assert(status == dicom::Status::SUCCESS);
+				assert(get<UINT16>(response, dicom::TAG_CMD_FIELD) == dicom::Command::N_CREATE_RSP);
+				assert(get<dicom::UID>(response, dicom::TAG_AFF_SOP_INST_UID) == responseUID);
 				assert(get<dicom::UID>(data, dicom::TAG_SOP_INST_UID) == responseUID);
 
 				response.clear();

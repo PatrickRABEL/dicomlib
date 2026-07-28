@@ -368,6 +368,17 @@ namespace dicom
 		void Server::AddNCreateHandler(const UID& uid,NHandlerFunction Handler)
 		{
 			std::lock_guard<std::mutex> scoped_lock(mutex_);
+			NCreateHandlers_[uid]=
+				[Handler](ServiceBase& service, const DataSet& command, const DataSet& requestData,
+					UID&, DataSet& responseData)
+				{
+					return Handler(service,command,requestData,responseData);
+				};
+		}
+
+		void Server::AddNCreateHandler(const UID& uid,NCreateHandlerFunction Handler)
+		{
+			std::lock_guard<std::mutex> scoped_lock(mutex_);
 			NCreateHandlers_[uid]=Handler;
 		}
 
@@ -468,12 +479,13 @@ namespace dicom
 
 		namespace
 		{
-			NHandlerFunction GetNHandler(
-				std::map<UID,NHandlerFunction>& handlers,
+			template<typename Handler>
+			Handler GetNHandler(
+				std::map<UID,Handler>& handlers,
 				const UID& uid,
 				Server& server)
 			{
-				std::map<UID,NHandlerFunction>::iterator I = handlers.find(uid);
+				typename std::map<UID,Handler>::iterator I = handlers.find(uid);
 				if(I==handlers.end())
 				{
 					server.LogError("No available handler.");
@@ -507,7 +519,7 @@ namespace dicom
 			return GetNHandler(NActionHandlers_,uid,*this);
 		}
 
-		NHandlerFunction Server::GetNCreateHandler(const UID& uid)
+		NCreateHandlerFunction Server::GetNCreateHandler(const UID& uid)
 		{
 			std::lock_guard<std::mutex> scoped_lock(mutex_);
 			return GetNHandler(NCreateHandlers_,uid,*this);

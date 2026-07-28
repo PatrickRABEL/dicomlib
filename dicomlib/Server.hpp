@@ -130,7 +130,7 @@ namespace dicom
 			std::map<UID,NHandlerFunction> NGetHandlers_;
 			std::map<UID,NHandlerFunction> NSetHandlers_;
 			std::map<UID,NHandlerFunction> NActionHandlers_;
-			std::map<UID,NHandlerFunction> NCreateHandlers_;
+			std::map<UID,NCreateHandlerFunction> NCreateHandlers_;
 			std::map<UID,NHandlerFunction> NDeleteHandlers_;
 
 		/*
@@ -240,6 +240,7 @@ namespace dicom
 			void AddNSetHandler(const UID& uid,NHandlerFunction Handler);
 			void AddNActionHandler(const UID& uid,NHandlerFunction Handler);
 			void AddNCreateHandler(const UID& uid,NHandlerFunction Handler);
+			void AddNCreateHandler(const UID& uid,NCreateHandlerFunction Handler);
 			void AddNDeleteHandler(const UID& uid,NHandlerFunction Handler);
 
 		HandlerFunction GetHandler(const UID& uid);
@@ -256,7 +257,7 @@ namespace dicom
 			NHandlerFunction GetNGetHandler(const UID& uid);
 			NHandlerFunction GetNSetHandler(const UID& uid);
 			NHandlerFunction GetNActionHandler(const UID& uid);
-			NHandlerFunction GetNCreateHandler(const UID& uid);
+			NCreateHandlerFunction GetNCreateHandler(const UID& uid);
 			NHandlerFunction GetNDeleteHandler(const UID& uid);
 
 		bool IsAcceptableRemoteApplicationTitle		(const std::string& Title,std::string ip);

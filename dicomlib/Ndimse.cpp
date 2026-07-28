@@ -59,6 +59,8 @@ namespace dicom
 		{
 			UINT16 commandField = 0;
 			UID commandClassUID;
+			Tag instanceTag;
+			bool requiresInstanceUID = false;
 			command(TAG_CMD_FIELD) >> commandField;
 			if(commandField != expectedCommand)
 				throw exception("Unexpected N-DIMSE request command field");
@@ -66,6 +68,10 @@ namespace dicom
 			switch(expectedCommand)
 			{
 			case Command::N_EVENT_REPORT_RQ:
+				requiresInstanceUID = true;
+				instanceTag = TAG_AFF_SOP_INST_UID;
+				command(TAG_AFF_SOP_CLASS_UID) >> commandClassUID;
+				break;
 			case Command::N_CREATE_RQ:
 				command(TAG_AFF_SOP_CLASS_UID) >> commandClassUID;
 				break;
@@ -73,6 +79,8 @@ namespace dicom
 			case Command::N_SET_RQ:
 			case Command::N_ACTION_RQ:
 			case Command::N_DELETE_RQ:
+				requiresInstanceUID = true;
+				instanceTag = TAG_REQ_SOP_INST_UID;
 				command(TAG_REQ_SOP_CLASS_UID) >> commandClassUID;
 				break;
 			default:
@@ -81,6 +89,21 @@ namespace dicom
 
 			if(commandClassUID != expectedClassUID)
 				throw exception("Unexpected N-DIMSE request SOP Class UID");
+			if(expectedCommand == Command::N_EVENT_REPORT_RQ &&
+				!command.exists(TAG_EVENT_TYPE_ID))
+				throw exception("N-EVENT-REPORT request requires Event Type ID");
+			if(expectedCommand == Command::N_ACTION_RQ &&
+				!command.exists(TAG_ACTION_TYPE_ID))
+				throw exception("N-ACTION request requires Action Type ID");
+			if(requiresInstanceUID)
+			{
+				if(!command.exists(instanceTag))
+					throw exception("N-DIMSE request requires SOP Instance UID");
+				UID instanceUID;
+				command(instanceTag) >> instanceUID;
+				if(instanceUID.str().size() == 0)
+					throw exception("N-DIMSE request requires SOP Instance UID");
+			}
 		}
 
 		void RequireSCURole(ServiceBase& service, const UID& classUID)
@@ -268,6 +291,8 @@ namespace dicom
 		const UINT16 status = handler(pdu,command,requestData,responseData);
 		if(!IsNGetResponseStatus(status))
 			throw exception("Invalid N-GET response status");
+		if(IsNdimseSuccessStatus(status) && responseData.empty())
+			throw exception("N-GET success response requires an Attribute List data set");
 
 		CommandSet::NGetRSP responseCommand(
 			msgID,
@@ -341,6 +366,19 @@ namespace dicom
 
 	void HandleNCreate(NHandlerFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID)
 	{
+		HandleNCreate(
+			[handler](ServiceBase& service, const DataSet& commandSet, const DataSet& requestData,
+				UID&, DataSet& responseData)
+			{
+				return handler(service,commandSet,requestData,responseData);
+			},
+			pdu,
+			command,
+			classUID);
+	}
+
+	void HandleNCreate(NCreateHandlerFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID)
+	{
 		RequireSCPRole(pdu,classUID);
 		ValidateNdimseRequest(command,Command::N_CREATE_RQ,classUID);
 
@@ -351,14 +389,17 @@ namespace dicom
 		DataSet requestData;
 		DataSet responseData;
 		ReadRequestDataSetIfPresent(pdu,command,requestData);
-		const UINT16 status = handler(pdu,command,requestData,responseData);
+		UID responseInstUID = instUID;
+		const UINT16 status = handler(pdu,command,requestData,responseInstUID,responseData);
 		if(!IsNCreateResponseStatus(status))
 			throw exception("Invalid N-CREATE response status");
+		if(IsNdimseSuccessStatus(status) && responseInstUID.str().size() == 0)
+			throw exception("N-CREATE success response requires SOP Instance UID");
 
 		CommandSet::NCreateRSP responseCommand(
 			msgID,
 			classUID,
-			instUID,
+			responseInstUID,
 			status,
 			responseData.empty() ? DataSetStatus::NO_DATA_SET : DataSetStatus::YES_DATA_SET);
 		pdu.WriteCommand(responseCommand,classUID);
@@ -455,9 +496,28 @@ namespace dicom
 		response(TAG_DATA_SET_TYPE) >> dataSetType;
 		response(TAG_STATUS) >> status;
 		ValidateNdimseResponseStatus(status,expectedCommand);
+		if(expectedCommand == Command::N_GET_RSP &&
+			IsNdimseSuccessStatus(status) &&
+			dataSetType == DataSetStatus::NO_DATA_SET)
+			throw exception("N-GET success response requires an Attribute List data set");
 		if(expectedCommand == Command::N_DELETE_RSP &&
 			dataSetType != DataSetStatus::NO_DATA_SET)
 			throw exception("N-DELETE response shall not include a data set");
+		if(expectedCommand == Command::N_CREATE_RSP &&
+			!IsNdimseSuccessStatus(status) &&
+			response.exists(TAG_AFF_SOP_INST_UID))
+			throw exception("N-CREATE non-success response shall not include SOP Instance UID");
+		if(expectedCommand == Command::N_CREATE_RSP &&
+			IsNdimseSuccessStatus(status) &&
+			!hasLastSOPInstanceUID_)
+		{
+			if(!response.exists(TAG_AFF_SOP_INST_UID))
+				throw exception("N-CREATE success response requires SOP Instance UID");
+			UID responseInstanceUID;
+			response(TAG_AFF_SOP_INST_UID) >> responseInstanceUID;
+			if(responseInstanceUID.str().size() == 0)
+				throw exception("N-CREATE success response requires SOP Instance UID");
+		}
 		if((expectedCommand == Command::N_EVENT_REPORT_RSP ||
 			expectedCommand == Command::N_ACTION_RSP) &&
 			!IsNdimseSuccessStatus(status) &&
@@ -471,6 +531,10 @@ namespace dicom
 			if(eventTypeID != lastEventTypeID_)
 				throw exception("Unexpected N-DIMSE response Event Type ID");
 		}
+		if(expectedCommand == Command::N_EVENT_REPORT_RSP &&
+			dataSetType != DataSetStatus::NO_DATA_SET &&
+			!response.exists(TAG_EVENT_TYPE_ID))
+			throw exception("N-EVENT-REPORT response data set requires Event Type ID");
 		if(expectedCommand == Command::N_ACTION_RSP &&
 			hasLastActionTypeID_ && response.exists(TAG_ACTION_TYPE_ID))
 		{
@@ -479,6 +543,10 @@ namespace dicom
 			if(actionTypeID != lastActionTypeID_)
 				throw exception("Unexpected N-DIMSE response Action Type ID");
 		}
+		if(expectedCommand == Command::N_ACTION_RSP &&
+			dataSetType != DataSetStatus::NO_DATA_SET &&
+			!response.exists(TAG_ACTION_TYPE_ID))
+			throw exception("N-ACTION response data set requires Action Type ID");
 		if(dataSetType!=DataSetStatus::NO_DATA_SET && !service_.Read(data))
 			throw exception("Unexpected association release while reading N-DIMSE response data set");
 	}

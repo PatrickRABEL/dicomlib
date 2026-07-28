@@ -126,6 +126,36 @@ namespace dicom
 				throw exception("C-DIMSE command shall not include a data set");
 		}
 
+		void ValidateCdimseResponseDataSetType(
+			Command::Code command,
+			UINT16 status,
+			UINT16 dataSetType)
+		{
+			switch(command)
+			{
+			case Command::C_FIND_RSP:
+				if(IsCdimsePendingStatus(status) &&
+					dataSetType == DataSetStatus::NO_DATA_SET)
+					throw exception("C-FIND pending response requires an Identifier");
+				if(!IsCdimsePendingStatus(status) &&
+					dataSetType != DataSetStatus::NO_DATA_SET)
+					throw exception("C-FIND final response shall not include an Identifier");
+				break;
+			case Command::C_GET_RSP:
+				if((IsCdimsePendingStatus(status) || IsCdimseSuccessStatus(status)) &&
+					dataSetType != DataSetStatus::NO_DATA_SET)
+					throw exception("C-GET response status shall not include an Identifier");
+				break;
+			case Command::C_MOVE_RSP:
+				if((IsCdimsePendingStatus(status) || IsCdimseSuccessStatus(status)) &&
+					dataSetType != DataSetStatus::NO_DATA_SET)
+					throw exception("C-MOVE response status shall not include an Identifier");
+				break;
+			default:
+				break;
+			}
+		}
+
 		void ReadRequiredCommand(ServiceBase& service, DataSet& command)
 		{
 			if(!service.Read(command))
@@ -802,6 +832,7 @@ namespace dicom
 		response(TAG_DATA_SET_TYPE)	>>	dstype;
 		response(TAG_STATUS)		>>	status;
 		ValidateCdimseResponseStatus(status, Command::C_FIND_RSP);
+		ValidateCdimseResponseDataSetType(Command::C_FIND_RSP,status,dstype);
 		if(dstype!=DataSetStatus::NO_DATA_SET)
 			ReadRequiredDataSet(service_,data);
 
@@ -840,6 +871,7 @@ namespace dicom
 		response(TAG_DATA_SET_TYPE)	>>	dstype;
 		response(TAG_STATUS)		>>	status;
 		ValidateCdimseResponseStatus(status, Command::C_GET_RSP);
+		ValidateCdimseResponseDataSetType(Command::C_GET_RSP,status,dstype);
 		if(dstype!=DataSetStatus::NO_DATA_SET)
 			ReadRequiredDataSet(service_,data);
 
@@ -862,6 +894,7 @@ namespace dicom
 				command(TAG_DATA_SET_TYPE) >> dstype;
 				command(TAG_STATUS) >> status;
 				ValidateCdimseResponseStatus(status, Command::C_GET_RSP);
+				ValidateCdimseResponseDataSetType(Command::C_GET_RSP,status,dstype);
 				response = command;
 				if(dstype!=DataSetStatus::NO_DATA_SET)
 					ReadRequiredDataSet(service_,data);
@@ -920,6 +953,7 @@ namespace dicom
 		response(TAG_DATA_SET_TYPE)	>>	dstype;
 		response(TAG_STATUS)		>>	status;
 		ValidateCdimseResponseStatus(status, Command::C_MOVE_RSP);
+		ValidateCdimseResponseDataSetType(Command::C_MOVE_RSP,status,dstype);
 		if(dstype!=DataSetStatus::NO_DATA_SET)
 			ReadRequiredDataSet(service_,data);
 
