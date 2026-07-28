@@ -249,6 +249,47 @@ namespace dicom
 		return pdu.IsCancelRequested(messageID);
 	}
 
+	CSubOperationResult SendCGetStoreSubOperations(ServiceBase& pdu, const Sequence& instances)
+	{
+		if(instances.size() > 0xffff)
+			throw exception("Too many C-GET sub-operations for UINT16 counters");
+
+		CSubOperationResult result(Status::SUCCESS, static_cast<UINT16>(instances.size()), 0, 0, 0);
+
+		for(Sequence::const_iterator I=instances.begin();I!=instances.end();I++)
+		{
+			if(PollCCancelRQ(pdu))
+			{
+				result.status = Status::CANCEL;
+				return result;
+			}
+
+			UID classUID;
+			UID instUID;
+			(*I)(TAG_SOP_CLASS_UID) >> classUID;
+			(*I)(TAG_SOP_INST_UID) >> instUID;
+
+			CStoreSCU storeSCU(pdu,classUID);
+			storeSCU.writeRQ(instUID,*I);
+
+			UINT16 storeStatus = 0;
+			DataSet storeResponse;
+			storeSCU.readRSP(storeStatus,storeResponse);
+
+			result.remaining--;
+			if(storeStatus == Status::SUCCESS)
+				result.completed++;
+			else if(storeStatus == Status::WARNING)
+				result.warning++;
+			else
+				result.failed++;
+		}
+
+		if(result.failed != 0 || result.warning != 0)
+			result.status = Status::WARNING;
+		return result;
+	}
+
 	void HandleCMove(CMoveFunction handler,ServiceBase& pdu,
 		const DataSet& command, const UID& classUID)
 	{

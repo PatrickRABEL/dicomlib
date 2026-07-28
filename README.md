@@ -188,8 +188,9 @@ C-GET and C-MOVE can use `AddCancellableGetHandler()` and
 `AddCancellableMoveHandler()` to return final `Status::CANCEL` responses with
 sub-operation counters. `CGetSCU::readRSP(..., CStoreFunction)` can process
 incoming C-STORE sub-operations on the same association before the final
-C-GET-RSP. Automatic handler interruption and reusable multi-instance
-sub-operation scheduling are not yet claimed.
+C-GET-RSP, and `SendCGetStoreSubOperations()` provides sequential multi-instance
+C-STORE sending with aggregate counters for C-GET SCP handlers. Automatic
+handler interruption and asynchronous operations are not yet claimed.
 
 The detailed C-DIMSE implementation plan and remaining work are maintained in
 [`docs/CDIMSE_PLAN.md`](docs/CDIMSE_PLAN.md).

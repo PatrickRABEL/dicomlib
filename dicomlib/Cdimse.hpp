@@ -88,6 +88,8 @@ namespace dicom
 
 	bool PollCCancelRQ(ServiceBase& pdu, UINT16 messageID = 0);
 
+	CSubOperationResult SendCGetStoreSubOperations(ServiceBase& pdu, const Sequence& instances);
+
 	class CGetSCP
 	{
 		HandlerFunction handler_;
