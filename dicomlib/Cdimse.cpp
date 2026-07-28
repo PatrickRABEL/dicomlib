@@ -290,6 +290,45 @@ namespace dicom
 		return result;
 	}
 
+	CSubOperationResult SendCMoveStoreSubOperations(
+		ServiceBase& destination,
+		const Sequence& instances,
+		const std::string& moveOriginatorAET,
+		UINT16 moveOriginatorMessageID)
+	{
+		if(instances.size() > 0xffff)
+			throw exception("Too many C-MOVE sub-operations for UINT16 counters");
+
+		CSubOperationResult result(Status::SUCCESS, static_cast<UINT16>(instances.size()), 0, 0, 0);
+
+		for(Sequence::const_iterator I=instances.begin();I!=instances.end();I++)
+		{
+			UID classUID;
+			UID instUID;
+			(*I)(TAG_SOP_CLASS_UID) >> classUID;
+			(*I)(TAG_SOP_INST_UID) >> instUID;
+
+			CStoreSCU storeSCU(destination,classUID);
+			storeSCU.writeMoveRQ(instUID,*I,moveOriginatorAET,moveOriginatorMessageID);
+
+			UINT16 storeStatus = 0;
+			DataSet storeResponse;
+			storeSCU.readRSP(storeStatus,storeResponse);
+
+			result.remaining--;
+			if(storeStatus == Status::SUCCESS)
+				result.completed++;
+			else if(storeStatus == Status::WARNING)
+				result.warning++;
+			else
+				result.failed++;
+		}
+
+		if(result.failed != 0 || result.warning != 0)
+			result.status = Status::WARNING;
+		return result;
+	}
+
 	void HandleCMove(CMoveFunction handler,ServiceBase& pdu,
 		const DataSet& command, const UID& classUID)
 	{
@@ -372,6 +411,25 @@ namespace dicom
 		CommandSet::CStoreRQ rq(lastMessageID_, classUID_, instUID, priority);
 		service_.WriteCommand(rq, classUID_);
 		service_.WriteDataSet(data, classUID_/*,ts*/);
+	}
+
+	void CStoreSCU::writeMoveRQ(
+		const UID& instUID,
+		const DataSet& data,
+		const std::string& moveOriginatorAET,
+		UINT16 moveOriginatorMessageID,
+		UINT16 priority)
+	{
+		lastMessageID_ = uniq16odd();
+		CommandSet::CStoreRQ rq(
+			lastMessageID_,
+			classUID_,
+			instUID,
+			moveOriginatorAET,
+			moveOriginatorMessageID,
+			priority);
+		service_.WriteCommand(rq, classUID_);
+		service_.WriteDataSet(data, classUID_);
 	}
 
 	void CStoreSCU::readRSP(UINT16& status)//maybe status should be a return value?TODO

@@ -89,6 +89,11 @@ namespace dicom
 	bool PollCCancelRQ(ServiceBase& pdu, UINT16 messageID = 0);
 
 	CSubOperationResult SendCGetStoreSubOperations(ServiceBase& pdu, const Sequence& instances);
+	CSubOperationResult SendCMoveStoreSubOperations(
+		ServiceBase& destination,
+		const Sequence& instances,
+		const std::string& moveOriginatorAET,
+		UINT16 moveOriginatorMessageID);
 
 	class CGetSCP
 	{
@@ -139,6 +144,12 @@ namespace dicom
 		CStoreSCU(ServiceBase& service,const UID& classUID);
 		void writeRQ(const UID& instUID,
 			const DataSet& data,/*TS ts,*/ UINT16 priority = Priority::MEDIUM);
+		void writeMoveRQ(
+			const UID& instUID,
+			const DataSet& data,
+			const std::string& moveOriginatorAET,
+			UINT16 moveOriginatorMessageID,
+			UINT16 priority = Priority::MEDIUM);
 		void readRSP(UINT16& status);
 		void readRSP(UINT16& status, DataSet& response);
 	};
