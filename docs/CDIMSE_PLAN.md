@@ -20,6 +20,7 @@ network flow are covered by tests.
 | Local association primitive coverage | A-ASSOCIATE-RQ and A-ASSOCIATE-AC are exchanged over a local socket pair, then C-ECHO is executed on the negotiated association state | `cdimse_commandsets` |
 | Thread-backed C-ECHO | `ClientConnection::Echo()` is verified against `Server` running in a background thread with A-ASSOCIATE negotiation | `cdimse_commandsets` |
 | Thread-backed C-STORE | `ClientConnection::Store()` is verified against a registered `Server` C-STORE handler with A-ASSOCIATE negotiation and success response validation | `cdimse_commandsets` |
+| Thread-backed C-FIND | `ClientConnection::Find()` is verified against a registered `Server` C-FIND handler with pending match data and final success response | `cdimse_commandsets` |
 
 ## Remaining
 
@@ -29,13 +30,13 @@ network flow are covered by tests.
 | C-GET sub-operation orchestration | The SCP dispatch delegates to the registered handler. The library does not yet provide a built-in C-STORE sub-operation scheduler, counters, or final response generator for C-GET. |
 | C-MOVE sub-operation orchestration | The SCP dispatch delegates to the registered handler. The library does not yet provide a built-in association opener to the Move Destination, C-STORE scheduler, counters, or final response generator for C-MOVE. |
 | Service-specific status ranges | The command set can carry status values, but service/SOP-class-specific status validation and detailed failed/warning related fields are not complete. |
-| Network end-to-end tests | Current tests cover command set construction, selected dispatch/SCU code paths, local P-DATA round trips, a local A-ASSOCIATE primitive exchange with C-ECHO, and thread-backed C-ECHO/C-STORE. Full thread-backed `Server`/`ClientConnection` association tests for C-FIND, C-GET, C-MOVE, and C-CANCEL are still required. |
+| Network end-to-end tests | Current tests cover command set construction, selected dispatch/SCU code paths, local P-DATA round trips, a local A-ASSOCIATE primitive exchange with C-ECHO, and thread-backed C-ECHO/C-STORE/C-FIND. Full thread-backed `Server`/`ClientConnection` association tests for C-GET, C-MOVE, and C-CANCEL are still required. |
 | Extended negotiation | SCU/SCP Role Selection, SOP Class Extended Negotiation, and Asynchronous Operations Window are not implemented as verified C-DIMSE behavior. |
 
 ## Execution Order
 
-1. Add thread-backed `Server`/`ClientConnection` association tests for C-FIND,
-   C-GET, C-MOVE, and C-CANCEL.
+1. Add thread-backed `Server`/`ClientConnection` association tests for C-GET,
+   C-MOVE, and C-CANCEL.
 2. Add full-association coverage for C-CANCEL state observation during a running
    cancellable C-FIND, C-GET, or C-MOVE handler.
 3. Implement and test C-GET C-STORE sub-operation orchestration on the same

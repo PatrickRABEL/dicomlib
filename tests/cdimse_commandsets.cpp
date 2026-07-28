@@ -508,6 +508,63 @@ namespace
 		assert(handled);
 	}
 
+	void checkServerClientCFind()
+	{
+		const short port = reserveLocalPort();
+		const dicom::UID classUID = dicom::STUDY_ROOT_QR_FIND_SOP_CLASS;
+		const dicom::UID studyUID("1.2.826.0.1.3680043.10.1553.2");
+		std::atomic<bool> handled(false);
+
+		QuietLogger logger;
+		dicom::Server server;
+		server.SetLogger(&logger);
+		server.SetCheckLocalAETCallback(acceptAnyLocalAET);
+		server.SetCheckRemoteAETCallback(acceptAnyRemoteAET);
+		server.AddFindHandler(
+			classUID,
+			[&](dicom::ServiceBase&, dicom::DataSet& query, dicom::Sequence& matches)
+			{
+				assert(get<std::string>(query, dicom::TAG_QR_LEVEL) == "STUDY");
+
+				dicom::DataSet match;
+				match.Put<dicom::VR_CS>(dicom::TAG_QR_LEVEL, std::string("STUDY"));
+				match.Put<dicom::VR_UI>(dicom::TAG_STUDY_INST_UID, studyUID);
+				matches.push_back(match);
+				handled = true;
+			});
+		server.ServeInNewThread(port);
+
+		dicom::PresentationContexts contexts;
+		contexts.Add(classUID, dicom::TS(dicom::IMPL_VR_LE_TRANSFER_SYNTAX));
+
+		bool completed = false;
+		for(int attempt = 0; attempt < 20 && !completed; ++attempt)
+		{
+			try
+			{
+				dicom::DataSet query;
+				query.Put<dicom::VR_CS>(dicom::TAG_QR_LEVEL, std::string("STUDY"));
+				query.Put<dicom::VR_UI>(dicom::TAG_STUDY_INST_UID, dicom::UID(""));
+
+				dicom::ClientConnection client("127.0.0.1", port, "SCU_AE", "SCP_AE", contexts);
+				std::vector<dicom::DataSet> responses =
+					client.Find(query, dicom::QueryRetrieve::STUDY_ROOT);
+				assert(responses.size() == 1);
+				assert(get<std::string>(responses.at(0), dicom::TAG_QR_LEVEL) == "STUDY");
+				assert(get<dicom::UID>(responses.at(0), dicom::TAG_STUDY_INST_UID) == studyUID);
+				completed = true;
+			}
+			catch(const SystemError&)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(50));
+			}
+		}
+
+		server.Stop();
+		assert(completed);
+		assert(handled);
+	}
+
 	void checkCMove()
 	{
 		const dicom::UID classUID("1.2.840.10008.5.1.4.1.2.2.2");
@@ -538,6 +595,7 @@ int main()
 	checkAssociationNegotiationAndCEcho();
 	checkServerClientCEcho();
 	checkServerClientCStore();
+	checkServerClientCFind();
 	checkCMove();
 	return 0;
 }
