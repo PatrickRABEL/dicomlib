@@ -53,6 +53,20 @@ namespace dicom
 	std::mutex Server::cerr_mutex;
 	std::mutex Server::cout_mutex;
 
+	MoveDestinationEndpoint::MoveDestinationEndpoint()
+		:host()
+		,port(0)
+	{
+	}
+
+	MoveDestinationEndpoint::MoveDestinationEndpoint(
+		const std::string& destinationHost,
+		unsigned short destinationPort)
+		:host(destinationHost)
+		,port(destinationPort)
+	{
+	}
+
 	void Server::Logger::LogError(std::string Error)
 	{
  		std::lock_guard<std::mutex> lock(cerr_mutex);
@@ -238,6 +252,11 @@ namespace dicom
 		std::lock_guard<std::mutex> scoped_lock(AETMutex_);
 		CheckRemoteAET=f;
 	}
+	void Server::SetMoveDestinationResolverCallback(MoveDestinationResolverFunction f)
+	{
+		std::lock_guard<std::mutex> scoped_lock(AETMutex_);
+		ResolveMoveDestinationCallback_=f;
+	}
 
 
 
@@ -266,6 +285,14 @@ namespace dicom
 			false
 			:
 			CheckLocalAET(title);
+	}
+	bool Server::ResolveMoveDestination(const std::string& title,MoveDestinationEndpoint& endpoint)
+	{
+		std::lock_guard<std::mutex> scoped_lock(AETMutex_);
+		return !ResolveMoveDestinationCallback_?
+			false
+			:
+			ResolveMoveDestinationCallback_(title,endpoint);
 	}
 	void Server::AddHandler(const UID& uid,HandlerFunction Handler)
 	{

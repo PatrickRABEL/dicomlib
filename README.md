@@ -192,9 +192,11 @@ C-GET-RSP, and `SendCGetStoreSubOperations()` provides sequential multi-instance
 C-STORE sending with aggregate counters for C-GET SCP handlers.
 `SendCMoveStoreSubOperations()` provides sequential multi-instance C-STORE
 sending on an application-opened Move Destination association, including Move
-Originator fields and aggregate counters for C-MOVE SCP handlers. Automatic
-handler interruption, asynchronous operations, and automatic Move Destination
-AET endpoint resolution are not yet claimed.
+Originator fields and aggregate counters for C-MOVE SCP handlers.
+`Server::SetMoveDestinationResolverCallback()` maps Move Destination AE Titles
+to host/port endpoints. Automatic handler interruption, asynchronous operations,
+and automatic destination association opening inside C-MOVE dispatch are not yet
+claimed.
 
 The detailed C-DIMSE implementation plan and remaining work are maintained in
 [`docs/CDIMSE_PLAN.md`](docs/CDIMSE_PLAN.md).

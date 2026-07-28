@@ -29,6 +29,18 @@ namespace dicom
 	typedef std::function<void()> AssociationTerminatedFunction;
 	typedef std::function<void(const primitive::AAssociateRQ&)> AssociationNegotiatedFunction;
 
+	struct MoveDestinationEndpoint
+	{
+		std::string host;
+		unsigned short port;
+
+		MoveDestinationEndpoint();
+		MoveDestinationEndpoint(const std::string& destinationHost, unsigned short destinationPort);
+	};
+
+	typedef std::function<bool(const std::string&,MoveDestinationEndpoint&)>
+		MoveDestinationResolverFunction;
+
 
 	//!Thrown if we don't have a handler function for the requested service class.
 	/*!
@@ -131,6 +143,8 @@ namespace dicom
 		*/
 		StringCheckFunction2 CheckRemoteAET;
 
+		MoveDestinationResolverFunction ResolveMoveDestinationCallback_;
+
 		//!Mutex for AET check functions.
 		/*!
 			 Probably not really needed, as they should only be set before we start serving.
@@ -201,6 +215,7 @@ namespace dicom
 
 		void SetCheckLocalAETCallback(StringCheckFunction f);
 		void SetCheckRemoteAETCallback(StringCheckFunction2 f);
+		void SetMoveDestinationResolverCallback(MoveDestinationResolverFunction f);
 
 		void AddHandler(const UID& uid,HandlerFunction f);
 		void AddFindHandler(const UID& uid,CFindFunction Handler);
@@ -219,6 +234,7 @@ namespace dicom
 
 		bool IsAcceptableRemoteApplicationTitle		(const std::string& Title,std::string ip);
 		bool IsAcceptableLocalApplicationTitle		(const std::string& Title);
+		bool ResolveMoveDestination					(const std::string& Title,MoveDestinationEndpoint& endpoint);
 		bool IsAcceptableApplicationContext			(const UID& uid);
 		bool IsAcceptableAbstractSyntax				(const UID& uid);
 

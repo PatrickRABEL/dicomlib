@@ -235,8 +235,12 @@ namespace Network
 			static_assert(std::is_fundamental<T>::value, "Socket can only send fundamental types");
 			int BytesToSend=int(count*sizeof(T));
 
+			int sendFlags = 0;
+#ifdef MSG_NOSIGNAL
+			sendFlags = MSG_NOSIGNAL;
+#endif
 			int BytesSent = ::send(GetSocketDescriptor(),
-				(SEND_DATA_TYPE)Begin,	BytesToSend,	0);
+				(SEND_DATA_TYPE)Begin,	BytesToSend,	sendFlags);
 
 			if(BytesSent!=BytesToSend)
 				throw SystemError("send",GetLastError());

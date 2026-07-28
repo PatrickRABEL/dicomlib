@@ -31,6 +31,7 @@ network flow are covered by tests.
 | C-GET same-association C-STORE sub-operation | `CGetSCU::readRSP(..., CStoreFunction)` handles incoming C-STORE-RQ commands on the same association, writes C-STORE-RSP, and then reads the final C-GET-RSP counters; verified with one storage sub-operation | `cdimse_commandsets` |
 | C-GET multi-instance sub-operation helper | `SendCGetStoreSubOperations()` sends multiple C-STORE sub-operations sequentially on the C-GET association, reads each C-STORE-RSP, and returns aggregate counters for the final C-GET-RSP | `cdimse_commandsets` |
 | C-MOVE destination C-STORE sub-operation helper | `SendCMoveStoreSubOperations()` sends multiple C-STORE sub-operations sequentially on an application-opened destination association, includes Move Originator AE Title and Message ID, reads each C-STORE-RSP, and returns aggregate counters for the final C-MOVE-RSP | `cdimse_commandsets` |
+| Move Destination endpoint resolver | `Server::SetMoveDestinationResolverCallback()` maps a Move Destination AE Title to a host/port endpoint; verified in the C-MOVE destination C-STORE network test | `cdimse_commandsets` |
 
 ## Remaining
 
@@ -38,15 +39,15 @@ network flow are covered by tests.
 | --- | --- |
 | C-CANCEL final cancel semantics | C-FIND, C-GET, and C-MOVE now have explicit cancellable handler contracts that can return final Cancel status after application-observed C-CANCEL. The library still does not interrupt handlers automatically. |
 | C-GET sub-operation orchestration | Same-association C-STORE sub-operation round trips are verified, including a reusable sequential multi-instance helper with aggregate counters. This helper does not claim asynchronous operations or automatic handler interruption. |
-| C-MOVE sub-operation orchestration | Destination C-STORE sub-operation round trips are verified using an application-opened destination association and a reusable sequential helper with aggregate counters. The library does not yet provide Move Destination AET to network endpoint resolution. |
+| C-MOVE sub-operation orchestration | Destination C-STORE sub-operation round trips are verified using a resolver-provided endpoint, an application-opened destination association, and a reusable sequential helper with aggregate counters. The library does not yet automatically open the Move Destination association inside C-MOVE dispatch. |
 | Service-specific status ranges | The command set can carry status values, but service/SOP-class-specific status validation and detailed failed/warning related fields are not complete. |
 | Network end-to-end tests | Current tests cover command set construction, selected dispatch/SCU code paths, local P-DATA round trips, a local A-ASSOCIATE primitive exchange with C-ECHO, thread-backed C-ECHO/C-STORE/C-FIND/C-GET dispatch/C-MOVE dispatch/C-CANCEL dispatch, C-CANCEL polling by a running C-FIND handler, final C-FIND/C-GET/C-MOVE Cancel responses, one C-GET same-association C-STORE sub-operation, sequential multi-instance C-GET C-STORE sub-operations, and sequential multi-instance C-MOVE destination C-STORE sub-operations. |
 | Extended negotiation | SCU/SCP Role Selection, SOP Class Extended Negotiation, and Asynchronous Operations Window are not implemented as verified C-DIMSE behavior. |
 
 ## Execution Order
 
-1. Add Move Destination AET endpoint mapping as an application-provided callback
-   before claiming automatic C-MOVE destination association opening.
+1. Add automatic C-MOVE destination association opening only after defining how
+   the handler provides the destination storage presentation contexts.
 2. Add service/SOP-class-specific status helpers and tests.
 3. Add verified extended negotiation support only after the association-layer
    behavior is implemented and covered.

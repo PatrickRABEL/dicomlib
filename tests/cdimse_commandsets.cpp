@@ -11,6 +11,7 @@
 #include <chrono>
 #include <cstring>
 #include <exception>
+#include <signal.h>
 #include <string>
 #include <sys/socket.h>
 #include <thread>
@@ -664,7 +665,9 @@ namespace
 	void checkServerClientCMoveStoreSubOperationScheduler()
 	{
 		const short movePort = reserveLocalPort();
-		const short destinationPort = reserveLocalPort();
+		short destinationPort = reserveLocalPort();
+		while(destinationPort == movePort)
+			destinationPort = reserveLocalPort();
 		const dicom::UID moveClassUID = dicom::STUDY_ROOT_QR_MOVE_SOP_CLASS;
 		const dicom::UID storeClassUID = dicom::CT_IMAGE_STORAGE_SOP_CLASS;
 		const dicom::UID studyUID("1.2.826.0.1.3680043.10.1553.8");
@@ -698,14 +701,23 @@ namespace
 		moveServer.SetLogger(&moveLogger);
 		moveServer.SetCheckLocalAETCallback(acceptAnyLocalAET);
 		moveServer.SetCheckRemoteAETCallback(acceptAnyRemoteAET);
+		moveServer.SetMoveDestinationResolverCallback(
+			[&](const std::string& title, dicom::MoveDestinationEndpoint& endpoint)
+			{
+				if(title != "DEST_AE")
+					return false;
+				endpoint = dicom::MoveDestinationEndpoint("127.0.0.1", destinationPort);
+				return true;
+			});
 		moveServer.AddCancellableMoveHandler(
 			moveClassUID,
 			[&](dicom::ServiceBase& service, const dicom::DataSet& command, dicom::DataSet& request)
 			{
 				const UINT16 moveMessageID = get<UINT16>(command, dicom::TAG_MSG_ID);
+				const std::string destinationAET = get<std::string>(command, dicom::TAG_MOVE_DEST);
 				moveOriginatorMessageID = moveMessageID;
 				assert(get<UINT16>(command, dicom::TAG_CMD_FIELD) == dicom::Command::C_MOVE_RQ);
-				assert(get<std::string>(command, dicom::TAG_MOVE_DEST) == "DEST_AE");
+				assert(destinationAET == "DEST_AE");
 				assert(get<std::string>(request, dicom::TAG_QR_LEVEL) == "STUDY");
 				assert(get<dicom::UID>(request, dicom::TAG_STUDY_INST_UID) == studyUID);
 
@@ -725,11 +737,13 @@ namespace
 
 				dicom::PresentationContexts contexts;
 				contexts.Add(storeClassUID, dicom::TS(dicom::IMPL_VR_LE_TRANSFER_SYNTAX));
+				dicom::MoveDestinationEndpoint endpoint;
+				assert(moveServer.ResolveMoveDestination(destinationAET, endpoint));
 				dicom::ClientConnection destination(
-					"127.0.0.1",
-					destinationPort,
+					endpoint.host,
+					endpoint.port,
 					"MOVE_SCP",
-					"DEST_AE",
+					destinationAET,
 					contexts);
 
 				const std::string moveOriginatorAET = service.AAssociateRQ_.CallingAppTitle_;
@@ -768,6 +782,10 @@ namespace
 				completed = moveHandled && destinationStores == 2;
 			}
 			catch(const SystemError&)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(50));
+			}
+			catch(const std::exception&)
 			{
 				std::this_thread::sleep_for(std::chrono::milliseconds(50));
 			}
@@ -1455,6 +1473,9 @@ namespace
 
 int main()
 {
+#if defined(SIGPIPE)
+	signal(SIGPIPE, SIG_IGN);
+#endif
 	checkCEcho();
 	checkCStore();
 	checkCFind();
