@@ -91,6 +91,8 @@ namespace dicom
 	bool IsCdimseCancelStatus(UINT16 status);
 	bool IsCdimseWarningStatus(UINT16 status);
 	bool IsCdimseFinalStatus(UINT16 status);
+	bool IsCEchoResponseStatus(UINT16 status);
+	bool IsCStoreResponseStatus(UINT16 status);
 	bool IsCFindResponseStatus(UINT16 status);
 	bool IsCGetResponseStatus(UINT16 status);
 	bool IsCMoveResponseStatus(UINT16 status);

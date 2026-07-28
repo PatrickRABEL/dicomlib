@@ -346,6 +346,26 @@ namespace
 		assert(dicom::IsCdimseFinalStatus(dicom::Status::CANCEL));
 		assert(dicom::IsCdimseFinalStatus(dicom::Status::WARNING));
 
+		assert(dicom::IsCEchoResponseStatus(dicom::Status::SUCCESS));
+		assert(dicom::IsCEchoResponseStatus(0x0122));
+		assert(dicom::IsCEchoResponseStatus(0x0210));
+		assert(dicom::IsCEchoResponseStatus(0x0211));
+		assert(dicom::IsCEchoResponseStatus(0x0212));
+		assert(!dicom::IsCEchoResponseStatus(dicom::Status::WARNING));
+		assert(!dicom::IsCEchoResponseStatus(dicom::Status::PENDING));
+
+		assert(dicom::IsCStoreResponseStatus(dicom::Status::SUCCESS));
+		assert(dicom::IsCStoreResponseStatus(0xb000));
+		assert(dicom::IsCStoreResponseStatus(0xb006));
+		assert(dicom::IsCStoreResponseStatus(0xb007));
+		assert(dicom::IsCStoreResponseStatus(0xa700));
+		assert(dicom::IsCStoreResponseStatus(0xa7ff));
+		assert(dicom::IsCStoreResponseStatus(0xa900));
+		assert(dicom::IsCStoreResponseStatus(0xa9ff));
+		assert(dicom::IsCStoreResponseStatus(0xc123));
+		assert(!dicom::IsCStoreResponseStatus(dicom::Status::CANCEL));
+		assert(!dicom::IsCStoreResponseStatus(dicom::Status::PENDING));
+
 		assert(dicom::IsCFindResponseStatus(dicom::Status::SUCCESS));
 		assert(dicom::IsCFindResponseStatus(dicom::Status::CANCEL));
 		assert(dicom::IsCFindResponseStatus(dicom::Status::PENDING));

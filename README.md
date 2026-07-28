@@ -198,8 +198,8 @@ to host/port endpoints. Automatic handler interruption, asynchronous operations,
 and automatic destination association opening inside C-MOVE dispatch are not yet
 claimed. Generic C-DIMSE status helpers classify the implemented `Success`,
 `Pending`, `Cancel`, `Warning`, and final/non-final response states; SOP-class
-specific validators are provided for Query/Retrieve C-FIND, C-GET, and C-MOVE
-response statuses.
+specific validators are provided for C-ECHO, C-STORE, and Query/Retrieve
+C-FIND, C-GET, and C-MOVE response statuses.
 
 The detailed C-DIMSE implementation plan and remaining work are maintained in
 [`docs/CDIMSE_PLAN.md`](docs/CDIMSE_PLAN.md).

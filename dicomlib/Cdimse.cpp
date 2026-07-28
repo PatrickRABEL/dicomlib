@@ -259,6 +259,36 @@ namespace dicom
 		{
 			return (status & 0xf000) == 0xc000;
 		}
+
+		bool IsA7xxStatus(UINT16 status)
+		{
+			return (status & 0xff00) == 0xa700;
+		}
+
+		bool IsA9xxStatus(UINT16 status)
+		{
+			return (status & 0xff00) == 0xa900;
+		}
+	}
+
+	bool IsCEchoResponseStatus(UINT16 status)
+	{
+		return IsCdimseSuccessStatus(status) ||
+			status == 0x0122 ||
+			status == 0x0210 ||
+			status == 0x0211 ||
+			status == 0x0212;
+	}
+
+	bool IsCStoreResponseStatus(UINT16 status)
+	{
+		return IsCdimseSuccessStatus(status) ||
+			status == 0xb000 ||
+			status == 0xb006 ||
+			status == 0xb007 ||
+			IsA7xxStatus(status) ||
+			IsA9xxStatus(status) ||
+			IsUnableToProcessStatus(status);
 	}
 
 	bool IsCFindResponseStatus(UINT16 status)
