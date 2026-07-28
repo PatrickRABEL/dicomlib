@@ -237,6 +237,22 @@ namespace
 		}
 	};
 
+	struct CancelDispatchLogger : public QuietLogger
+	{
+		std::atomic<bool>& handledCancel_;
+
+		explicit CancelDispatchLogger(std::atomic<bool>& handledCancel)
+		: handledCancel_(handledCancel)
+		{
+		}
+
+		void LogMessage(std::string message)
+		{
+			if(message == "Handled a C-CANCEL-RQ")
+				handledCancel_ = true;
+		}
+	};
+
 	void checkCEcho()
 	{
 		const dicom::UID classUID("1.2.840.10008.1.1");
@@ -718,6 +734,69 @@ namespace
 		assert(handled);
 	}
 
+	void checkServerClientCCancelDispatch()
+	{
+		const short port = reserveLocalPort();
+		const dicom::UID classUID = dicom::STUDY_ROOT_QR_FIND_SOP_CLASS;
+		std::atomic<bool> findHandled(false);
+		std::atomic<bool> cancelHandled(false);
+
+		CancelDispatchLogger logger(cancelHandled);
+		dicom::Server server;
+		server.SetLogger(&logger);
+		server.SetCheckLocalAETCallback(acceptAnyLocalAET);
+		server.SetCheckRemoteAETCallback(acceptAnyRemoteAET);
+		server.AddFindHandler(
+			classUID,
+			[&](dicom::ServiceBase&, dicom::DataSet& query, dicom::Sequence& matches)
+			{
+				(void)matches;
+				assert(get<std::string>(query, dicom::TAG_QR_LEVEL) == "STUDY");
+				findHandled = true;
+			});
+		server.ServeInNewThread(port);
+
+		dicom::PresentationContexts contexts;
+		contexts.Add(classUID, dicom::TS(dicom::IMPL_VR_LE_TRANSFER_SYNTAX));
+
+		bool completed = false;
+		for(int attempt = 0; attempt < 20 && !completed; ++attempt)
+		{
+			try
+			{
+				dicom::DataSet query;
+				query.Put<dicom::VR_CS>(dicom::TAG_QR_LEVEL, std::string("STUDY"));
+				query.Put<dicom::VR_UI>(dicom::TAG_STUDY_INST_UID, dicom::UID(""));
+
+				dicom::ClientConnection client("127.0.0.1", port, "SCU_AE", "SCP_AE", contexts);
+				dicom::CFindSCU findSCU(client, classUID);
+				findSCU.writeRQ(query);
+				findSCU.writeCancelRQ();
+
+				UINT16 status = 0;
+				dicom::DataSet response;
+				dicom::DataSet data;
+				findSCU.readRSP(status, response, data);
+				assert(get<UINT16>(response, dicom::TAG_CMD_FIELD) == dicom::Command::C_FIND_RSP);
+				assert(status == dicom::Status::SUCCESS);
+				assert(data.empty());
+
+				for(int wait = 0; wait < 20 && !cancelHandled; ++wait)
+					std::this_thread::sleep_for(std::chrono::milliseconds(50));
+				completed = cancelHandled;
+			}
+			catch(const SystemError&)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(50));
+			}
+		}
+
+		server.Stop();
+		assert(completed);
+		assert(findHandled);
+		assert(cancelHandled);
+	}
+
 	void checkCMove()
 	{
 		const dicom::UID classUID("1.2.840.10008.5.1.4.1.2.2.2");
@@ -751,6 +830,7 @@ int main()
 	checkServerClientCFind();
 	checkServerClientCMove();
 	checkServerClientCGet();
+	checkServerClientCCancelDispatch();
 	checkCMove();
 	return 0;
 }

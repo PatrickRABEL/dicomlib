@@ -23,6 +23,7 @@ network flow are covered by tests.
 | Thread-backed C-FIND | `ClientConnection::Find()` is verified against a registered `Server` C-FIND handler with pending match data and final success response | `cdimse_commandsets` |
 | Thread-backed C-MOVE dispatch | `ClientConnection::Move()` is verified against a registered `Server` handler that receives the Identifier and writes a final C-MOVE response | `cdimse_commandsets` |
 | Thread-backed C-GET dispatch | `CGetSCU` is verified against a registered `Server` handler that receives the Identifier and writes a final C-GET response | `cdimse_commandsets` |
+| Thread-backed C-CANCEL dispatch | `CFindSCU::writeCancelRQ()` is verified on a `Server`/`ClientConnection` association and SCP dispatch logs a handled C-CANCEL-RQ | `cdimse_commandsets` |
 
 ## Remaining
 
@@ -32,18 +33,17 @@ network flow are covered by tests.
 | C-GET sub-operation orchestration | The SCP dispatch delegates to the registered handler. The library does not yet provide a built-in C-STORE sub-operation scheduler, counters, or final response generator for C-GET. |
 | C-MOVE sub-operation orchestration | The SCP dispatch delegates to the registered handler. The library does not yet provide a built-in association opener to the Move Destination, C-STORE scheduler, counters, or final response generator for C-MOVE. |
 | Service-specific status ranges | The command set can carry status values, but service/SOP-class-specific status validation and detailed failed/warning related fields are not complete. |
-| Network end-to-end tests | Current tests cover command set construction, selected dispatch/SCU code paths, local P-DATA round trips, a local A-ASSOCIATE primitive exchange with C-ECHO, and thread-backed C-ECHO/C-STORE/C-FIND/C-GET dispatch/C-MOVE dispatch. Full thread-backed `Server`/`ClientConnection` association tests for C-CANCEL are still required. |
+| Network end-to-end tests | Current tests cover command set construction, selected dispatch/SCU code paths, local P-DATA round trips, a local A-ASSOCIATE primitive exchange with C-ECHO, and thread-backed C-ECHO/C-STORE/C-FIND/C-GET dispatch/C-MOVE dispatch/C-CANCEL dispatch. Full interruptible-operation C-CANCEL tests are still required before claiming asynchronous cancellation semantics. |
 | Extended negotiation | SCU/SCP Role Selection, SOP Class Extended Negotiation, and Asynchronous Operations Window are not implemented as verified C-DIMSE behavior. |
 
 ## Execution Order
 
-1. Add thread-backed `Server`/`ClientConnection` association tests for C-CANCEL.
-2. Add full-association coverage for C-CANCEL state observation during a running
+1. Add full-association coverage for C-CANCEL state observation during a running
    cancellable C-FIND, C-GET, or C-MOVE handler.
-3. Implement and test C-GET C-STORE sub-operation orchestration on the same
+2. Implement and test C-GET C-STORE sub-operation orchestration on the same
    association, including pending/final response counters.
-4. Implement and test C-MOVE sub-operation orchestration on destination
+3. Implement and test C-MOVE sub-operation orchestration on destination
    associations, including pending/final response counters.
-5. Add service/SOP-class-specific status helpers and tests.
-6. Add verified extended negotiation support only after the association-layer
+4. Add service/SOP-class-specific status helpers and tests.
+5. Add verified extended negotiation support only after the association-layer
    behavior is implemented and covered.
