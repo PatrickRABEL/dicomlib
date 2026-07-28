@@ -734,6 +734,109 @@ namespace
 		assert(handled);
 	}
 
+	void checkServerClientCGetStoreSubOperation()
+	{
+		const short port = reserveLocalPort();
+		const dicom::UID getClassUID = dicom::STUDY_ROOT_QR_GET_SOP_CLASS;
+		const dicom::UID storeClassUID = dicom::CT_IMAGE_STORAGE_SOP_CLASS;
+		const dicom::UID studyUID("1.2.826.0.1.3680043.10.1553.6");
+		const dicom::UID instanceUID("1.2.826.0.1.3680043.10.1553.6.1");
+		std::atomic<bool> getHandled(false);
+		std::atomic<bool> storeHandled(false);
+
+		QuietLogger logger;
+		dicom::Server server;
+		server.SetLogger(&logger);
+		server.SetCheckLocalAETCallback(acceptAnyLocalAET);
+		server.SetCheckRemoteAETCallback(acceptAnyRemoteAET);
+		server.AddHandler(
+			storeClassUID,
+			[](dicom::ServiceBase&, const dicom::DataSet&, dicom::DataSet&)
+			{
+			});
+		server.AddCancellableGetHandler(
+			getClassUID,
+			[&](dicom::ServiceBase& service, const dicom::DataSet& command, dicom::DataSet& request)
+			{
+				assert(get<UINT16>(command, dicom::TAG_CMD_FIELD) == dicom::Command::C_GET_RQ);
+				assert(get<std::string>(request, dicom::TAG_QR_LEVEL) == "STUDY");
+				assert(get<dicom::UID>(request, dicom::TAG_STUDY_INST_UID) == studyUID);
+
+				dicom::DataSet stored;
+				stored.Put<dicom::VR_UI>(dicom::TAG_SOP_CLASS_UID, storeClassUID);
+				stored.Put<dicom::VR_UI>(dicom::TAG_SOP_INST_UID, instanceUID);
+				stored.Put<dicom::VR_UI>(dicom::TAG_STUDY_INST_UID, studyUID);
+
+				dicom::CStoreSCU storeSCU(service, storeClassUID);
+				storeSCU.writeRQ(instanceUID, stored);
+
+				UINT16 storeStatus = 0;
+				dicom::DataSet storeResponse;
+				storeSCU.readRSP(storeStatus, storeResponse);
+				assert(get<UINT16>(storeResponse, dicom::TAG_CMD_FIELD) == dicom::Command::C_STORE_RSP);
+				assert(storeStatus == dicom::Status::SUCCESS);
+
+				getHandled = true;
+				return dicom::CSubOperationResult(dicom::Status::SUCCESS, 0, 1, 0, 0);
+			});
+		server.ServeInNewThread(port);
+
+		dicom::PresentationContexts contexts;
+		contexts.Add(getClassUID, dicom::TS(dicom::IMPL_VR_LE_TRANSFER_SYNTAX));
+		contexts.Add(storeClassUID, dicom::TS(dicom::IMPL_VR_LE_TRANSFER_SYNTAX));
+
+		bool completed = false;
+		for(int attempt = 0; attempt < 20 && !completed; ++attempt)
+		{
+			try
+			{
+				dicom::DataSet query;
+				query.Put<dicom::VR_CS>(dicom::TAG_QR_LEVEL, std::string("STUDY"));
+				query.Put<dicom::VR_UI>(dicom::TAG_STUDY_INST_UID, studyUID);
+
+				dicom::ClientConnection client("127.0.0.1", port, "SCU_AE", "SCP_AE", contexts);
+				dicom::CGetSCU getSCU(client, getClassUID);
+				getSCU.writeRQ(query);
+
+				UINT16 status = 0;
+				dicom::DataSet response;
+				dicom::DataSet data;
+				getSCU.readRSP(
+					status,
+					response,
+					data,
+					[&](dicom::ServiceBase&, const dicom::DataSet& command, dicom::DataSet& stored)
+					{
+						assert(get<UINT16>(command, dicom::TAG_CMD_FIELD) == dicom::Command::C_STORE_RQ);
+						assert(get<dicom::UID>(command, dicom::TAG_AFF_SOP_CLASS_UID) == storeClassUID);
+						assert(get<dicom::UID>(command, dicom::TAG_AFF_SOP_INST_UID) == instanceUID);
+						assert(get<dicom::UID>(stored, dicom::TAG_SOP_CLASS_UID) == storeClassUID);
+						assert(get<dicom::UID>(stored, dicom::TAG_SOP_INST_UID) == instanceUID);
+						assert(get<dicom::UID>(stored, dicom::TAG_STUDY_INST_UID) == studyUID);
+						storeHandled = true;
+					});
+
+				assert(get<UINT16>(response, dicom::TAG_CMD_FIELD) == dicom::Command::C_GET_RSP);
+				assert(status == dicom::Status::SUCCESS);
+				assert(get<UINT16>(response, dicom::TAG_NUM_REMAIN_SUBOP) == 0);
+				assert(get<UINT16>(response, dicom::TAG_NUM_COMPL_SUBOP) == 1);
+				assert(get<UINT16>(response, dicom::TAG_NUM_FAIL_SUBOP) == 0);
+				assert(get<UINT16>(response, dicom::TAG_NUM_WARN_SUBOP) == 0);
+				assert(data.empty());
+				completed = getHandled && storeHandled;
+			}
+			catch(const SystemError&)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(50));
+			}
+		}
+
+		server.Stop();
+		assert(completed);
+		assert(getHandled);
+		assert(storeHandled);
+	}
+
 	void checkServerClientCGetFinalCancelStatus()
 	{
 		const short port = reserveLocalPort();
@@ -1142,6 +1245,7 @@ int main()
 	checkServerClientCFind();
 	checkServerClientCMove();
 	checkServerClientCGet();
+	checkServerClientCGetStoreSubOperation();
 	checkServerClientCGetFinalCancelStatus();
 	checkServerClientCMoveFinalCancelStatus();
 	checkServerClientCCancelDispatch();

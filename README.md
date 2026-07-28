@@ -186,7 +186,10 @@ and can be polled by a running handler with `PollCCancelRQ()`. C-FIND SCP code
 can use `AddCancellableFindHandler()` to return a final `Status::CANCEL`;
 C-GET and C-MOVE can use `AddCancellableGetHandler()` and
 `AddCancellableMoveHandler()` to return final `Status::CANCEL` responses with
-sub-operation counters. Automatic handler interruption is not yet claimed.
+sub-operation counters. `CGetSCU::readRSP(..., CStoreFunction)` can process
+incoming C-STORE sub-operations on the same association before the final
+C-GET-RSP. Automatic handler interruption and reusable multi-instance
+sub-operation scheduling are not yet claimed.
 
 The detailed C-DIMSE implementation plan and remaining work are maintained in
 [`docs/CDIMSE_PLAN.md`](docs/CDIMSE_PLAN.md).

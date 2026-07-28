@@ -159,6 +159,7 @@ namespace dicom
 		void writeCancelRQ();
 		void readRSP(UINT16& status, DataSet&  data);
 		void readRSP(UINT16& status, DataSet& response, DataSet&  data);
+		void readRSP(UINT16& status, DataSet& response, DataSet& data, CStoreFunction storeHandler);
 	};
 
 	class CMoveSCU  : public SCU

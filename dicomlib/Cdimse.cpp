@@ -427,6 +427,40 @@ namespace dicom
 
 	}
 
+	void CGetSCU::readRSP(UINT16& status, DataSet& response, DataSet& data, CStoreFunction storeHandler)
+	{
+		while(true)
+		{
+			DataSet command;
+			service_.Read(command);
+
+			Command::Code commandField = 0;
+			command(TAG_CMD_FIELD) >> commandField;
+
+			if(commandField == Command::C_GET_RSP)
+			{
+				UINT16 dstype = 0;
+				ValidateCdimseResponse(command, Command::C_GET_RSP, lastMessageID_);
+				command(TAG_DATA_SET_TYPE) >> dstype;
+				command(TAG_STATUS) >> status;
+				response = command;
+				if(dstype!=DataSetStatus::NO_DATA_SET)
+					service_.Read(data);
+				return;
+			}
+
+			if(commandField == Command::C_STORE_RQ)
+			{
+				UID storeClassUID("");
+				command(TAG_AFF_SOP_CLASS_UID) >> storeClassUID;
+				HandleCStore(storeHandler, service_, command, storeClassUID);
+				continue;
+			}
+
+			throw exception("Unexpected C-DIMSE command while reading C-GET response");
+		}
+	}
+
 	CMoveSCU::CMoveSCU(ServiceBase& service,const UID& classUID)
 	: SCU(service,classUID)
 	{
