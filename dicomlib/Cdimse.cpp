@@ -253,6 +253,50 @@ namespace dicom
 		return !IsCdimsePendingStatus(status);
 	}
 
+	namespace
+	{
+		bool IsUnableToProcessStatus(UINT16 status)
+		{
+			return (status & 0xf000) == 0xc000;
+		}
+	}
+
+	bool IsCFindResponseStatus(UINT16 status)
+	{
+		return IsCdimseSuccessStatus(status) ||
+			status == Status::CANCEL ||
+			status == Status::PENDING ||
+			status == Status::PENDING1 ||
+			status == 0xa700 ||
+			status == 0xa900 ||
+			IsUnableToProcessStatus(status);
+	}
+
+	bool IsCGetResponseStatus(UINT16 status)
+	{
+		return IsCdimseSuccessStatus(status) ||
+			status == Status::CANCEL ||
+			status == Status::WARNING ||
+			status == Status::PENDING ||
+			status == 0xa701 ||
+			status == 0xa702 ||
+			status == 0xa900 ||
+			IsUnableToProcessStatus(status);
+	}
+
+	bool IsCMoveResponseStatus(UINT16 status)
+	{
+		return IsCdimseSuccessStatus(status) ||
+			status == Status::CANCEL ||
+			status == Status::WARNING ||
+			status == Status::PENDING ||
+			status == 0xa701 ||
+			status == 0xa702 ||
+			status == 0xa801 ||
+			status == 0xa900 ||
+			IsUnableToProcessStatus(status);
+	}
+
 	bool PollCCancelRQ(ServiceBase& pdu, UINT16 messageID)
 	{
 		Network::Socket* socket = pdu.GetSocket();
