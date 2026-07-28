@@ -797,6 +797,77 @@ namespace
 		assert(cancelHandled);
 	}
 
+	void checkServerClientCCancelObservedByRunningHandler()
+	{
+		const short port = reserveLocalPort();
+		const dicom::UID classUID = dicom::STUDY_ROOT_QR_FIND_SOP_CLASS;
+		std::atomic<bool> handlerStarted(false);
+		std::atomic<bool> cancelObserved(false);
+
+		QuietLogger logger;
+		dicom::Server server;
+		server.SetLogger(&logger);
+		server.SetCheckLocalAETCallback(acceptAnyLocalAET);
+		server.SetCheckRemoteAETCallback(acceptAnyRemoteAET);
+		server.AddFindHandler(
+			classUID,
+			[&](dicom::ServiceBase& service, dicom::DataSet& query, dicom::Sequence& matches)
+			{
+				(void)matches;
+				assert(get<std::string>(query, dicom::TAG_QR_LEVEL) == "STUDY");
+				handlerStarted = true;
+
+				for(int wait = 0; wait < 20 && !cancelObserved; ++wait)
+				{
+					const bool observed = dicom::PollCCancelRQ(service);
+					if(observed)
+						cancelObserved = true;
+					std::this_thread::sleep_for(std::chrono::milliseconds(50));
+				}
+			});
+		server.ServeInNewThread(port);
+
+		dicom::PresentationContexts contexts;
+		contexts.Add(classUID, dicom::TS(dicom::IMPL_VR_LE_TRANSFER_SYNTAX));
+
+		bool completed = false;
+		for(int attempt = 0; attempt < 20 && !completed; ++attempt)
+		{
+			try
+			{
+				dicom::DataSet query;
+				query.Put<dicom::VR_CS>(dicom::TAG_QR_LEVEL, std::string("STUDY"));
+				query.Put<dicom::VR_UI>(dicom::TAG_STUDY_INST_UID, dicom::UID(""));
+
+				dicom::ClientConnection client("127.0.0.1", port, "SCU_AE", "SCP_AE", contexts);
+				dicom::CFindSCU findSCU(client, classUID);
+				findSCU.writeRQ(query);
+
+				for(int wait = 0; wait < 20 && !handlerStarted; ++wait)
+					std::this_thread::sleep_for(std::chrono::milliseconds(50));
+				findSCU.writeCancelRQ();
+
+				UINT16 status = 0;
+				dicom::DataSet response;
+				dicom::DataSet data;
+				findSCU.readRSP(status, response, data);
+				assert(get<UINT16>(response, dicom::TAG_CMD_FIELD) == dicom::Command::C_FIND_RSP);
+				assert(status == dicom::Status::SUCCESS);
+				assert(data.empty());
+				completed = cancelObserved;
+			}
+			catch(const SystemError&)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(50));
+			}
+		}
+
+		server.Stop();
+		assert(completed);
+		assert(handlerStarted);
+		assert(cancelObserved);
+	}
+
 	void checkCMove()
 	{
 		const dicom::UID classUID("1.2.840.10008.5.1.4.1.2.2.2");
@@ -831,6 +902,7 @@ int main()
 	checkServerClientCMove();
 	checkServerClientCGet();
 	checkServerClientCCancelDispatch();
+	checkServerClientCCancelObservedByRunningHandler();
 	checkCMove();
 	return 0;
 }

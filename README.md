@@ -181,9 +181,9 @@ C-DIMSE command sets are covered by tests for:
 SCU response handling validates the response command field and the Message ID
 Being Responded To. SCP dispatch handles C-ECHO, C-STORE, C-FIND, C-MOVE, and
 routes C-GET to the registered application handler after reading the Identifier.
-C-CANCEL-RQ is encoded, accepted by SCP dispatch, and recorded on association
-state for handlers to inspect, but full asynchronous cancel interruption of an
-already-running handler is not yet claimed.
+C-CANCEL-RQ is encoded, accepted by SCP dispatch, recorded on association state,
+and can be polled by a running handler with `PollCCancelRQ()`. Automatic handler
+interruption and automatic final Cancel responses are not yet claimed.
 
 The detailed C-DIMSE implementation plan and remaining work are maintained in
 [`docs/CDIMSE_PLAN.md`](docs/CDIMSE_PLAN.md).

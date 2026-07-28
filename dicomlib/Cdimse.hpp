@@ -58,6 +58,8 @@ namespace dicom
 
 	void HandleCCancel(ServiceBase& pdu, const DataSet& command);
 
+	bool PollCCancelRQ(ServiceBase& pdu, UINT16 messageID = 0);
+
 	class CGetSCP
 	{
 		HandlerFunction handler_;

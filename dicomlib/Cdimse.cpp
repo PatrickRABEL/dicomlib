@@ -159,6 +159,27 @@ namespace dicom
 		pdu.RequestCancel(messageIDBeingRespondedTo);
 	}
 
+	bool PollCCancelRQ(ServiceBase& pdu, UINT16 messageID)
+	{
+		Network::Socket* socket = pdu.GetSocket();
+		if(!socket || !socket->MoreData(0))
+			return pdu.IsCancelRequested(messageID);
+
+		DataSet command;
+		if(!pdu.Read(command))
+			return false;
+
+		Command::Code commandField = 0;
+		command(TAG_CMD_FIELD) >> commandField;
+		if(commandField != Command::C_CANCEL_RQ)
+			throw exception("Expected C-CANCEL-RQ while polling for cancellation");
+
+		HandleCCancel(pdu, command);
+		if(messageID == 0)
+			return true;
+		return pdu.IsCancelRequested(messageID);
+	}
+
 	void HandleCMove(CMoveFunction handler,ServiceBase& pdu,
 		const DataSet& command, const UID& classUID)
 	{
