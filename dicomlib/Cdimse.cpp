@@ -92,6 +92,13 @@ namespace dicom
 				throw exception("Invalid C-DIMSE response status");
 		}
 
+		void ValidateFinalCdimseResponseStatus(UINT16 status, Command::Code command)
+		{
+			ValidateCdimseResponseStatus(status,command);
+			if(IsCdimsePendingStatus(status))
+				throw exception("Invalid final C-DIMSE response status");
+		}
+
 		void ValidateCdimseRequest(
 			const DataSet& command,
 			Command::Code expectedCommand,
@@ -109,6 +116,14 @@ namespace dicom
 				if(commandClassUID != *expectedClassUID)
 					throw exception("Unexpected C-DIMSE request SOP Class UID");
 			}
+		}
+
+		void ValidateNoCommandDataSet(const DataSet& command)
+		{
+			UINT16 dataSetType = 0;
+			command(TAG_DATA_SET_TYPE) >> dataSetType;
+			if(dataSetType != DataSetStatus::NO_DATA_SET)
+				throw exception("C-DIMSE command shall not include a data set");
 		}
 
 		void ReadRequiredCommand(ServiceBase& service, DataSet& command)
@@ -180,6 +195,7 @@ namespace dicom
 	{
 		RequireSCPRole(pdu,classUID);
 		ValidateCdimseRequest(command,Command::C_ECHO_RQ,&classUID);
+		ValidateNoCommandDataSet(command);
 		UINT16 msgID;
 		command(TAG_MSG_ID)>>msgID;
 		CommandSet::CEchoRSP response(msgID,classUID);
@@ -247,6 +263,7 @@ namespace dicom
 			pdu.WriteCommand(response,classUID);
 			return;
 		}
+		ValidateFinalCdimseResponseStatus(finalStatus,Command::C_FIND_RSP);
 
 		//now we send back all found matches.
 		for(Sequence::iterator I=Matches.begin();I!=Matches.end();I++)
@@ -324,6 +341,7 @@ namespace dicom
 		CSubOperationResult result = handler(pdu,command,request_data);
 		if(PollCCancelRQ(pdu,msgID))
 			result.status = Status::CANCEL;
+		ValidateFinalCdimseResponseStatus(result.status,Command::C_GET_RSP);
 		CommandSet::CGetRSP response(msgID,classUID,result.status,DataSetStatus::NO_DATA_SET);
 		SetCGetCounters(response,result);
 		pdu.WriteCommand(response,classUID);
@@ -644,6 +662,7 @@ namespace dicom
 		CSubOperationResult result = handler(pdu,command,request_data);
 		if(PollCCancelRQ(pdu,msgID))
 			result.status = Status::CANCEL;
+		ValidateFinalCdimseResponseStatus(result.status,Command::C_MOVE_RSP);
 		CommandSet::CMoveRSP response(msgID,classUID,result.status,DataSetStatus::NO_DATA_SET);
 		SetCMoveCounters(response,result);
 		pdu.WriteCommand(response,classUID);
@@ -682,6 +701,7 @@ namespace dicom
 	{
 		ReadRequiredCommand(service_,response);
 		ValidateCdimseResponse(response, Command::C_ECHO_RSP, lastMessageID_, classUID_);
+		ValidateNoCommandDataSet(response);
 		response(TAG_STATUS)>>status;
 		ValidateCdimseResponseStatus(status, Command::C_ECHO_RSP);
 	}
@@ -733,6 +753,7 @@ namespace dicom
 	{
 		ReadRequiredCommand(service_,response);
 		ValidateCdimseResponse(response, Command::C_STORE_RSP, lastMessageID_, classUID_, &lastSOPInstanceUID_);
+		ValidateNoCommandDataSet(response);
 		response(TAG_STATUS) >> status;
 		ValidateCdimseResponseStatus(status, Command::C_STORE_RSP);
 	}

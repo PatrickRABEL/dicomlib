@@ -183,12 +183,15 @@ Being Responded To. When present in a response, Affected SOP Class UID is
 checked against the invoked service class; C-STORE responses also check
 Affected SOP Instance UID when present. SCU response readers apply the
 service-specific status validators for C-ECHO, C-STORE, C-FIND, C-GET, and
-C-MOVE, and reject association release before a response command or expected
-response Data Set. SCP dispatch handles C-ECHO, C-STORE, C-FIND, C-MOVE, and
-routes C-GET to the registered application handler after reading the
-Identifier. C-DIMSE SCP handlers reject unexpected request command fields and
-mismatched Affected SOP Class UIDs, and reject association release before a
-mandatory request Data Set is received.
+C-MOVE, reject C-ECHO-RSP and C-STORE-RSP commands that announce a Data Set,
+and reject association release before a response command or expected response
+Data Set. SCP dispatch handles C-ECHO, C-STORE, C-FIND, C-MOVE, and routes
+C-GET to the registered application handler after reading the Identifier.
+C-DIMSE SCP handlers reject unexpected request command fields, mismatched
+Affected SOP Class UIDs, C-ECHO-RQ commands that announce a Data Set, and
+association release before a mandatory request Data Set is received. C-FIND,
+C-GET, and C-MOVE SCP status handlers validate callback final response
+statuses before writing responses.
 C-CANCEL-RQ is encoded, accepted by SCP dispatch, recorded on association state,
 and can be polled by a running handler with `PollCCancelRQ()`. C-FIND SCP code
 can use `AddCancellableFindHandler()` to return a final `Status::CANCEL`;

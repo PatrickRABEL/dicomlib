@@ -312,6 +312,32 @@ namespace
 		}
 	};
 
+	struct TestCGetSCU : public dicom::CGetSCU
+	{
+		TestCGetSCU(dicom::ServiceBase& service, const dicom::UID& classUID)
+		: dicom::CGetSCU(service, classUID)
+		{
+		}
+
+		void setLastMessageID(UINT16 messageID)
+		{
+			lastMessageID_ = messageID;
+		}
+	};
+
+	struct TestCMoveSCU : public dicom::CMoveSCU
+	{
+		TestCMoveSCU(dicom::ServiceBase& service, const dicom::UID& classUID)
+		: dicom::CMoveSCU(service, classUID)
+		{
+		}
+
+		void setLastMessageID(UINT16 messageID)
+		{
+			lastMessageID_ = messageID;
+		}
+	};
+
 	void makeSocketPair(int sockets[2])
 	{
 		const int result = ::socketpair(AF_UNIX, SOCK_STREAM, 0, sockets);
@@ -1643,6 +1669,40 @@ namespace
 		}
 
 		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService scuSide(sockets[0], dicom::VERIFICATION_SOP_CLASS);
+			PairedService scpSide(sockets[1], dicom::VERIFICATION_SOP_CLASS);
+
+			dicom::CEchoSCU scu(scuSide);
+			scu.writeRQ();
+
+			dicom::DataSet request;
+			requireRead(scpSide, request);
+			const UINT16 messageID = get<UINT16>(request, dicom::TAG_MSG_ID);
+			dicom::DataSet responseCommand;
+			responseCommand.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_CLASS_UID,dicom::VERIFICATION_SOP_CLASS);
+			responseCommand.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD,dicom::Command::C_ECHO_RSP);
+			responseCommand.Put<dicom::VR_US>(dicom::TAG_MSG_ID_RSP,messageID);
+			responseCommand.Put<dicom::VR_US>(dicom::TAG_DATA_SET_TYPE,dicom::DataSetStatus::YES_DATA_SET);
+			responseCommand.Put<dicom::VR_US>(dicom::TAG_STATUS,dicom::Status::SUCCESS);
+			scpSide.WriteCommand(responseCommand,dicom::VERIFICATION_SOP_CLASS);
+
+			UINT16 status = 0;
+			dicom::DataSet response;
+			bool rejected = false;
+			try
+			{
+				scu.readRSP(status,response);
+			}
+			catch(const std::exception&)
+			{
+				rejected = true;
+			}
+			assert(rejected);
+		}
+
+		{
 			const dicom::UID instanceUID("1.2.826.0.1.3680043.10.1553.12.1");
 			const dicom::UID wrongInstanceUID("1.2.826.0.1.3680043.10.1553.12.2");
 			int sockets[2];
@@ -1666,6 +1726,46 @@ namespace
 				wrongInstanceUID,
 				dicom::Status::SUCCESS);
 			scpSide.WriteCommand(wrongInstance, dicom::CT_IMAGE_STORAGE_SOP_CLASS);
+
+			UINT16 status = 0;
+			dicom::DataSet response;
+			bool rejected = false;
+			try
+			{
+				scu.readRSP(status, response);
+			}
+			catch(const std::exception&)
+			{
+				rejected = true;
+			}
+			assert(rejected);
+		}
+
+		{
+			const dicom::UID instanceUID("1.2.826.0.1.3680043.10.1553.12.3");
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService scuSide(sockets[0], dicom::CT_IMAGE_STORAGE_SOP_CLASS);
+			PairedService scpSide(sockets[1], dicom::CT_IMAGE_STORAGE_SOP_CLASS);
+
+			dicom::DataSet stored;
+			stored.Put<dicom::VR_UI>(dicom::TAG_SOP_CLASS_UID, dicom::CT_IMAGE_STORAGE_SOP_CLASS);
+			stored.Put<dicom::VR_UI>(dicom::TAG_SOP_INST_UID, instanceUID);
+
+			dicom::CStoreSCU scu(scuSide, dicom::CT_IMAGE_STORAGE_SOP_CLASS);
+			scu.writeRQ(instanceUID, stored);
+
+			dicom::DataSet request;
+			requireRead(scpSide, request);
+			const UINT16 messageID = get<UINT16>(request, dicom::TAG_MSG_ID);
+			dicom::DataSet responseCommand;
+			responseCommand.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_CLASS_UID,dicom::CT_IMAGE_STORAGE_SOP_CLASS);
+			responseCommand.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_INST_UID,instanceUID);
+			responseCommand.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD,dicom::Command::C_STORE_RSP);
+			responseCommand.Put<dicom::VR_US>(dicom::TAG_MSG_ID_RSP,messageID);
+			responseCommand.Put<dicom::VR_US>(dicom::TAG_DATA_SET_TYPE,dicom::DataSetStatus::YES_DATA_SET);
+			responseCommand.Put<dicom::VR_US>(dicom::TAG_STATUS,dicom::Status::SUCCESS);
+			scpSide.WriteCommand(responseCommand, dicom::CT_IMAGE_STORAGE_SOP_CLASS);
 
 			UINT16 status = 0;
 			dicom::DataSet response;
@@ -1778,6 +1878,22 @@ namespace
 		}
 		assert(wrongClassRejected);
 
+		dicom::DataSet echoWithDataSet;
+		echoWithDataSet.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_CLASS_UID,dicom::VERIFICATION_SOP_CLASS);
+		echoWithDataSet.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD,dicom::Command::C_ECHO_RQ);
+		echoWithDataSet.Put<dicom::VR_US>(dicom::TAG_MSG_ID,UINT16(24));
+		echoWithDataSet.Put<dicom::VR_US>(dicom::TAG_DATA_SET_TYPE,dicom::DataSetStatus::YES_DATA_SET);
+		bool echoDataSetRejected = false;
+		try
+		{
+			dicom::HandleCEcho(service, echoWithDataSet, dicom::VERIFICATION_SOP_CLASS);
+		}
+		catch(const std::exception&)
+		{
+			echoDataSetRejected = true;
+		}
+		assert(echoDataSetRejected);
+
 		dicom::CommandSet::CFindRQ notCancel(25,classUID);
 		bool wrongCancelCommandRejected = false;
 		try
@@ -1846,6 +1962,216 @@ namespace
 				missingDataRejected = true;
 			}
 			assert(missingDataRejected);
+		}
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService requestorSide(sockets[0], classUID);
+			PairedService scpSide(sockets[1], classUID);
+
+			dicom::CommandSet::CFindRQ request(31,classUID);
+			dicom::DataSet requestData;
+			requestData.Put<dicom::VR_CS>(dicom::TAG_QR_LEVEL, std::string("STUDY"));
+			requestorSide.WriteCommand(request,classUID);
+			dicom::DataSet readRequest;
+			requireRead(scpSide,readRequest);
+			requestorSide.WriteDataSet(requestData,classUID);
+
+			bool invalidStatusRejected = false;
+			try
+			{
+				dicom::HandleCFind(
+					dicom::CFindStatusFunction(
+						[](dicom::ServiceBase&, dicom::DataSet&, dicom::Sequence&)
+						{
+							return dicom::Status::PENDING;
+						}),
+					scpSide,
+					readRequest,
+					classUID);
+			}
+			catch(const std::exception&)
+			{
+				invalidStatusRejected = true;
+			}
+			assert(invalidStatusRejected);
+		}
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService requestorSide(sockets[0], classUID);
+			PairedService scpSide(sockets[1], classUID);
+
+			dicom::CommandSet::CGetRQ request(39,classUID);
+			dicom::DataSet requestData;
+			requestData.Put<dicom::VR_CS>(dicom::TAG_QR_LEVEL, std::string("STUDY"));
+			requestorSide.WriteCommand(request,classUID);
+			dicom::DataSet readRequest;
+			requireRead(scpSide,readRequest);
+			requestorSide.WriteDataSet(requestData,classUID);
+
+			dicom::HandleCGet(
+				dicom::CGetStatusFunction(
+					[](dicom::ServiceBase& service, const dicom::DataSet&, dicom::DataSet&)
+					{
+						service.RequestCancel(39);
+						return dicom::CSubOperationResult(dicom::Status::PENDING,2,1,0,0);
+					}),
+				scpSide,
+				readRequest,
+				classUID);
+
+			TestCGetSCU scu(requestorSide,classUID);
+			scu.setLastMessageID(39);
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			scu.readRSP(status,response,data);
+			assert(status == dicom::Status::CANCEL);
+			assert(get<UINT16>(response,dicom::TAG_DATA_SET_TYPE) == dicom::DataSetStatus::NO_DATA_SET);
+			assert(data.empty());
+		}
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService requestorSide(sockets[0], classUID);
+			PairedService scpSide(sockets[1], classUID);
+
+			dicom::CommandSet::CFindRQ request(37,classUID);
+			dicom::DataSet requestData;
+			requestData.Put<dicom::VR_CS>(dicom::TAG_QR_LEVEL, std::string("STUDY"));
+			requestorSide.WriteCommand(request,classUID);
+			dicom::DataSet readRequest;
+			requireRead(scpSide,readRequest);
+			requestorSide.WriteDataSet(requestData,classUID);
+
+			dicom::HandleCFind(
+				dicom::CFindStatusFunction(
+					[](dicom::ServiceBase& service, dicom::DataSet&, dicom::Sequence&)
+					{
+						service.RequestCancel(37);
+						return dicom::Status::PENDING;
+					}),
+				scpSide,
+				readRequest,
+				classUID);
+
+			TestCFindSCU scu(requestorSide,classUID);
+			scu.setLastMessageID(37);
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			scu.readRSP(status,response,data);
+			assert(status == dicom::Status::CANCEL);
+			assert(get<UINT16>(response,dicom::TAG_DATA_SET_TYPE) == dicom::DataSetStatus::NO_DATA_SET);
+			assert(data.empty());
+		}
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService requestorSide(sockets[0], classUID);
+			PairedService scpSide(sockets[1], classUID);
+
+			dicom::CommandSet::CGetRQ request(33,classUID);
+			dicom::DataSet requestData;
+			requestData.Put<dicom::VR_CS>(dicom::TAG_QR_LEVEL, std::string("STUDY"));
+			requestorSide.WriteCommand(request,classUID);
+			dicom::DataSet readRequest;
+			requireRead(scpSide,readRequest);
+			requestorSide.WriteDataSet(requestData,classUID);
+
+			bool invalidStatusRejected = false;
+			try
+			{
+				dicom::HandleCGet(
+					dicom::CGetStatusFunction(
+						[](dicom::ServiceBase&, const dicom::DataSet&, dicom::DataSet&)
+						{
+							return dicom::CSubOperationResult(dicom::Status::PENDING,0,0,0,0);
+						}),
+					scpSide,
+					readRequest,
+					classUID);
+			}
+			catch(const std::exception&)
+			{
+				invalidStatusRejected = true;
+			}
+			assert(invalidStatusRejected);
+		}
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService requestorSide(sockets[0], classUID);
+			PairedService scpSide(sockets[1], classUID);
+
+			dicom::CommandSet::CMoveRQ request(35,classUID,"ARCHIVE_AE");
+			dicom::DataSet requestData;
+			requestData.Put<dicom::VR_CS>(dicom::TAG_QR_LEVEL, std::string("STUDY"));
+			requestorSide.WriteCommand(request,classUID);
+			dicom::DataSet readRequest;
+			requireRead(scpSide,readRequest);
+			requestorSide.WriteDataSet(requestData,classUID);
+
+			bool invalidStatusRejected = false;
+			try
+			{
+				dicom::HandleCMove(
+					dicom::CMoveStatusFunction(
+						[](dicom::ServiceBase&, const dicom::DataSet&, dicom::DataSet&)
+						{
+							return dicom::CSubOperationResult(dicom::Status::PENDING,0,0,0,0);
+						}),
+					scpSide,
+					readRequest,
+					classUID);
+			}
+			catch(const std::exception&)
+			{
+				invalidStatusRejected = true;
+			}
+			assert(invalidStatusRejected);
+		}
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService requestorSide(sockets[0], classUID);
+			PairedService scpSide(sockets[1], classUID);
+
+			dicom::CommandSet::CMoveRQ request(41,classUID,"ARCHIVE_AE");
+			dicom::DataSet requestData;
+			requestData.Put<dicom::VR_CS>(dicom::TAG_QR_LEVEL, std::string("STUDY"));
+			requestorSide.WriteCommand(request,classUID);
+			dicom::DataSet readRequest;
+			requireRead(scpSide,readRequest);
+			requestorSide.WriteDataSet(requestData,classUID);
+
+			dicom::HandleCMove(
+				dicom::CMoveStatusFunction(
+					[](dicom::ServiceBase& service, const dicom::DataSet&, dicom::DataSet&)
+					{
+						service.RequestCancel(41);
+						return dicom::CSubOperationResult(dicom::Status::PENDING,2,1,0,0);
+					}),
+				scpSide,
+				readRequest,
+				classUID);
+
+			TestCMoveSCU scu(requestorSide,classUID);
+			scu.setLastMessageID(41);
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			scu.readRSP(status,response,data);
+			assert(status == dicom::Status::CANCEL);
+			assert(get<UINT16>(response,dicom::TAG_DATA_SET_TYPE) == dicom::DataSetStatus::NO_DATA_SET);
+			assert(data.empty());
 		}
 	}
 
