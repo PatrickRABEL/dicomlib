@@ -277,6 +277,30 @@ namespace dicom
 		std::lock_guard<std::mutex> scoped_lock(mutex_);
 		FindHandlers_[uid]=Handler;
 	}
+	void Server::AddCancellableFindHandler(const UID& uid,CFindStatusFunction Handler)
+	{
+		std::lock_guard<std::mutex> scoped_lock(mutex_);
+		CancellableFindHandlers_[uid]=Handler;
+	}
+
+	bool Server::HasCancellableFindHandler(const UID& uid)
+	{
+		std::lock_guard<std::mutex> scoped_lock(mutex_);
+		return CancellableFindHandlers_.find(uid)!=CancellableFindHandlers_.end();
+	}
+
+	CFindStatusFunction Server::GetCancellableFindHandler(const UID& uid)
+	{
+		std::lock_guard<std::mutex> scoped_lock(mutex_);
+		std::map<UID,CFindStatusFunction>::iterator I = CancellableFindHandlers_.find(uid);
+		if(I==CancellableFindHandlers_.end())
+		{
+			LogError("No available handler.");
+			throw NoAvailableHandler();//or something
+		}
+		else
+			return I->second;
+	}
 
 	CFindFunction Server::GetFindHandler(const UID& uid)
 	{
@@ -308,7 +332,9 @@ namespace dicom
 	bool Server::IsAcceptableAbstractSyntax(const UID& uid)
 	{
 		std::lock_guard<std::mutex> scoped_lock(mutex_);
-		if((Handlers_.find(uid)!=Handlers_.end()) || (FindHandlers_.find(uid)!=FindHandlers_.end()))
+		if((Handlers_.find(uid)!=Handlers_.end()) ||
+			(FindHandlers_.find(uid)!=FindHandlers_.end()) ||
+			(CancellableFindHandlers_.find(uid)!=CancellableFindHandlers_.end()))
 			return true;
 		if(VERIFICATION_SOP_CLASS==uid)
 			return true;//we accept this by default.

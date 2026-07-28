@@ -182,8 +182,10 @@ SCU response handling validates the response command field and the Message ID
 Being Responded To. SCP dispatch handles C-ECHO, C-STORE, C-FIND, C-MOVE, and
 routes C-GET to the registered application handler after reading the Identifier.
 C-CANCEL-RQ is encoded, accepted by SCP dispatch, recorded on association state,
-and can be polled by a running handler with `PollCCancelRQ()`. Automatic handler
-interruption and automatic final Cancel responses are not yet claimed.
+and can be polled by a running handler with `PollCCancelRQ()`. C-FIND SCP code
+can use `AddCancellableFindHandler()` to return a final `Status::CANCEL`
+response. Automatic handler interruption and automatic C-GET/C-MOVE final
+Cancel responses are not yet claimed.
 
 The detailed C-DIMSE implementation plan and remaining work are maintained in
 [`docs/CDIMSE_PLAN.md`](docs/CDIMSE_PLAN.md).

@@ -25,22 +25,23 @@ network flow are covered by tests.
 | Thread-backed C-GET dispatch | `CGetSCU` is verified against a registered `Server` handler that receives the Identifier and writes a final C-GET response | `cdimse_commandsets` |
 | Thread-backed C-CANCEL dispatch | `CFindSCU::writeCancelRQ()` is verified on a `Server`/`ClientConnection` association and SCP dispatch logs a handled C-CANCEL-RQ | `cdimse_commandsets` |
 | C-CANCEL observation by running handler | `PollCCancelRQ()` lets a running C-FIND/C-GET/C-MOVE handler poll the association for a pending C-CANCEL-RQ; verified on a thread-backed C-FIND association | `cdimse_commandsets` |
+| C-FIND final Cancel response | `AddCancellableFindHandler()` lets an SCP handler return `Status::CANCEL` after observing C-CANCEL; verified as a final C-FIND-RSP with no Identifier | `cdimse_commandsets` |
 
 ## Remaining
 
 | Area | Current status |
 | --- | --- |
-| C-CANCEL final cancel semantics | A running handler can now observe C-CANCEL by polling, but the library does not automatically interrupt the handler or automatically generate final C-FIND, C-GET, or C-MOVE responses with Cancel status. That response behavior remains application-handler responsibility until a cancellable handler contract is added. |
+| C-CANCEL final cancel semantics | C-FIND now has an explicit cancellable handler contract that can return final Cancel status. C-GET and C-MOVE handlers can observe C-CANCEL by polling, but the library does not yet provide a dedicated cancellable handler contract or automatic final Cancel response generation for those services. |
 | C-GET sub-operation orchestration | The SCP dispatch delegates to the registered handler. The library does not yet provide a built-in C-STORE sub-operation scheduler, counters, or final response generator for C-GET. |
 | C-MOVE sub-operation orchestration | The SCP dispatch delegates to the registered handler. The library does not yet provide a built-in association opener to the Move Destination, C-STORE scheduler, counters, or final response generator for C-MOVE. |
 | Service-specific status ranges | The command set can carry status values, but service/SOP-class-specific status validation and detailed failed/warning related fields are not complete. |
-| Network end-to-end tests | Current tests cover command set construction, selected dispatch/SCU code paths, local P-DATA round trips, a local A-ASSOCIATE primitive exchange with C-ECHO, thread-backed C-ECHO/C-STORE/C-FIND/C-GET dispatch/C-MOVE dispatch/C-CANCEL dispatch, and C-CANCEL polling by a running C-FIND handler. |
+| Network end-to-end tests | Current tests cover command set construction, selected dispatch/SCU code paths, local P-DATA round trips, a local A-ASSOCIATE primitive exchange with C-ECHO, thread-backed C-ECHO/C-STORE/C-FIND/C-GET dispatch/C-MOVE dispatch/C-CANCEL dispatch, C-CANCEL polling by a running C-FIND handler, and a final C-FIND Cancel response. |
 | Extended negotiation | SCU/SCP Role Selection, SOP Class Extended Negotiation, and Asynchronous Operations Window are not implemented as verified C-DIMSE behavior. |
 
 ## Execution Order
 
-1. Define and test a cancellable handler contract for C-FIND, C-GET, and C-MOVE
-   that maps observed C-CANCEL to final Cancel status responses.
+1. Define and test cancellable handler contracts for C-GET and C-MOVE that map
+   observed C-CANCEL to final Cancel status responses.
 2. Implement and test C-GET C-STORE sub-operation orchestration on the same
    association, including pending/final response counters.
 3. Implement and test C-MOVE sub-operation orchestration on destination

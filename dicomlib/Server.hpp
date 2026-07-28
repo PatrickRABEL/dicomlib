@@ -115,6 +115,7 @@ namespace dicom
 		*/
 
 		std::map<UID,CFindFunction> FindHandlers_;
+		std::map<UID,CFindStatusFunction> CancellableFindHandlers_;
 
 		//!Will be called to validate Local AETs.
 		/*!
@@ -201,9 +202,12 @@ namespace dicom
 
 		void AddHandler(const UID& uid,HandlerFunction f);
 		void AddFindHandler(const UID& uid,CFindFunction Handler);
+		void AddCancellableFindHandler(const UID& uid,CFindStatusFunction Handler);
 
 		HandlerFunction GetHandler(const UID& uid);
 		CFindFunction GetFindHandler(const UID& uid);
+		CFindStatusFunction GetCancellableFindHandler(const UID& uid);
+		bool HasCancellableFindHandler(const UID& uid);
 
 		bool IsAcceptableRemoteApplicationTitle		(const std::string& Title,std::string ip);
 		bool IsAcceptableLocalApplicationTitle		(const std::string& Title);

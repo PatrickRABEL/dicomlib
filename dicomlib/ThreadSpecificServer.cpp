@@ -170,8 +170,16 @@ namespace dicom
 
 			case Command::C_FIND_RQ:
 				{
-					CFindFunction handler=server_.GetFindHandler(classUID);
-					HandleCFind(handler,*this,command,classUID);
+					if(server_.HasCancellableFindHandler(classUID))
+					{
+						CFindStatusFunction handler=server_.GetCancellableFindHandler(classUID);
+						HandleCFind(handler,*this,command,classUID);
+					}
+					else
+					{
+						CFindFunction handler=server_.GetFindHandler(classUID);
+						HandleCFind(handler,*this,command,classUID);
+					}
 				}
 				break;
 			case Command::C_MOVE_RQ:

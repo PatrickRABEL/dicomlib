@@ -81,7 +81,16 @@ namespace dicom
 					also table 9.3-3
 		Part 4, Section C.3.4 has additional information.
 	*/
-	void HandleCFind(CFindFunction handler,ServiceBase& pdu, const DataSet& command, const UID& classUID)
+	namespace
+	{
+		UINT16 CallLegacyCFindHandler(CFindFunction handler, ServiceBase& pdu, DataSet& requestData, Sequence& matches)
+		{
+			handler(pdu, requestData, matches);
+			return Status::SUCCESS;
+		}
+	}
+
+	void HandleCFind(CFindStatusFunction handler,ServiceBase& pdu, const DataSet& command, const UID& classUID)
 	{
 #ifdef _DEBUG
 		cout  << "HandleCFind:" << endl << command;
@@ -98,7 +107,7 @@ namespace dicom
 		Sequence Matches;
 
 		//the user-defined callback does the actual matching...
-		handler(pdu,request_data,Matches);
+		const UINT16 finalStatus = handler(pdu,request_data,Matches);
 
 		//now we send back all found matches.
 		for(Sequence::iterator I=Matches.begin();I!=Matches.end();I++)
@@ -109,8 +118,21 @@ namespace dicom
 			pdu.WriteDataSet(*I,classUID);
 		}
 
-		CommandSet::CFindRSP response(msgID,classUID,Status::SUCCESS,DataSetStatus::NO_DATA_SET);
+		CommandSet::CFindRSP response(msgID,classUID,finalStatus,DataSetStatus::NO_DATA_SET);
 		pdu.WriteCommand(response,classUID);
+	}
+
+	void HandleCFind(CFindFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID)
+	{
+		HandleCFind(
+			CFindStatusFunction(
+				[&](ServiceBase& service, DataSet& requestData, Sequence& matches)
+				{
+					return CallLegacyCFindHandler(handler, service, requestData, matches);
+				}),
+			pdu,
+			command,
+			classUID);
 	}
 
 

@@ -41,6 +41,8 @@ namespace dicom
 			HandlerFunction;
 		typedef std::function<void(ServiceBase&,DataSet&,Sequence&)>
 			CFindFunction;
+		typedef std::function<UINT16(ServiceBase&,DataSet&,Sequence&)>
+			CFindStatusFunction;
 
 	typedef HandlerFunction CMoveFunction;
 	typedef HandlerFunction CStoreFunction;
@@ -51,6 +53,8 @@ namespace dicom
 	void HandleCStore(CStoreFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID);
 
 	void HandleCFind(CFindFunction  handler,ServiceBase& pdu, const DataSet& command, const UID& classUID);
+
+	void HandleCFind(CFindStatusFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID);
 
 	void HandleCMove(CMoveFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID);
 
