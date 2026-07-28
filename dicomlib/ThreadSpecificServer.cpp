@@ -184,15 +184,31 @@ namespace dicom
 				break;
 			case Command::C_MOVE_RQ:
 			{
-				HandlerFunction handler=server_.GetHandler(classUID);
-				HandleCMove(handler,*this,command,classUID);
+				if(server_.HasCancellableMoveHandler(classUID))
+				{
+					CMoveStatusFunction handler=server_.GetCancellableMoveHandler(classUID);
+					HandleCMove(handler,*this,command,classUID);
+				}
+				else
+				{
+					HandlerFunction handler=server_.GetHandler(classUID);
+					HandleCMove(handler,*this,command,classUID);
+				}
 			}
 			break;
 
 			case Command::C_GET_RQ:
 			{
-				HandlerFunction handler=server_.GetHandler(classUID);
-				HandleCGet(handler,*this,command,classUID);
+				if(server_.HasCancellableGetHandler(classUID))
+				{
+					CGetStatusFunction handler=server_.GetCancellableGetHandler(classUID);
+					HandleCGet(handler,*this,command,classUID);
+				}
+				else
+				{
+					HandlerFunction handler=server_.GetHandler(classUID);
+					HandleCGet(handler,*this,command,classUID);
+				}
 			}
 			break;
 

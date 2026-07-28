@@ -44,6 +44,36 @@ namespace dicom
 			if(responseMessageID != expectedMessageID)
 				throw exception("Unexpected C-DIMSE response message ID");
 		}
+
+		void SetCGetCounters(CommandSet::CGetRSP& response, const CSubOperationResult& result)
+		{
+			response.setRemaining(result.remaining);
+			response.setCompleted(result.completed);
+			response.setFailed(result.failed);
+			response.setWarning(result.warning);
+		}
+
+		void SetCMoveCounters(CommandSet::CMoveRSP& response, const CSubOperationResult& result)
+		{
+			response.setRemaining(result.remaining);
+			response.setCompleted(result.completed);
+			response.setFailed(result.failed);
+			response.setWarning(result.warning);
+		}
+	}
+
+	CSubOperationResult::CSubOperationResult(
+		UINT16 statusCode,
+		UINT16 remainingCount,
+		UINT16 completedCount,
+		UINT16 failedCount,
+		UINT16 warningCount)
+	: status(statusCode)
+	, remaining(remainingCount)
+	, completed(completedCount)
+	, failed(failedCount)
+	, warning(warningCount)
+	{
 	}
 
 	/*!
@@ -168,6 +198,23 @@ namespace dicom
 		handler(pdu,command,request_data);
 	}
 
+	void HandleCGet(CGetStatusFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID)
+	{
+		UINT16 msgID,data_set_status;
+		command(TAG_MSG_ID)>>msgID;
+		pdu.ClearCancelRequest(msgID);
+		command(TAG_DATA_SET_TYPE)>>data_set_status;
+		if(data_set_status==DataSetStatus::NO_DATA_SET)
+			throw exception("No data set");
+		DataSet request_data;
+		pdu.Read(request_data);
+
+		const CSubOperationResult result = handler(pdu,command,request_data);
+		CommandSet::CGetRSP response(msgID,classUID,result.status,DataSetStatus::NO_DATA_SET);
+		SetCGetCounters(response,result);
+		pdu.WriteCommand(response,classUID);
+	}
+
 	void HandleCCancel(ServiceBase& pdu, const DataSet& command)
 	{
 		UINT16 messageIDBeingRespondedTo = 0;
@@ -218,6 +265,24 @@ namespace dicom
 		//The rest part of implementation involves design of server and should be 
 		//implemented in serve. -Sam
 		handler(pdu,command,request_data);
+	}
+
+	void HandleCMove(CMoveStatusFunction handler,ServiceBase& pdu,
+		const DataSet& command, const UID& classUID)
+	{
+		UINT16 msgID,data_set_status;
+		command(TAG_MSG_ID)>>msgID;
+		pdu.ClearCancelRequest(msgID);
+		command(TAG_DATA_SET_TYPE)>>data_set_status;
+		if(data_set_status==DataSetStatus::NO_DATA_SET)
+			throw exception("No data set");
+		DataSet request_data;
+		pdu.Read(request_data);
+
+		const CSubOperationResult result = handler(pdu,command,request_data);
+		CommandSet::CMoveRSP response(msgID,classUID,result.status,DataSetStatus::NO_DATA_SET);
+		SetCMoveCounters(response,result);
+		pdu.WriteCommand(response,classUID);
 	}
 
 

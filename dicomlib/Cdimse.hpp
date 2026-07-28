@@ -44,9 +44,29 @@ namespace dicom
 		typedef std::function<UINT16(ServiceBase&,DataSet&,Sequence&)>
 			CFindStatusFunction;
 
+	struct CSubOperationResult
+	{
+		UINT16 status;
+		UINT16 remaining;
+		UINT16 completed;
+		UINT16 failed;
+		UINT16 warning;
+
+		CSubOperationResult(
+			UINT16 statusCode = Status::SUCCESS,
+			UINT16 remainingCount = 0,
+			UINT16 completedCount = 0,
+			UINT16 failedCount = 0,
+			UINT16 warningCount = 0);
+	};
+
 	typedef HandlerFunction CMoveFunction;
 	typedef HandlerFunction CStoreFunction;
 	typedef HandlerFunction CGetFunction;
+	typedef std::function<CSubOperationResult(ServiceBase&,const DataSet&,DataSet&)>
+		CMoveStatusFunction;
+	typedef std::function<CSubOperationResult(ServiceBase&,const DataSet&,DataSet&)>
+		CGetStatusFunction;
 
 	void HandleCEcho(ServiceBase& pdu, const DataSet& command,const UID& classUID);
 
@@ -58,7 +78,11 @@ namespace dicom
 
 	void HandleCMove(CMoveFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID);
 
+	void HandleCMove(CMoveStatusFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID);
+
 	void HandleCGet(CGetFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID);
+
+	void HandleCGet(CGetStatusFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID);
 
 	void HandleCCancel(ServiceBase& pdu, const DataSet& command);
 

@@ -734,6 +734,173 @@ namespace
 		assert(handled);
 	}
 
+	void checkServerClientCGetFinalCancelStatus()
+	{
+		const short port = reserveLocalPort();
+		const dicom::UID classUID = dicom::STUDY_ROOT_QR_GET_SOP_CLASS;
+		std::atomic<bool> handlerStarted(false);
+		std::atomic<bool> cancelObserved(false);
+
+		QuietLogger logger;
+		dicom::Server server;
+		server.SetLogger(&logger);
+		server.SetCheckLocalAETCallback(acceptAnyLocalAET);
+		server.SetCheckRemoteAETCallback(acceptAnyRemoteAET);
+		server.AddCancellableGetHandler(
+			classUID,
+			[&](dicom::ServiceBase& service, const dicom::DataSet& command, dicom::DataSet& request)
+			{
+				assert(get<UINT16>(command, dicom::TAG_CMD_FIELD) == dicom::Command::C_GET_RQ);
+				assert(get<std::string>(request, dicom::TAG_QR_LEVEL) == "STUDY");
+				handlerStarted = true;
+
+				for(int wait = 0; wait < 20 && !cancelObserved; ++wait)
+				{
+					const bool observed = dicom::PollCCancelRQ(service);
+					if(observed)
+						cancelObserved = true;
+					std::this_thread::sleep_for(std::chrono::milliseconds(50));
+				}
+
+				return dicom::CSubOperationResult(
+					cancelObserved ? dicom::Status::CANCEL : dicom::Status::SUCCESS,
+					0,
+					0,
+					0,
+					0);
+			});
+		server.ServeInNewThread(port);
+
+		dicom::PresentationContexts contexts;
+		contexts.Add(classUID, dicom::TS(dicom::IMPL_VR_LE_TRANSFER_SYNTAX));
+
+		bool completed = false;
+		for(int attempt = 0; attempt < 20 && !completed; ++attempt)
+		{
+			try
+			{
+				dicom::DataSet query;
+				query.Put<dicom::VR_CS>(dicom::TAG_QR_LEVEL, std::string("STUDY"));
+				query.Put<dicom::VR_UI>(dicom::TAG_STUDY_INST_UID, dicom::UID(""));
+
+				dicom::ClientConnection client("127.0.0.1", port, "SCU_AE", "SCP_AE", contexts);
+				dicom::CGetSCU getSCU(client, classUID);
+				getSCU.writeRQ(query);
+
+				for(int wait = 0; wait < 20 && !handlerStarted; ++wait)
+					std::this_thread::sleep_for(std::chrono::milliseconds(50));
+				getSCU.writeCancelRQ();
+
+				UINT16 status = 0;
+				dicom::DataSet response;
+				dicom::DataSet data;
+				getSCU.readRSP(status, response, data);
+				assert(get<UINT16>(response, dicom::TAG_CMD_FIELD) == dicom::Command::C_GET_RSP);
+				assert(status == dicom::Status::CANCEL);
+				assert(get<UINT16>(response, dicom::TAG_DATA_SET_TYPE) == dicom::DataSetStatus::NO_DATA_SET);
+				assert(get<UINT16>(response, dicom::TAG_NUM_REMAIN_SUBOP) == 0);
+				assert(get<UINT16>(response, dicom::TAG_NUM_COMPL_SUBOP) == 0);
+				assert(get<UINT16>(response, dicom::TAG_NUM_FAIL_SUBOP) == 0);
+				assert(get<UINT16>(response, dicom::TAG_NUM_WARN_SUBOP) == 0);
+				assert(data.empty());
+				completed = cancelObserved;
+			}
+			catch(const SystemError&)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(50));
+			}
+		}
+
+		server.Stop();
+		assert(completed);
+		assert(handlerStarted);
+		assert(cancelObserved);
+	}
+
+	void checkServerClientCMoveFinalCancelStatus()
+	{
+		const short port = reserveLocalPort();
+		const dicom::UID classUID = dicom::STUDY_ROOT_QR_MOVE_SOP_CLASS;
+		std::atomic<bool> handlerStarted(false);
+		std::atomic<bool> cancelObserved(false);
+
+		QuietLogger logger;
+		dicom::Server server;
+		server.SetLogger(&logger);
+		server.SetCheckLocalAETCallback(acceptAnyLocalAET);
+		server.SetCheckRemoteAETCallback(acceptAnyRemoteAET);
+		server.AddCancellableMoveHandler(
+			classUID,
+			[&](dicom::ServiceBase& service, const dicom::DataSet& command, dicom::DataSet& request)
+			{
+				assert(get<UINT16>(command, dicom::TAG_CMD_FIELD) == dicom::Command::C_MOVE_RQ);
+				assert(get<std::string>(command, dicom::TAG_MOVE_DEST) == "DEST_AE");
+				assert(get<std::string>(request, dicom::TAG_QR_LEVEL) == "STUDY");
+				handlerStarted = true;
+
+				for(int wait = 0; wait < 20 && !cancelObserved; ++wait)
+				{
+					const bool observed = dicom::PollCCancelRQ(service);
+					if(observed)
+						cancelObserved = true;
+					std::this_thread::sleep_for(std::chrono::milliseconds(50));
+				}
+
+				return dicom::CSubOperationResult(
+					cancelObserved ? dicom::Status::CANCEL : dicom::Status::SUCCESS,
+					0,
+					0,
+					0,
+					0);
+			});
+		server.ServeInNewThread(port);
+
+		dicom::PresentationContexts contexts;
+		contexts.Add(classUID, dicom::TS(dicom::IMPL_VR_LE_TRANSFER_SYNTAX));
+
+		bool completed = false;
+		for(int attempt = 0; attempt < 20 && !completed; ++attempt)
+		{
+			try
+			{
+				dicom::DataSet query;
+				query.Put<dicom::VR_CS>(dicom::TAG_QR_LEVEL, std::string("STUDY"));
+				query.Put<dicom::VR_UI>(dicom::TAG_STUDY_INST_UID, dicom::UID(""));
+
+				dicom::ClientConnection client("127.0.0.1", port, "SCU_AE", "SCP_AE", contexts);
+				dicom::CMoveSCU moveSCU(client, classUID);
+				moveSCU.writeRQ("DEST_AE", query);
+
+				for(int wait = 0; wait < 20 && !handlerStarted; ++wait)
+					std::this_thread::sleep_for(std::chrono::milliseconds(50));
+				moveSCU.writeCancelRQ();
+
+				UINT16 status = 0;
+				dicom::DataSet response;
+				dicom::DataSet data;
+				moveSCU.readRSP(status, response, data);
+				assert(get<UINT16>(response, dicom::TAG_CMD_FIELD) == dicom::Command::C_MOVE_RSP);
+				assert(status == dicom::Status::CANCEL);
+				assert(get<UINT16>(response, dicom::TAG_DATA_SET_TYPE) == dicom::DataSetStatus::NO_DATA_SET);
+				assert(get<UINT16>(response, dicom::TAG_NUM_REMAIN_SUBOP) == 0);
+				assert(get<UINT16>(response, dicom::TAG_NUM_COMPL_SUBOP) == 0);
+				assert(get<UINT16>(response, dicom::TAG_NUM_FAIL_SUBOP) == 0);
+				assert(get<UINT16>(response, dicom::TAG_NUM_WARN_SUBOP) == 0);
+				assert(data.empty());
+				completed = cancelObserved;
+			}
+			catch(const SystemError&)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(50));
+			}
+		}
+
+		server.Stop();
+		assert(completed);
+		assert(handlerStarted);
+		assert(cancelObserved);
+	}
+
 	void checkServerClientCCancelDispatch()
 	{
 		const short port = reserveLocalPort();
@@ -975,6 +1142,8 @@ int main()
 	checkServerClientCFind();
 	checkServerClientCMove();
 	checkServerClientCGet();
+	checkServerClientCGetFinalCancelStatus();
+	checkServerClientCMoveFinalCancelStatus();
 	checkServerClientCCancelDispatch();
 	checkServerClientCCancelObservedByRunningHandler();
 	checkServerClientCFindFinalCancelStatus();
