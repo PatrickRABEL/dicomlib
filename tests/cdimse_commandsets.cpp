@@ -182,23 +182,35 @@ namespace
 	void makeSocketPair(int sockets[2])
 	{
 		const int result = ::socketpair(AF_UNIX, SOCK_STREAM, 0, sockets);
-		assert(result == 0);
+		if(result != 0)
+			throw SystemError("socketpair");
 	}
 
 	short reserveLocalPort()
 	{
 		const int fd = ::socket(AF_INET, SOCK_STREAM, 0);
-		assert(fd >= 0);
+		if(fd < 0)
+			throw SystemError("socket");
 
 		sockaddr_in address;
 		std::memset(&address, 0, sizeof(address));
 		address.sin_family = AF_INET;
-		address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+		address.sin_addr.s_addr = INADDR_ANY;
 		address.sin_port = 0;
-		assert(::bind(fd, reinterpret_cast<sockaddr*>(&address), sizeof(address)) == 0);
+		if(::bind(fd, reinterpret_cast<sockaddr*>(&address), sizeof(address)) != 0)
+		{
+			const SystemError error("bind");
+			::close(fd);
+			throw error;
+		}
 
 		socklen_t length = sizeof(address);
-		assert(::getsockname(fd, reinterpret_cast<sockaddr*>(&address), &length) == 0);
+		if(::getsockname(fd, reinterpret_cast<sockaddr*>(&address), &length) != 0)
+		{
+			const SystemError error("getsockname");
+			::close(fd);
+			throw error;
+		}
 		const short port = static_cast<short>(ntohs(address.sin_port));
 		::close(fd);
 		return port;
@@ -565,6 +577,74 @@ namespace
 		assert(handled);
 	}
 
+	void checkServerClientCMove()
+	{
+		const short port = reserveLocalPort();
+		const dicom::UID classUID = dicom::STUDY_ROOT_QR_MOVE_SOP_CLASS;
+		const dicom::UID studyUID("1.2.826.0.1.3680043.10.1553.3");
+		std::atomic<bool> handled(false);
+
+		QuietLogger logger;
+		dicom::Server server;
+		server.SetLogger(&logger);
+		server.SetCheckLocalAETCallback(acceptAnyLocalAET);
+		server.SetCheckRemoteAETCallback(acceptAnyRemoteAET);
+		server.AddHandler(
+			classUID,
+			[&](dicom::ServiceBase& service, const dicom::DataSet& command, dicom::DataSet& request)
+			{
+				const UINT16 messageID = get<UINT16>(command, dicom::TAG_MSG_ID);
+				assert(get<UINT16>(command, dicom::TAG_CMD_FIELD) == dicom::Command::C_MOVE_RQ);
+				assert(get<std::string>(command, dicom::TAG_MOVE_DEST) == "DEST_AE");
+				assert(get<std::string>(request, dicom::TAG_QR_LEVEL) == "STUDY");
+				assert(get<dicom::UID>(request, dicom::TAG_STUDY_INST_UID) == studyUID);
+
+				dicom::CommandSet::CMoveRSP response(
+					messageID,
+					classUID,
+					dicom::Status::SUCCESS,
+					dicom::DataSetStatus::NO_DATA_SET);
+				response.setCompleted(0);
+				response.setFailed(0);
+				response.setWarning(0);
+				service.WriteCommand(response, classUID);
+				handled = true;
+			});
+		server.ServeInNewThread(port);
+
+		dicom::PresentationContexts contexts;
+		contexts.Add(classUID, dicom::TS(dicom::IMPL_VR_LE_TRANSFER_SYNTAX));
+
+		bool completed = false;
+		for(int attempt = 0; attempt < 20 && !completed; ++attempt)
+		{
+			try
+			{
+				dicom::DataSet query;
+				query.Put<dicom::VR_CS>(dicom::TAG_QR_LEVEL, std::string("STUDY"));
+				query.Put<dicom::VR_UI>(dicom::TAG_STUDY_INST_UID, studyUID);
+
+				dicom::ClientConnection client("127.0.0.1", port, "SCU_AE", "SCP_AE", contexts);
+				dicom::DataSet response =
+					client.Move("DEST_AE", query, dicom::QueryRetrieve::STUDY_ROOT);
+				assert(get<UINT16>(response, dicom::TAG_CMD_FIELD) == dicom::Command::C_MOVE_RSP);
+				assert(get<UINT16>(response, dicom::TAG_STATUS) == dicom::Status::SUCCESS);
+				assert(get<UINT16>(response, dicom::TAG_NUM_COMPL_SUBOP) == 0);
+				assert(get<UINT16>(response, dicom::TAG_NUM_FAIL_SUBOP) == 0);
+				assert(get<UINT16>(response, dicom::TAG_NUM_WARN_SUBOP) == 0);
+				completed = true;
+			}
+			catch(const SystemError&)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(50));
+			}
+		}
+
+		server.Stop();
+		assert(completed);
+		assert(handled);
+	}
+
 	void checkCMove()
 	{
 		const dicom::UID classUID("1.2.840.10008.5.1.4.1.2.2.2");
@@ -596,6 +676,7 @@ int main()
 	checkServerClientCEcho();
 	checkServerClientCStore();
 	checkServerClientCFind();
+	checkServerClientCMove();
 	checkCMove();
 	return 0;
 }

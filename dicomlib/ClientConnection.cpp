@@ -236,7 +236,8 @@ namespace dicom
 		moveSCU.writeRQ(destination,query);
 		UINT16 status;
 		DataSet response;
-		moveSCU.readRSP(status,response);
+		DataSet data;
+		moveSCU.readRSP(status,response,data);
 		return response;
 	}
 
