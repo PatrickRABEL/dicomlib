@@ -214,14 +214,23 @@ application code and asynchronous operations are not yet claimed. Generic
 C-DIMSE status helpers classify the implemented `Success`,
 `Pending`, `Cancel`, `Warning`, and final/non-final response states; SOP-class
 specific validators are provided for C-ECHO, C-STORE, and Query/Retrieve
-C-FIND, C-GET, and C-MOVE response statuses. Generic N-DIMSE status validators
+C-FIND, C-GET, and C-MOVE response statuses. C-GET/C-MOVE response construction
+omits `Number of Remaining Sub-operations` for tested final `Success`,
+`Warning`, and `Failure` responses and keeps it available for `Pending` and
+`Cancel`. Generic N-DIMSE status validators
 classify PS3.7 Annex C Success, Warning, Failure, and final response status
 classes for N-EVENT-REPORT, N-GET, N-SET, N-ACTION, N-CREATE, and N-DELETE; the
 N-DIMSE command set constructors are covered for their core command fields.
 N-EVENT-REPORT, N-GET, N-SET, N-ACTION, N-CREATE, and N-DELETE SCU request and
 response paths are covered over local P-DATA, including response command field,
 Message ID Being Responded To, status validation, optional response data set
-reading, and negotiated SCU role enforcement. N-DIMSE SCP handlers are exposed
+reading, response SOP Class UID validation, response SOP Instance UID validation
+when the request instance is known and the response includes the field, and
+N-EVENT-REPORT Event Type ID and N-ACTION Action Type ID validation when present
+in the response. N-DELETE-RSP commands that announce a Data Set are rejected.
+N-EVENT-REPORT-RSP and N-ACTION-RSP commands that announce a Data Set are
+rejected when the response status is not `Success`.
+Negotiated SCU role enforcement is covered. N-DIMSE SCP handlers are exposed
 for N-EVENT-REPORT, N-GET, N-SET, N-ACTION, N-CREATE, and N-DELETE; they validate
 the request command field, enforce SOP Class UID consistency, apply the PS3.7
 `Command Data Set Type` rule that `0101H` means no Data Set and any other value

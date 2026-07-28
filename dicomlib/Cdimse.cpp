@@ -146,7 +146,8 @@ namespace dicom
 
 		void SetCGetCounters(CommandSet::CGetRSP& response, const CSubOperationResult& result)
 		{
-			response.setRemaining(result.remaining);
+			if(IsCdimsePendingStatus(result.status) || IsCdimseCancelStatus(result.status))
+				response.setRemaining(result.remaining);
 			response.setCompleted(result.completed);
 			response.setFailed(result.failed);
 			response.setWarning(result.warning);
@@ -154,7 +155,8 @@ namespace dicom
 
 		void SetCMoveCounters(CommandSet::CMoveRSP& response, const CSubOperationResult& result)
 		{
-			response.setRemaining(result.remaining);
+			if(IsCdimsePendingStatus(result.status) || IsCdimseCancelStatus(result.status))
+				response.setRemaining(result.remaining);
 			response.setCompleted(result.completed);
 			response.setFailed(result.failed);
 			response.setWarning(result.warning);

@@ -243,7 +243,8 @@ namespace dicom
 						classUID,
 						result.status,
 						DataSetStatus::NO_DATA_SET);
-					response.setRemaining(result.remaining);
+					if(IsCdimsePendingStatus(result.status) || IsCdimseCancelStatus(result.status))
+						response.setRemaining(result.remaining);
 					response.setCompleted(result.completed);
 					response.setFailed(result.failed);
 					response.setWarning(result.warning);

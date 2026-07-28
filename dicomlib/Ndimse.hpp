@@ -58,9 +58,21 @@ namespace dicom
 		ServiceBase& service_;
 		UID classUID_;
 		UINT16 lastMessageID_;
+		UID lastSOPInstanceUID_;
+		bool hasLastSOPInstanceUID_;
+		UINT16 lastEventTypeID_;
+		bool hasLastEventTypeID_;
+		UINT16 lastActionTypeID_;
+		bool hasLastActionTypeID_;
 
 		NSCU(ServiceBase& service, const UID& classUID);
 		void readRSP(UINT16& status, DataSet& response, DataSet& data, Command::Code expectedCommand);
+		void setLastSOPInstanceUID(const UID& instUID);
+		void clearLastSOPInstanceUID();
+		void setLastEventTypeID(UINT16 eventTypeID);
+		void clearLastEventTypeID();
+		void setLastActionTypeID(UINT16 actionTypeID);
+		void clearLastActionTypeID();
 	};
 
 	class NEventReportSCU : public NSCU

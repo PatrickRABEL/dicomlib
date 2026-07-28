@@ -1091,6 +1091,227 @@ namespace
 				throw dicom::exception("N-DIMSE response SOP Class UID mismatch was not rejected");
 		}
 
+		{
+			int eventTypeMismatchSockets[2];
+			makeSocketPair(eventTypeMismatchSockets);
+			PairedService eventTypeMismatchSCUService(eventTypeMismatchSockets[0], classUID);
+			PairedService eventTypeMismatchSCPService(eventTypeMismatchSockets[1], classUID);
+
+			dicom::NEventReportSCU eventTypeMismatchSCU(eventTypeMismatchSCUService,classUID);
+			eventTypeMismatchSCU.writeRQ(instUID,3);
+
+			dicom::DataSet eventTypeMismatchRequest;
+			requireRead(eventTypeMismatchSCPService,eventTypeMismatchRequest);
+			const UINT16 eventTypeMismatchMessageID = get<UINT16>(eventTypeMismatchRequest, dicom::TAG_MSG_ID);
+			dicom::CommandSet::NEventReportRSP eventTypeMismatchResponse(
+				eventTypeMismatchMessageID,
+				classUID,
+				instUID,
+				dicom::Status::SUCCESS,
+				4,
+				dicom::DataSetStatus::NO_DATA_SET);
+			eventTypeMismatchSCPService.WriteCommand(eventTypeMismatchResponse,classUID);
+
+			bool eventTypeMismatchRejected = false;
+			try
+			{
+				UINT16 status = 0;
+				dicom::DataSet response;
+				dicom::DataSet data;
+				eventTypeMismatchSCU.readRSP(status,response,data);
+			}
+			catch(const dicom::exception&)
+			{
+				eventTypeMismatchRejected = true;
+			}
+			if(!eventTypeMismatchRejected)
+				throw dicom::exception("N-DIMSE response Event Type ID mismatch was not rejected");
+		}
+
+		{
+			int actionTypeMismatchSockets[2];
+			makeSocketPair(actionTypeMismatchSockets);
+			PairedService actionTypeMismatchSCUService(actionTypeMismatchSockets[0], classUID);
+			PairedService actionTypeMismatchSCPService(actionTypeMismatchSockets[1], classUID);
+
+			dicom::NActionSCU actionTypeMismatchSCU(actionTypeMismatchSCUService,classUID);
+			actionTypeMismatchSCU.writeRQ(instUID,7);
+
+			dicom::DataSet actionTypeMismatchRequest;
+			requireRead(actionTypeMismatchSCPService,actionTypeMismatchRequest);
+			const UINT16 actionTypeMismatchMessageID = get<UINT16>(actionTypeMismatchRequest, dicom::TAG_MSG_ID);
+			dicom::CommandSet::NActionRSP actionTypeMismatchResponse(
+				actionTypeMismatchMessageID,
+				classUID,
+				instUID,
+				dicom::Status::SUCCESS,
+				8,
+				dicom::DataSetStatus::NO_DATA_SET);
+			actionTypeMismatchSCPService.WriteCommand(actionTypeMismatchResponse,classUID);
+
+			bool actionTypeMismatchRejected = false;
+			try
+			{
+				UINT16 status = 0;
+				dicom::DataSet response;
+				dicom::DataSet data;
+				actionTypeMismatchSCU.readRSP(status,response,data);
+			}
+			catch(const dicom::exception&)
+			{
+				actionTypeMismatchRejected = true;
+			}
+			if(!actionTypeMismatchRejected)
+				throw dicom::exception("N-DIMSE response Action Type ID mismatch was not rejected");
+		}
+
+		{
+			int instanceMismatchSockets[2];
+			makeSocketPair(instanceMismatchSockets);
+			PairedService instanceMismatchSCUService(instanceMismatchSockets[0], classUID);
+			PairedService instanceMismatchSCPService(instanceMismatchSockets[1], classUID);
+			const dicom::UID wrongInstUID("1.2.826.0.1.3680043.10.1553.22.99");
+
+			dicom::NDeleteSCU instanceMismatchSCU(instanceMismatchSCUService,classUID);
+			instanceMismatchSCU.writeRQ(instUID);
+
+			dicom::DataSet instanceMismatchRequest;
+			requireRead(instanceMismatchSCPService,instanceMismatchRequest);
+			const UINT16 instanceMismatchMessageID = get<UINT16>(instanceMismatchRequest, dicom::TAG_MSG_ID);
+			dicom::CommandSet::NDeleteRSP instanceMismatchResponse(
+				instanceMismatchMessageID,
+				classUID,
+				wrongInstUID,
+				dicom::Status::SUCCESS);
+			instanceMismatchSCPService.WriteCommand(instanceMismatchResponse,classUID);
+
+			bool instanceMismatchRejected = false;
+			try
+			{
+				UINT16 status = 0;
+				dicom::DataSet response;
+				dicom::DataSet data;
+				instanceMismatchSCU.readRSP(status,response,data);
+			}
+			catch(const dicom::exception&)
+			{
+				instanceMismatchRejected = true;
+			}
+			if(!instanceMismatchRejected)
+				throw dicom::exception("N-DIMSE response SOP Instance UID mismatch was not rejected");
+		}
+
+		{
+			int dataSetTypeSockets[2];
+			makeSocketPair(dataSetTypeSockets);
+			PairedService dataSetTypeSCUService(dataSetTypeSockets[0], classUID);
+			PairedService dataSetTypeSCPService(dataSetTypeSockets[1], classUID);
+
+			dicom::NDeleteSCU dataSetTypeSCU(dataSetTypeSCUService,classUID);
+			dataSetTypeSCU.writeRQ(instUID);
+
+			dicom::DataSet dataSetTypeRequest;
+			requireRead(dataSetTypeSCPService,dataSetTypeRequest);
+			const UINT16 dataSetTypeMessageID = get<UINT16>(dataSetTypeRequest, dicom::TAG_MSG_ID);
+			dicom::DataSet dataSetTypeResponse;
+			dataSetTypeResponse.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_CLASS_UID,classUID);
+			dataSetTypeResponse.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD,dicom::Command::N_DELETE_RSP);
+			dataSetTypeResponse.Put<dicom::VR_US>(dicom::TAG_MSG_ID_RSP,dataSetTypeMessageID);
+			dataSetTypeResponse.Put<dicom::VR_US>(dicom::TAG_DATA_SET_TYPE,dicom::DataSetStatus::YES_DATA_SET);
+			dataSetTypeResponse.Put<dicom::VR_US>(dicom::TAG_STATUS,dicom::Status::SUCCESS);
+			dataSetTypeResponse.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_INST_UID,instUID);
+			dataSetTypeSCPService.WriteCommand(dataSetTypeResponse,classUID);
+
+			bool dataSetTypeRejected = false;
+			try
+			{
+				UINT16 status = 0;
+				dicom::DataSet response;
+				dicom::DataSet data;
+				dataSetTypeSCU.readRSP(status,response,data);
+			}
+			catch(const dicom::exception&)
+			{
+				dataSetTypeRejected = true;
+			}
+			if(!dataSetTypeRejected)
+				throw dicom::exception("N-DIMSE N-DELETE-RSP data set was not rejected");
+		}
+
+		{
+			int eventDataSockets[2];
+			makeSocketPair(eventDataSockets);
+			PairedService eventDataSCUService(eventDataSockets[0], classUID);
+			PairedService eventDataSCPService(eventDataSockets[1], classUID);
+
+			dicom::NEventReportSCU eventDataSCU(eventDataSCUService,classUID);
+			eventDataSCU.writeRQ(instUID,3);
+
+			dicom::DataSet eventDataRequest;
+			requireRead(eventDataSCPService,eventDataRequest);
+			const UINT16 eventDataMessageID = get<UINT16>(eventDataRequest, dicom::TAG_MSG_ID);
+			dicom::CommandSet::NEventReportRSP eventDataResponse(
+				eventDataMessageID,
+				classUID,
+				instUID,
+				0x0110,
+				3,
+				dicom::DataSetStatus::YES_DATA_SET);
+			eventDataSCPService.WriteCommand(eventDataResponse,classUID);
+
+			bool eventDataRejected = false;
+			try
+			{
+				UINT16 status = 0;
+				dicom::DataSet response;
+				dicom::DataSet data;
+				eventDataSCU.readRSP(status,response,data);
+			}
+			catch(const dicom::exception&)
+			{
+				eventDataRejected = true;
+			}
+			if(!eventDataRejected)
+				throw dicom::exception("N-EVENT-REPORT non-success response data set was not rejected");
+		}
+
+		{
+			int actionDataSockets[2];
+			makeSocketPair(actionDataSockets);
+			PairedService actionDataSCUService(actionDataSockets[0], classUID);
+			PairedService actionDataSCPService(actionDataSockets[1], classUID);
+
+			dicom::NActionSCU actionDataSCU(actionDataSCUService,classUID);
+			actionDataSCU.writeRQ(instUID,7);
+
+			dicom::DataSet actionDataRequest;
+			requireRead(actionDataSCPService,actionDataRequest);
+			const UINT16 actionDataMessageID = get<UINT16>(actionDataRequest, dicom::TAG_MSG_ID);
+			dicom::CommandSet::NActionRSP actionDataResponse(
+				actionDataMessageID,
+				classUID,
+				instUID,
+				0x0110,
+				7,
+				dicom::DataSetStatus::YES_DATA_SET);
+			actionDataSCPService.WriteCommand(actionDataResponse,classUID);
+
+			bool actionDataRejected = false;
+			try
+			{
+				UINT16 status = 0;
+				dicom::DataSet response;
+				dicom::DataSet data;
+				actionDataSCU.readRSP(status,response,data);
+			}
+			catch(const dicom::exception&)
+			{
+				actionDataRejected = true;
+			}
+			if(!actionDataRejected)
+				throw dicom::exception("N-ACTION non-success response data set was not rejected");
+		}
+
 		dicom::primitive::AAssociateAC scpDeniedAcknowledgement;
 		scpDeniedAcknowledgement.PresContextAccepts_.push_back(accepted);
 		scpDeniedAcknowledgement.UserInfo_ = makeUserInformation();
@@ -1237,6 +1458,60 @@ namespace
 		}
 		if(!nDeleteResponseDataRejected)
 			throw dicom::exception("N-DELETE response data set was not rejected");
+
+		dicom::DataSet eventReportRequestWithData;
+		eventReportRequestWithData.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_CLASS_UID, classUID);
+		eventReportRequestWithData.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD, dicom::Command::N_EVENT_REPORT_RQ);
+		eventReportRequestWithData.Put<dicom::VR_US>(dicom::TAG_MSG_ID, UINT16(17));
+		eventReportRequestWithData.Put<dicom::VR_US>(dicom::TAG_DATA_SET_TYPE, dicom::DataSetStatus::NO_DATA_SET);
+		eventReportRequestWithData.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_INST_UID, instUID);
+		eventReportRequestWithData.Put<dicom::VR_US>(dicom::TAG_EVENT_TYPE_ID, UINT16(3));
+		bool eventReportResponseDataRejected = false;
+		try
+		{
+			dicom::HandleNEventReport(
+				[](dicom::ServiceBase&, const dicom::DataSet&, const dicom::DataSet&, dicom::DataSet& responseData)
+				{
+					responseData.Put<dicom::VR_UI>(dicom::TAG_SOP_INST_UID, dicom::UID("1.2.826.0.1.3680043.10.1553.22.3"));
+					return UINT16(0x0110);
+				},
+				invalidStatusService,
+				eventReportRequestWithData,
+				classUID);
+		}
+		catch(const dicom::exception&)
+		{
+			eventReportResponseDataRejected = true;
+		}
+		if(!eventReportResponseDataRejected)
+			throw dicom::exception("N-EVENT-REPORT non-success response data set was not rejected");
+
+		dicom::DataSet actionRequestWithData;
+		actionRequestWithData.Put<dicom::VR_UI>(dicom::TAG_REQ_SOP_CLASS_UID, classUID);
+		actionRequestWithData.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD, dicom::Command::N_ACTION_RQ);
+		actionRequestWithData.Put<dicom::VR_US>(dicom::TAG_MSG_ID, UINT16(19));
+		actionRequestWithData.Put<dicom::VR_US>(dicom::TAG_DATA_SET_TYPE, dicom::DataSetStatus::NO_DATA_SET);
+		actionRequestWithData.Put<dicom::VR_UI>(dicom::TAG_REQ_SOP_INST_UID, instUID);
+		actionRequestWithData.Put<dicom::VR_US>(dicom::TAG_ACTION_TYPE_ID, UINT16(7));
+		bool actionResponseDataRejected = false;
+		try
+		{
+			dicom::HandleNAction(
+				[](dicom::ServiceBase&, const dicom::DataSet&, const dicom::DataSet&, dicom::DataSet& responseData)
+				{
+					responseData.Put<dicom::VR_UI>(dicom::TAG_SOP_INST_UID, dicom::UID("1.2.826.0.1.3680043.10.1553.22.4"));
+					return UINT16(0x0110);
+				},
+				invalidStatusService,
+				actionRequestWithData,
+				classUID);
+		}
+		catch(const dicom::exception&)
+		{
+			actionResponseDataRejected = true;
+		}
+		if(!actionResponseDataRejected)
+			throw dicom::exception("N-ACTION non-success response data set was not rejected");
 
 		dicom::CommandSet::NGetRQ wrongCommand(11,classUID,instUID,std::vector<dicom::Tag>());
 		bool wrongCommandRejected = false;
@@ -2004,6 +2279,44 @@ namespace
 			PairedService requestorSide(sockets[0], classUID);
 			PairedService scpSide(sockets[1], classUID);
 
+			dicom::CommandSet::CGetRQ request(43,classUID);
+			dicom::DataSet requestData;
+			requestData.Put<dicom::VR_CS>(dicom::TAG_QR_LEVEL, std::string("STUDY"));
+			requestorSide.WriteCommand(request,classUID);
+			dicom::DataSet readRequest;
+			requireRead(scpSide,readRequest);
+			requestorSide.WriteDataSet(requestData,classUID);
+
+			dicom::HandleCGet(
+				dicom::CGetStatusFunction(
+					[](dicom::ServiceBase&, const dicom::DataSet&, dicom::DataSet&)
+					{
+						return dicom::CSubOperationResult(dicom::Status::WARNING,3,1,1,1);
+					}),
+				scpSide,
+				readRequest,
+				classUID);
+
+			TestCGetSCU scu(requestorSide,classUID);
+			scu.setLastMessageID(43);
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			scu.readRSP(status,response,data);
+			assert(status == dicom::Status::WARNING);
+			assert(!response.exists(dicom::TAG_NUM_REMAIN_SUBOP));
+			assert(get<UINT16>(response,dicom::TAG_NUM_COMPL_SUBOP) == 1);
+			assert(get<UINT16>(response,dicom::TAG_NUM_FAIL_SUBOP) == 1);
+			assert(get<UINT16>(response,dicom::TAG_NUM_WARN_SUBOP) == 1);
+			assert(data.empty());
+		}
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService requestorSide(sockets[0], classUID);
+			PairedService scpSide(sockets[1], classUID);
+
 			dicom::CommandSet::CGetRQ request(39,classUID);
 			dicom::DataSet requestData;
 			requestData.Put<dicom::VR_CS>(dicom::TAG_QR_LEVEL, std::string("STUDY"));
@@ -2102,6 +2415,44 @@ namespace
 				invalidStatusRejected = true;
 			}
 			assert(invalidStatusRejected);
+		}
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService requestorSide(sockets[0], classUID);
+			PairedService scpSide(sockets[1], classUID);
+
+			dicom::CommandSet::CMoveRQ request(45,classUID,"ARCHIVE_AE");
+			dicom::DataSet requestData;
+			requestData.Put<dicom::VR_CS>(dicom::TAG_QR_LEVEL, std::string("STUDY"));
+			requestorSide.WriteCommand(request,classUID);
+			dicom::DataSet readRequest;
+			requireRead(scpSide,readRequest);
+			requestorSide.WriteDataSet(requestData,classUID);
+
+			dicom::HandleCMove(
+				dicom::CMoveStatusFunction(
+					[](dicom::ServiceBase&, const dicom::DataSet&, dicom::DataSet&)
+					{
+						return dicom::CSubOperationResult(0xa702,3,1,2,0);
+					}),
+				scpSide,
+				readRequest,
+				classUID);
+
+			TestCMoveSCU scu(requestorSide,classUID);
+			scu.setLastMessageID(45);
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			scu.readRSP(status,response,data);
+			assert(status == 0xa702);
+			assert(!response.exists(dicom::TAG_NUM_REMAIN_SUBOP));
+			assert(get<UINT16>(response,dicom::TAG_NUM_COMPL_SUBOP) == 1);
+			assert(get<UINT16>(response,dicom::TAG_NUM_FAIL_SUBOP) == 2);
+			assert(get<UINT16>(response,dicom::TAG_NUM_WARN_SUBOP) == 0);
+			assert(data.empty());
 		}
 
 		{
@@ -2733,7 +3084,7 @@ namespace
 					client.Move("DEST_AE", query, dicom::QueryRetrieve::STUDY_ROOT);
 				assert(get<UINT16>(response, dicom::TAG_CMD_FIELD) == dicom::Command::C_MOVE_RSP);
 				assert(get<UINT16>(response, dicom::TAG_STATUS) == dicom::Status::SUCCESS);
-				assert(get<UINT16>(response, dicom::TAG_NUM_REMAIN_SUBOP) == 0);
+				assert(!response.exists(dicom::TAG_NUM_REMAIN_SUBOP));
 				assert(get<UINT16>(response, dicom::TAG_NUM_COMPL_SUBOP) == 2);
 				assert(get<UINT16>(response, dicom::TAG_NUM_FAIL_SUBOP) == 0);
 				assert(get<UINT16>(response, dicom::TAG_NUM_WARN_SUBOP) == 0);
@@ -3049,7 +3400,7 @@ namespace
 
 				assert(get<UINT16>(response, dicom::TAG_CMD_FIELD) == dicom::Command::C_GET_RSP);
 				assert(status == dicom::Status::SUCCESS);
-				assert(get<UINT16>(response, dicom::TAG_NUM_REMAIN_SUBOP) == 0);
+				assert(!response.exists(dicom::TAG_NUM_REMAIN_SUBOP));
 				assert(get<UINT16>(response, dicom::TAG_NUM_COMPL_SUBOP) == 1);
 				assert(get<UINT16>(response, dicom::TAG_NUM_FAIL_SUBOP) == 0);
 				assert(get<UINT16>(response, dicom::TAG_NUM_WARN_SUBOP) == 0);
@@ -3156,7 +3507,7 @@ namespace
 
 				assert(get<UINT16>(response, dicom::TAG_CMD_FIELD) == dicom::Command::C_GET_RSP);
 				assert(status == dicom::Status::SUCCESS);
-				assert(get<UINT16>(response, dicom::TAG_NUM_REMAIN_SUBOP) == 0);
+				assert(!response.exists(dicom::TAG_NUM_REMAIN_SUBOP));
 				assert(get<UINT16>(response, dicom::TAG_NUM_COMPL_SUBOP) == 2);
 				assert(get<UINT16>(response, dicom::TAG_NUM_FAIL_SUBOP) == 0);
 				assert(get<UINT16>(response, dicom::TAG_NUM_WARN_SUBOP) == 0);
