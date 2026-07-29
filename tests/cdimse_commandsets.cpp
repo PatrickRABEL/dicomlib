@@ -3583,6 +3583,293 @@ namespace
 		}
 		assert(wrongCancelCommandRejected);
 
+		const auto assertStoreRequestRejected =
+			[&](const dicom::DataSet& request)
+			{
+				bool rejected = false;
+				try
+				{
+					dicom::HandleCStore(
+						[](dicom::ServiceBase&, const dicom::DataSet&, dicom::DataSet&)
+						{
+						},
+						service,
+						request,
+						dicom::CT_IMAGE_STORAGE_SOP_CLASS);
+				}
+				catch(const std::exception&)
+				{
+					rejected = true;
+				}
+				assert(rejected);
+			};
+		const auto assertFindRequestRejected =
+			[&](const dicom::DataSet& request)
+			{
+				bool rejected = false;
+				try
+				{
+					dicom::HandleCFind(
+						dicom::CFindStatusFunction(
+							[](dicom::ServiceBase&, dicom::DataSet&, dicom::Sequence&)
+							{
+								return dicom::Status::SUCCESS;
+							}),
+						service,
+						request,
+						classUID);
+				}
+				catch(const std::exception&)
+				{
+					rejected = true;
+				}
+				assert(rejected);
+			};
+		const auto assertGetRequestRejected =
+			[&](const dicom::DataSet& request)
+			{
+				bool rejected = false;
+				try
+				{
+					dicom::HandleCGet(
+						dicom::CGetStatusFunction(
+							[](dicom::ServiceBase&, const dicom::DataSet&, dicom::DataSet&)
+							{
+								return dicom::CSubOperationResult(dicom::Status::SUCCESS,0,0,0,0);
+							}),
+						service,
+						request,
+						classUID);
+				}
+				catch(const std::exception&)
+				{
+					rejected = true;
+				}
+				assert(rejected);
+			};
+		const auto assertLegacyGetRequestRejected =
+			[&](const dicom::DataSet& request)
+			{
+				bool rejected = false;
+				try
+				{
+					dicom::HandleCGet(
+						[](dicom::ServiceBase&, const dicom::DataSet&, dicom::DataSet&)
+						{
+						},
+						service,
+						request,
+						classUID);
+				}
+				catch(const std::exception&)
+				{
+					rejected = true;
+				}
+				assert(rejected);
+			};
+		const auto assertMoveRequestRejected =
+			[&](const dicom::DataSet& request)
+			{
+				bool rejected = false;
+				try
+				{
+					dicom::HandleCMove(
+						dicom::CMoveStatusFunction(
+							[](dicom::ServiceBase&, const dicom::DataSet&, dicom::DataSet&)
+							{
+								return dicom::CSubOperationResult(dicom::Status::SUCCESS,0,0,0,0);
+							}),
+						service,
+						request,
+						classUID);
+				}
+				catch(const std::exception&)
+				{
+					rejected = true;
+				}
+				assert(rejected);
+			};
+		const auto assertLegacyMoveRequestRejected =
+			[&](const dicom::DataSet& request)
+			{
+				bool rejected = false;
+				try
+				{
+					dicom::HandleCMove(
+						[](dicom::ServiceBase&, const dicom::DataSet&, dicom::DataSet&)
+						{
+						},
+						service,
+						request,
+						classUID);
+				}
+				catch(const std::exception&)
+				{
+					rejected = true;
+				}
+				assert(rejected);
+			};
+
+		dicom::DataSet invalidStorePriority;
+		invalidStorePriority.Put<dicom::VR_UI>(
+			dicom::TAG_AFF_SOP_CLASS_UID,
+			dicom::CT_IMAGE_STORAGE_SOP_CLASS);
+		invalidStorePriority.Put<dicom::VR_UI>(
+			dicom::TAG_AFF_SOP_INST_UID,
+			dicom::UID("1.2.826.0.1.3680043.10.1553.13.2"));
+		invalidStorePriority.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD, dicom::Command::C_STORE_RQ);
+		invalidStorePriority.Put<dicom::VR_US>(dicom::TAG_MSG_ID, UINT16(26));
+		invalidStorePriority.Put<dicom::VR_US>(dicom::TAG_PRIORITY, UINT16(0xffff));
+		invalidStorePriority.Put<dicom::VR_US>(dicom::TAG_DATA_SET_TYPE, dicom::DataSetStatus::YES_DATA_SET);
+		assertStoreRequestRejected(invalidStorePriority);
+
+		dicom::DataSet missingStorePriority;
+		missingStorePriority.Put<dicom::VR_UI>(
+			dicom::TAG_AFF_SOP_CLASS_UID,
+			dicom::CT_IMAGE_STORAGE_SOP_CLASS);
+		missingStorePriority.Put<dicom::VR_UI>(
+			dicom::TAG_AFF_SOP_INST_UID,
+			dicom::UID("1.2.826.0.1.3680043.10.1553.13.3"));
+		missingStorePriority.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD, dicom::Command::C_STORE_RQ);
+		missingStorePriority.Put<dicom::VR_US>(dicom::TAG_MSG_ID, UINT16(42));
+		missingStorePriority.Put<dicom::VR_US>(dicom::TAG_DATA_SET_TYPE, dicom::DataSetStatus::YES_DATA_SET);
+		assertStoreRequestRejected(missingStorePriority);
+
+		dicom::CommandSet::CStoreRQ duplicateStorePriority(
+			44,
+			dicom::CT_IMAGE_STORAGE_SOP_CLASS,
+			dicom::UID("1.2.826.0.1.3680043.10.1553.13.4"));
+		duplicateStorePriority.Put<dicom::VR_US>(dicom::TAG_PRIORITY, dicom::Priority::HIGH);
+		assertStoreRequestRejected(duplicateStorePriority);
+
+		dicom::DataSet invalidFindPriority;
+		invalidFindPriority.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_CLASS_UID, classUID);
+		invalidFindPriority.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD, dicom::Command::C_FIND_RQ);
+		invalidFindPriority.Put<dicom::VR_US>(dicom::TAG_MSG_ID, UINT16(28));
+		invalidFindPriority.Put<dicom::VR_US>(dicom::TAG_PRIORITY, UINT16(0xffff));
+		invalidFindPriority.Put<dicom::VR_US>(dicom::TAG_DATA_SET_TYPE, dicom::DataSetStatus::YES_DATA_SET);
+		assertFindRequestRejected(invalidFindPriority);
+
+		dicom::DataSet missingFindPriority;
+		missingFindPriority.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_CLASS_UID, classUID);
+		missingFindPriority.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD, dicom::Command::C_FIND_RQ);
+		missingFindPriority.Put<dicom::VR_US>(dicom::TAG_MSG_ID, UINT16(46));
+		missingFindPriority.Put<dicom::VR_US>(dicom::TAG_DATA_SET_TYPE, dicom::DataSetStatus::YES_DATA_SET);
+		assertFindRequestRejected(missingFindPriority);
+
+		dicom::CommandSet::CFindRQ duplicateFindPriority(48,classUID);
+		duplicateFindPriority.Put<dicom::VR_US>(dicom::TAG_PRIORITY, dicom::Priority::HIGH);
+		assertFindRequestRejected(duplicateFindPriority);
+
+		dicom::DataSet invalidGetPriority;
+		invalidGetPriority.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_CLASS_UID, classUID);
+		invalidGetPriority.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD, dicom::Command::C_GET_RQ);
+		invalidGetPriority.Put<dicom::VR_US>(dicom::TAG_MSG_ID, UINT16(30));
+		invalidGetPriority.Put<dicom::VR_US>(dicom::TAG_PRIORITY, UINT16(0xffff));
+		invalidGetPriority.Put<dicom::VR_US>(dicom::TAG_DATA_SET_TYPE, dicom::DataSetStatus::YES_DATA_SET);
+		assertGetRequestRejected(invalidGetPriority);
+
+		dicom::DataSet missingGetPriority;
+		missingGetPriority.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_CLASS_UID, classUID);
+		missingGetPriority.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD, dicom::Command::C_GET_RQ);
+		missingGetPriority.Put<dicom::VR_US>(dicom::TAG_MSG_ID, UINT16(50));
+		missingGetPriority.Put<dicom::VR_US>(dicom::TAG_DATA_SET_TYPE, dicom::DataSetStatus::YES_DATA_SET);
+		assertGetRequestRejected(missingGetPriority);
+
+		dicom::CommandSet::CGetRQ duplicateGetPriority(52,classUID);
+		duplicateGetPriority.Put<dicom::VR_US>(dicom::TAG_PRIORITY, dicom::Priority::HIGH);
+		assertGetRequestRejected(duplicateGetPriority);
+
+		dicom::DataSet invalidLegacyGetPriority;
+		invalidLegacyGetPriority.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_CLASS_UID, classUID);
+		invalidLegacyGetPriority.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD, dicom::Command::C_GET_RQ);
+		invalidLegacyGetPriority.Put<dicom::VR_US>(dicom::TAG_MSG_ID, UINT16(32));
+		invalidLegacyGetPriority.Put<dicom::VR_US>(dicom::TAG_PRIORITY, UINT16(0xffff));
+		invalidLegacyGetPriority.Put<dicom::VR_US>(dicom::TAG_DATA_SET_TYPE, dicom::DataSetStatus::YES_DATA_SET);
+		assertLegacyGetRequestRejected(invalidLegacyGetPriority);
+		assertLegacyGetRequestRejected(missingGetPriority);
+		assertLegacyGetRequestRejected(duplicateGetPriority);
+
+		dicom::DataSet invalidMovePriority;
+		invalidMovePriority.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_CLASS_UID, classUID);
+		invalidMovePriority.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD, dicom::Command::C_MOVE_RQ);
+		invalidMovePriority.Put<dicom::VR_US>(dicom::TAG_MSG_ID, UINT16(34));
+		invalidMovePriority.Put<dicom::VR_US>(dicom::TAG_PRIORITY, UINT16(0xffff));
+		invalidMovePriority.Put<dicom::VR_AE>(dicom::TAG_MOVE_DEST, std::string("ARCHIVE_AE"));
+		invalidMovePriority.Put<dicom::VR_US>(dicom::TAG_DATA_SET_TYPE, dicom::DataSetStatus::YES_DATA_SET);
+		assertMoveRequestRejected(invalidMovePriority);
+
+		dicom::DataSet missingMovePriority;
+		missingMovePriority.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_CLASS_UID, classUID);
+		missingMovePriority.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD, dicom::Command::C_MOVE_RQ);
+		missingMovePriority.Put<dicom::VR_US>(dicom::TAG_MSG_ID, UINT16(54));
+		missingMovePriority.Put<dicom::VR_AE>(dicom::TAG_MOVE_DEST, std::string("ARCHIVE_AE"));
+		missingMovePriority.Put<dicom::VR_US>(dicom::TAG_DATA_SET_TYPE, dicom::DataSetStatus::YES_DATA_SET);
+		assertMoveRequestRejected(missingMovePriority);
+
+		dicom::CommandSet::CMoveRQ duplicateMovePriority(56,classUID,"ARCHIVE_AE");
+		duplicateMovePriority.Put<dicom::VR_US>(dicom::TAG_PRIORITY, dicom::Priority::HIGH);
+		assertMoveRequestRejected(duplicateMovePriority);
+
+		dicom::DataSet invalidLegacyMovePriority;
+		invalidLegacyMovePriority.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_CLASS_UID, classUID);
+		invalidLegacyMovePriority.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD, dicom::Command::C_MOVE_RQ);
+		invalidLegacyMovePriority.Put<dicom::VR_US>(dicom::TAG_MSG_ID, UINT16(36));
+		invalidLegacyMovePriority.Put<dicom::VR_US>(dicom::TAG_PRIORITY, UINT16(0xffff));
+		invalidLegacyMovePriority.Put<dicom::VR_AE>(dicom::TAG_MOVE_DEST, std::string("ARCHIVE_AE"));
+		invalidLegacyMovePriority.Put<dicom::VR_US>(dicom::TAG_DATA_SET_TYPE, dicom::DataSetStatus::YES_DATA_SET);
+		assertLegacyMoveRequestRejected(invalidLegacyMovePriority);
+		assertLegacyMoveRequestRejected(missingMovePriority);
+		assertLegacyMoveRequestRejected(duplicateMovePriority);
+
+		dicom::DataSet missingMoveDestination;
+		missingMoveDestination.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_CLASS_UID, classUID);
+		missingMoveDestination.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD, dicom::Command::C_MOVE_RQ);
+		missingMoveDestination.Put<dicom::VR_US>(dicom::TAG_MSG_ID, UINT16(38));
+		missingMoveDestination.Put<dicom::VR_US>(dicom::TAG_PRIORITY, dicom::Priority::MEDIUM);
+		missingMoveDestination.Put<dicom::VR_US>(dicom::TAG_DATA_SET_TYPE, dicom::DataSetStatus::YES_DATA_SET);
+		bool missingMoveDestinationRejected = false;
+		try
+		{
+			dicom::HandleCMove(
+				dicom::CMoveStatusFunction(
+					[](dicom::ServiceBase&, const dicom::DataSet&, dicom::DataSet&)
+					{
+						return dicom::CSubOperationResult(dicom::Status::SUCCESS,0,0,0,0);
+					}),
+				service,
+				missingMoveDestination,
+				classUID);
+		}
+		catch(const std::exception&)
+		{
+			missingMoveDestinationRejected = true;
+		}
+		assert(missingMoveDestinationRejected);
+
+		dicom::DataSet missingLegacyMoveDestination;
+		missingLegacyMoveDestination.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_CLASS_UID, classUID);
+		missingLegacyMoveDestination.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD, dicom::Command::C_MOVE_RQ);
+		missingLegacyMoveDestination.Put<dicom::VR_US>(dicom::TAG_MSG_ID, UINT16(40));
+		missingLegacyMoveDestination.Put<dicom::VR_US>(dicom::TAG_PRIORITY, dicom::Priority::MEDIUM);
+		missingLegacyMoveDestination.Put<dicom::VR_US>(dicom::TAG_DATA_SET_TYPE, dicom::DataSetStatus::YES_DATA_SET);
+		bool missingLegacyMoveDestinationRejected = false;
+		try
+		{
+			dicom::HandleCMove(
+				[](dicom::ServiceBase&, const dicom::DataSet&, dicom::DataSet&)
+				{
+				},
+				service,
+				missingLegacyMoveDestination,
+				classUID);
+		}
+		catch(const std::exception&)
+		{
+			missingLegacyMoveDestinationRejected = true;
+		}
+		assert(missingLegacyMoveDestinationRejected);
+
 		{
 			int sockets[2];
 			makeSocketPair(sockets);

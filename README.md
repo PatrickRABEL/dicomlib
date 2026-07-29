@@ -215,8 +215,12 @@ application code and asynchronous operations are not yet claimed. Generic
 C-DIMSE status helpers classify the implemented `Success`,
 `Pending`, `Cancel`, `Warning`, and final/non-final response states; SOP-class
 specific validators are provided for C-ECHO, C-STORE, and Query/Retrieve
-C-FIND, C-GET, and C-MOVE response statuses. C-GET/C-MOVE response construction
-omits `Number of Remaining Sub-operations` for tested final `Success`,
+C-FIND, C-GET, and C-MOVE response statuses. SCP request handlers reject tested
+C-STORE, C-FIND, C-GET, and C-MOVE requests whose `Priority` field is not one
+of `LOW`, `MEDIUM`, or `HIGH`, or whose `Priority` field is absent or
+multi-valued, and reject tested C-MOVE-RQ command sets that omit the mandatory
+`Move Destination`. C-GET/C-MOVE response construction omits
+`Number of Remaining Sub-operations` for tested final `Success`,
 `Warning`, and `Failure` responses and keeps it available for `Pending` and
 `Cancel`; C-GET/C-MOVE SCU response validation rejects tested `Pending`
 responses that omit the required sub-operation counters. Generic N-DIMSE status validators

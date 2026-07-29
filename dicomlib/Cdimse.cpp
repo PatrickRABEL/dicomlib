@@ -118,6 +118,24 @@ namespace dicom
 			}
 		}
 
+		void ValidateCdimseRequestPriority(const DataSet& command)
+		{
+			if(command.Values(TAG_PRIORITY).size() != 1)
+				throw exception("Invalid C-DIMSE request priority");
+			UINT16 priority = 0;
+			command(TAG_PRIORITY) >> priority;
+			if(priority != Priority::LOW &&
+				priority != Priority::MEDIUM &&
+				priority != Priority::HIGH)
+				throw exception("Invalid C-DIMSE request priority");
+		}
+
+		void ValidateCMoveRequestDestination(const DataSet& command)
+		{
+			if(command.Values(TAG_MOVE_DEST).size() != 1)
+				throw exception("Invalid C-MOVE request Move Destination");
+		}
+
 		void ValidateNoCommandDataSet(const DataSet& command)
 		{
 			UINT16 dataSetType = 0;
@@ -259,6 +277,7 @@ namespace dicom
 	{
 		RequireSCPRole(pdu,classUID);
 		ValidateCdimseRequest(command,Command::C_STORE_RQ,&classUID);
+		ValidateCdimseRequestPriority(command);
 		UINT16 msgID,data_set_status;
 		UID instuid;
 		command(TAG_MSG_ID)>>msgID;
@@ -293,6 +312,7 @@ namespace dicom
 	{
 		RequireSCPRole(pdu,classUID);
 		ValidateCdimseRequest(command,Command::C_FIND_RQ,&classUID);
+		ValidateCdimseRequestPriority(command);
 #ifdef _DEBUG
 		cout  << "HandleCFind:" << endl << command;
 #endif
@@ -366,6 +386,7 @@ namespace dicom
 	{
 		RequireSCPRole(pdu,classUID);
 		ValidateCdimseRequest(command,Command::C_GET_RQ,&classUID);
+		ValidateCdimseRequestPriority(command);
 		UINT16 msgID,data_set_status;
 		command(TAG_MSG_ID)>>msgID;
 		pdu.ClearCancelRequest(msgID);
@@ -382,6 +403,7 @@ namespace dicom
 	{
 		RequireSCPRole(pdu,classUID);
 		ValidateCdimseRequest(command,Command::C_GET_RQ,&classUID);
+		ValidateCdimseRequestPriority(command);
 		UINT16 msgID,data_set_status;
 		command(TAG_MSG_ID)>>msgID;
 		pdu.ClearCancelRequest(msgID);
@@ -684,6 +706,8 @@ namespace dicom
 	{
 		RequireSCPRole(pdu,classUID);
 		ValidateCdimseRequest(command,Command::C_MOVE_RQ,&classUID);
+		ValidateCdimseRequestPriority(command);
+		ValidateCMoveRequestDestination(command);
 		UINT16 msgID,data_set_status;
 		command(TAG_MSG_ID)>>msgID;
 		pdu.ClearCancelRequest(msgID);
@@ -703,6 +727,8 @@ namespace dicom
 	{
 		RequireSCPRole(pdu,classUID);
 		ValidateCdimseRequest(command,Command::C_MOVE_RQ,&classUID);
+		ValidateCdimseRequestPriority(command);
+		ValidateCMoveRequestDestination(command);
 		UINT16 msgID,data_set_status;
 		command(TAG_MSG_ID)>>msgID;
 		pdu.ClearCancelRequest(msgID);
