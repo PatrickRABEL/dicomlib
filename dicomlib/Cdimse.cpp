@@ -156,6 +156,27 @@ namespace dicom
 			}
 		}
 
+		void ValidateRetrieveSubOperationCounters(
+			const DataSet& response,
+			UINT16 status,
+			Command::Code command)
+		{
+			if(!IsCdimsePendingStatus(status))
+				return;
+
+			if(!response.exists(TAG_NUM_REMAIN_SUBOP) ||
+				!response.exists(TAG_NUM_COMPL_SUBOP) ||
+				!response.exists(TAG_NUM_FAIL_SUBOP) ||
+				!response.exists(TAG_NUM_WARN_SUBOP))
+			{
+				if(command == Command::C_GET_RSP)
+					throw exception("C-GET pending response requires sub-operation counters");
+				if(command == Command::C_MOVE_RSP)
+					throw exception("C-MOVE pending response requires sub-operation counters");
+				throw exception("Pending retrieve response requires sub-operation counters");
+			}
+		}
+
 		void ReadRequiredCommand(ServiceBase& service, DataSet& command)
 		{
 			if(!service.Read(command))
@@ -872,6 +893,7 @@ namespace dicom
 		response(TAG_STATUS)		>>	status;
 		ValidateCdimseResponseStatus(status, Command::C_GET_RSP);
 		ValidateCdimseResponseDataSetType(Command::C_GET_RSP,status,dstype);
+		ValidateRetrieveSubOperationCounters(response,status,Command::C_GET_RSP);
 		if(dstype!=DataSetStatus::NO_DATA_SET)
 			ReadRequiredDataSet(service_,data);
 
@@ -895,6 +917,7 @@ namespace dicom
 				command(TAG_STATUS) >> status;
 				ValidateCdimseResponseStatus(status, Command::C_GET_RSP);
 				ValidateCdimseResponseDataSetType(Command::C_GET_RSP,status,dstype);
+				ValidateRetrieveSubOperationCounters(command,status,Command::C_GET_RSP);
 				response = command;
 				if(dstype!=DataSetStatus::NO_DATA_SET)
 					ReadRequiredDataSet(service_,data);
@@ -954,6 +977,7 @@ namespace dicom
 		response(TAG_STATUS)		>>	status;
 		ValidateCdimseResponseStatus(status, Command::C_MOVE_RSP);
 		ValidateCdimseResponseDataSetType(Command::C_MOVE_RSP,status,dstype);
+		ValidateRetrieveSubOperationCounters(response,status,Command::C_MOVE_RSP);
 		if(dstype!=DataSetStatus::NO_DATA_SET)
 			ReadRequiredDataSet(service_,data);
 

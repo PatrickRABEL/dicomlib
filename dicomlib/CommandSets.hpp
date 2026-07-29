@@ -161,6 +161,8 @@ namespace dicom
 			NGetRSP(UINT16 msgID, const dicom::UID& classUID, UINT16 stat, UINT16 dsType);
 			NGetRSP(UINT16 msgID, const dicom::UID& classUID, const dicom::UID& instUID,
 				UINT16 stat, UINT16 dsType);
+			NGetRSP(UINT16 msgID, const dicom::UID& classUID, const dicom::UID& instUID,
+				UINT16 stat, UINT16 dsType, const std::vector<Tag>& attrList);
 		};
 
 		class NSetRQ : public dicom::DataSet
@@ -175,6 +177,8 @@ namespace dicom
 			NSetRSP(UINT16 msgID, const dicom::UID& classUID, UINT16 stat, UINT16 dsType);
 			NSetRSP(UINT16 msgID, const dicom::UID& classUID, const dicom::UID& instUID,
 				UINT16 stat, UINT16 dsType);
+			NSetRSP(UINT16 msgID, const dicom::UID& classUID, const dicom::UID& instUID,
+				UINT16 stat, UINT16 dsType, const std::vector<Tag>& attrList);
 		};
 
 		class NActionRQ : public dicom::DataSet
@@ -207,6 +211,8 @@ namespace dicom
 		public:
 			NCreateRSP(UINT16 msgID, const dicom::UID& classUID, const dicom::UID& instUID,
 				UINT16 stat, UINT16 dsType);
+			NCreateRSP(UINT16 msgID, const dicom::UID& classUID, const dicom::UID& instUID,
+				UINT16 stat, UINT16 dsType, const std::vector<Tag>& attrList);
 		};
 
 		class NDeleteRQ : public dicom::DataSet

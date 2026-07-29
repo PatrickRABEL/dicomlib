@@ -288,7 +288,7 @@ namespace dicom
 
 				case Command::N_GET_RQ:
 				{
-					NHandlerFunction handler=server_.GetNGetHandler(classUID);
+					NAttributeHandlerFunction handler=server_.GetNGetHandler(classUID);
 					HandleNGet(handler,*this,command,classUID);
 					server_.LogMessage("Handled an N-GET");
 				}
@@ -296,7 +296,7 @@ namespace dicom
 
 				case Command::N_SET_RQ:
 				{
-					NHandlerFunction handler=server_.GetNSetHandler(classUID);
+					NAttributeHandlerFunction handler=server_.GetNSetHandler(classUID);
 					HandleNSet(handler,*this,command,classUID);
 					server_.LogMessage("Handled an N-SET");
 				}
@@ -312,7 +312,7 @@ namespace dicom
 
 				case Command::N_CREATE_RQ:
 				{
-					NCreateHandlerFunction handler=server_.GetNCreateHandler(classUID);
+					NCreateAttributeHandlerFunction handler=server_.GetNCreateHandler(classUID);
 					HandleNCreate(handler,*this,command,classUID);
 					server_.LogMessage("Handled an N-CREATE");
 				}

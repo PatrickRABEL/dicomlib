@@ -218,10 +218,15 @@ specific validators are provided for C-ECHO, C-STORE, and Query/Retrieve
 C-FIND, C-GET, and C-MOVE response statuses. C-GET/C-MOVE response construction
 omits `Number of Remaining Sub-operations` for tested final `Success`,
 `Warning`, and `Failure` responses and keeps it available for `Pending` and
-`Cancel`. Generic N-DIMSE status validators
+`Cancel`; C-GET/C-MOVE SCU response validation rejects tested `Pending`
+responses that omit the required sub-operation counters. Generic N-DIMSE status validators
 classify PS3.7 Annex C Success, Warning, Failure, and final response status
 classes for N-EVENT-REPORT, N-GET, N-SET, N-ACTION, N-CREATE, and N-DELETE; the
 N-DIMSE command set constructors are covered for their core command fields.
+N-GET-RSP, N-SET-RSP, and N-CREATE-RSP constructors can encode a multi-valued
+Attribute Identifier List command field for tested Annex C attribute statuses.
+Specialized free-function and thread-backed `Server` N-GET, N-SET, and
+N-CREATE SCP handlers can write that response command field from callbacks.
 N-EVENT-REPORT, N-GET, N-SET, N-ACTION, N-CREATE, and N-DELETE SCU request and
 response paths are covered over local P-DATA, including response command field,
 Message ID Being Responded To, status validation, optional response data set
@@ -229,9 +234,13 @@ reading, response SOP Class UID validation, response SOP Instance UID validation
 when the request instance is known and the response includes the field,
 N-CREATE response SOP Instance UID presence and non-empty value rules for tested
 success/non-success cases, N-CREATE Invalid Attribute Value response Attribute
-List reading, N-GET Success response Attribute List presence validation, and
-N-EVENT-REPORT Event Type ID and N-ACTION Action Type ID validation when present
-in the response.
+List reading, N-CREATE Attribute Value out of range response Attribute List
+reading, N-CREATE Missing Attribute Value response Attribute List reading,
+N-SET Invalid Attribute Value response Modification List reading, N-SET
+Attribute Value out of range response Modification List reading, N-SET Missing
+Attribute Value response Modification List reading, N-GET Success response
+Attribute List presence validation, and N-EVENT-REPORT Event Type ID and
+N-ACTION Action Type ID validation when present in the response.
 N-DELETE-RSP commands that announce a Data Set are rejected.
 N-EVENT-REPORT-RSP and N-ACTION-RSP commands that announce a Data Set are
 rejected when the response status is not `Success`, and their response data sets
@@ -246,7 +255,10 @@ no Data Set and any other value means a Data Set is present, expose a dedicated
 N-CREATE callback UID for SCP-created SOP Instances, reject N-CREATE success
 responses when no SOP Instance UID is available, reject N-GET success responses
 without an Attribute List data set, allow tested N-CREATE Invalid Attribute
-Value callback response data sets, and server dispatch is covered through
+Value, Attribute Value out of range, and Missing Attribute Value callback
+response data sets, allow tested N-SET Invalid Attribute Value, Attribute Value
+out of range, and Missing Attribute Value callback response data sets, and
+server dispatch is covered through
 `Server`/`ClientConnection` tests. SCU response validation also rejects
 unexpected SOP Class UIDs. `NGetRQ` encodes the Attribute Identifier List as
 multi-valued `AT`. A-ASSOCIATE-RQ/AC

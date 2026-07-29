@@ -171,6 +171,14 @@ namespace dicom
 		//N-DIMSE commands
 		//////////////////////////////////////////////////////////////////////////
 
+		namespace
+		{
+			void PutAttributeIdentifierList(DataSet& command, const std::vector<Tag>& attrList)
+			{
+				for(std::vector<Tag>::const_iterator I=attrList.begin(); I!=attrList.end(); ++I)
+					command.Put<VR_AT>(TAG_ATTR_ID_LIST, *I);
+			}
+		}
 
 		/*!
 			Defined in Part7, table 10.3-1
@@ -216,8 +224,7 @@ namespace dicom
 			this->Put<VR_US>(TAG_MSG_ID, msgID);
 			this->Put<VR_US>(TAG_DATA_SET_TYPE, DataSetStatus::NO_DATA_SET);
 			this->Put<VR_UI>(TAG_REQ_SOP_INST_UID,  instUID);
-			for(std::vector<Tag>::const_iterator I=attrList.begin(); I!=attrList.end(); ++I)
-				this->Put<VR_AT>(TAG_ATTR_ID_LIST, *I);
+			PutAttributeIdentifierList(*this,attrList);
 		}
 
 		NGetRSP::NGetRSP(UINT16 msgID, const UID& classUID, UINT16 stat, UINT16 dsType)
@@ -235,6 +242,13 @@ namespace dicom
 			this->Put<VR_US>(TAG_STATUS, stat);
 			if(instUID.str().size()!=0)
 				this->Put<VR_UI>(TAG_AFF_SOP_INST_UID, instUID);
+		}
+
+		NGetRSP::NGetRSP(UINT16 msgID, const UID& classUID, const UID& instUID,
+			UINT16 stat, UINT16 dsType, const std::vector<Tag>& attrList)
+			:NGetRSP(msgID,classUID,instUID,stat,dsType)
+		{
+			PutAttributeIdentifierList(*this,attrList);
 		}
 
 		NSetRQ::NSetRQ(UINT16 msgID, const UID& classUID, const UID& instUID)
@@ -261,6 +275,13 @@ namespace dicom
 			this->Put<VR_US>(TAG_STATUS, stat);
 			if(instUID.str().size()!=0)
 				this->Put<VR_UI>(TAG_AFF_SOP_INST_UID, instUID);
+		}
+
+		NSetRSP::NSetRSP(UINT16 msgID, const UID& classUID, const UID& instUID,
+			UINT16 stat, UINT16 dsType, const std::vector<Tag>& attrList)
+			:NSetRSP(msgID,classUID,instUID,stat,dsType)
+		{
+			PutAttributeIdentifierList(*this,attrList);
 		}
 
 		NActionRQ::NActionRQ(UINT16 msgID, const UID& classUID, const UID& instUID,
@@ -322,6 +343,13 @@ namespace dicom
 			this->Put<VR_US>(TAG_STATUS, stat);
 			if (stat == Status::SUCCESS)
 				this->Put<VR_UI>(TAG_AFF_SOP_INST_UID, instUID);
+		}
+
+		NCreateRSP::NCreateRSP(UINT16 msgID, const UID& classUID, const UID& instUID,
+			UINT16 stat, UINT16 dsType, const std::vector<Tag>& attrList)
+			:NCreateRSP(msgID,classUID,instUID,stat,dsType)
+		{
+			PutAttributeIdentifierList(*this,attrList);
 		}
 
 		NDeleteRQ::NDeleteRQ(UINT16 msgID, const UID& classUID, const UID& instUID)

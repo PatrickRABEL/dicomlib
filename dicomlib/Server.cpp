@@ -350,10 +350,32 @@ namespace dicom
 		void Server::AddNGetHandler(const UID& uid,NHandlerFunction Handler)
 		{
 			std::lock_guard<std::mutex> scoped_lock(mutex_);
+			NGetHandlers_[uid]=
+				[Handler](ServiceBase& service, const DataSet& command, const DataSet& requestData,
+					DataSet& responseData, std::vector<Tag>&)
+				{
+					return Handler(service,command,requestData,responseData);
+				};
+		}
+
+		void Server::AddNGetHandler(const UID& uid,NAttributeHandlerFunction Handler)
+		{
+			std::lock_guard<std::mutex> scoped_lock(mutex_);
 			NGetHandlers_[uid]=Handler;
 		}
 
 		void Server::AddNSetHandler(const UID& uid,NHandlerFunction Handler)
+		{
+			std::lock_guard<std::mutex> scoped_lock(mutex_);
+			NSetHandlers_[uid]=
+				[Handler](ServiceBase& service, const DataSet& command, const DataSet& requestData,
+					DataSet& responseData, std::vector<Tag>&)
+				{
+					return Handler(service,command,requestData,responseData);
+				};
+		}
+
+		void Server::AddNSetHandler(const UID& uid,NAttributeHandlerFunction Handler)
 		{
 			std::lock_guard<std::mutex> scoped_lock(mutex_);
 			NSetHandlers_[uid]=Handler;
@@ -370,13 +392,24 @@ namespace dicom
 			std::lock_guard<std::mutex> scoped_lock(mutex_);
 			NCreateHandlers_[uid]=
 				[Handler](ServiceBase& service, const DataSet& command, const DataSet& requestData,
-					UID&, DataSet& responseData)
+					UID&, DataSet& responseData, std::vector<Tag>&)
 				{
 					return Handler(service,command,requestData,responseData);
 				};
 		}
 
 		void Server::AddNCreateHandler(const UID& uid,NCreateHandlerFunction Handler)
+		{
+			std::lock_guard<std::mutex> scoped_lock(mutex_);
+			NCreateHandlers_[uid]=
+				[Handler](ServiceBase& service, const DataSet& command, const DataSet& requestData,
+					UID& responseInstUID, DataSet& responseData, std::vector<Tag>&)
+				{
+					return Handler(service,command,requestData,responseInstUID,responseData);
+				};
+		}
+
+		void Server::AddNCreateHandler(const UID& uid,NCreateAttributeHandlerFunction Handler)
 		{
 			std::lock_guard<std::mutex> scoped_lock(mutex_);
 			NCreateHandlers_[uid]=Handler;
@@ -501,13 +534,13 @@ namespace dicom
 			return GetNHandler(NEventReportHandlers_,uid,*this);
 		}
 
-		NHandlerFunction Server::GetNGetHandler(const UID& uid)
+		NAttributeHandlerFunction Server::GetNGetHandler(const UID& uid)
 		{
 			std::lock_guard<std::mutex> scoped_lock(mutex_);
 			return GetNHandler(NGetHandlers_,uid,*this);
 		}
 
-		NHandlerFunction Server::GetNSetHandler(const UID& uid)
+		NAttributeHandlerFunction Server::GetNSetHandler(const UID& uid)
 		{
 			std::lock_guard<std::mutex> scoped_lock(mutex_);
 			return GetNHandler(NSetHandlers_,uid,*this);
@@ -519,7 +552,7 @@ namespace dicom
 			return GetNHandler(NActionHandlers_,uid,*this);
 		}
 
-		NCreateHandlerFunction Server::GetNCreateHandler(const UID& uid)
+		NCreateAttributeHandlerFunction Server::GetNCreateHandler(const UID& uid)
 		{
 			std::lock_guard<std::mutex> scoped_lock(mutex_);
 			return GetNHandler(NCreateHandlers_,uid,*this);

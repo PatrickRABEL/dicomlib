@@ -127,10 +127,10 @@ namespace dicom
 			std::map<UID,CMoveStatusFunction> CancellableMoveHandlers_;
 			std::map<UID,CMoveStoreFunction> MoveStoreHandlers_;
 			std::map<UID,NHandlerFunction> NEventReportHandlers_;
-			std::map<UID,NHandlerFunction> NGetHandlers_;
-			std::map<UID,NHandlerFunction> NSetHandlers_;
+			std::map<UID,NAttributeHandlerFunction> NGetHandlers_;
+			std::map<UID,NAttributeHandlerFunction> NSetHandlers_;
 			std::map<UID,NHandlerFunction> NActionHandlers_;
-			std::map<UID,NCreateHandlerFunction> NCreateHandlers_;
+			std::map<UID,NCreateAttributeHandlerFunction> NCreateHandlers_;
 			std::map<UID,NHandlerFunction> NDeleteHandlers_;
 
 		/*
@@ -237,10 +237,13 @@ namespace dicom
 			void AddMoveStoreHandler(const UID& uid,CMoveStoreFunction Handler);
 			void AddNEventReportHandler(const UID& uid,NHandlerFunction Handler);
 			void AddNGetHandler(const UID& uid,NHandlerFunction Handler);
+			void AddNGetHandler(const UID& uid,NAttributeHandlerFunction Handler);
 			void AddNSetHandler(const UID& uid,NHandlerFunction Handler);
+			void AddNSetHandler(const UID& uid,NAttributeHandlerFunction Handler);
 			void AddNActionHandler(const UID& uid,NHandlerFunction Handler);
 			void AddNCreateHandler(const UID& uid,NHandlerFunction Handler);
 			void AddNCreateHandler(const UID& uid,NCreateHandlerFunction Handler);
+			void AddNCreateHandler(const UID& uid,NCreateAttributeHandlerFunction Handler);
 			void AddNDeleteHandler(const UID& uid,NHandlerFunction Handler);
 
 		HandlerFunction GetHandler(const UID& uid);
@@ -254,10 +257,10 @@ namespace dicom
 			CMoveStoreFunction GetMoveStoreHandler(const UID& uid);
 			bool HasMoveStoreHandler(const UID& uid);
 			NHandlerFunction GetNEventReportHandler(const UID& uid);
-			NHandlerFunction GetNGetHandler(const UID& uid);
-			NHandlerFunction GetNSetHandler(const UID& uid);
+			NAttributeHandlerFunction GetNGetHandler(const UID& uid);
+			NAttributeHandlerFunction GetNSetHandler(const UID& uid);
 			NHandlerFunction GetNActionHandler(const UID& uid);
-			NCreateHandlerFunction GetNCreateHandler(const UID& uid);
+			NCreateAttributeHandlerFunction GetNCreateHandler(const UID& uid);
 			NHandlerFunction GetNDeleteHandler(const UID& uid);
 
 		bool IsAcceptableRemoteApplicationTitle		(const std::string& Title,std::string ip);

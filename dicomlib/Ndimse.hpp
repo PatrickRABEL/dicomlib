@@ -44,15 +44,22 @@ namespace dicom
 
 	typedef std::function<UINT16(ServiceBase&,const DataSet&,const DataSet&,DataSet&)>
 		NHandlerFunction;
+	typedef std::function<UINT16(ServiceBase&,const DataSet&,const DataSet&,DataSet&,std::vector<Tag>&)>
+		NAttributeHandlerFunction;
 	typedef std::function<UINT16(ServiceBase&,const DataSet&,const DataSet&,UID&,DataSet&)>
 		NCreateHandlerFunction;
+	typedef std::function<UINT16(ServiceBase&,const DataSet&,const DataSet&,UID&,DataSet&,std::vector<Tag>&)>
+		NCreateAttributeHandlerFunction;
 
 	void HandleNEventReport(NHandlerFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID);
 	void HandleNGet(NHandlerFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID);
+	void HandleNGet(NAttributeHandlerFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID);
 	void HandleNSet(NHandlerFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID);
+	void HandleNSet(NAttributeHandlerFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID);
 	void HandleNAction(NHandlerFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID);
 	void HandleNCreate(NHandlerFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID);
 	void HandleNCreate(NCreateHandlerFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID);
+	void HandleNCreate(NCreateAttributeHandlerFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID);
 	void HandleNDelete(NHandlerFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID);
 
 	class NSCU

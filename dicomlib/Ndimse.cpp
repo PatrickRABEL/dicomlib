@@ -278,6 +278,19 @@ namespace dicom
 
 	void HandleNGet(NHandlerFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID)
 	{
+		HandleNGet(
+			[handler](ServiceBase& service, const DataSet& commandSet, const DataSet& requestData,
+				DataSet& responseData, std::vector<Tag>&)
+			{
+				return handler(service,commandSet,requestData,responseData);
+			},
+			pdu,
+			command,
+			classUID);
+	}
+
+	void HandleNGet(NAttributeHandlerFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID)
+	{
 		RequireSCPRole(pdu,classUID);
 		ValidateNdimseRequest(command,Command::N_GET_RQ,classUID);
 
@@ -287,25 +300,39 @@ namespace dicom
 
 		DataSet requestData;
 		DataSet responseData;
+		std::vector<Tag> responseAttributeList;
 		RejectRequestDataSet(command);
-		const UINT16 status = handler(pdu,command,requestData,responseData);
+		const UINT16 status = handler(pdu,command,requestData,responseData,responseAttributeList);
 		if(!IsNGetResponseStatus(status))
 			throw exception("Invalid N-GET response status");
 		if(IsNdimseSuccessStatus(status) && responseData.empty())
 			throw exception("N-GET success response requires an Attribute List data set");
 
-		CommandSet::NGetRSP responseCommand(
-			msgID,
-			classUID,
-			instUID,
-			status,
-			responseData.empty() ? DataSetStatus::NO_DATA_SET : DataSetStatus::YES_DATA_SET);
+		const UINT16 responseDataSetType =
+			responseData.empty() ? DataSetStatus::NO_DATA_SET : DataSetStatus::YES_DATA_SET;
+		DataSet responseCommand =
+			responseAttributeList.empty() ?
+			DataSet(CommandSet::NGetRSP(msgID,classUID,instUID,status,responseDataSetType)) :
+			DataSet(CommandSet::NGetRSP(msgID,classUID,instUID,status,responseDataSetType,responseAttributeList));
 		pdu.WriteCommand(responseCommand,classUID);
 		if(!responseData.empty())
 			pdu.WriteDataSet(responseData,classUID);
 	}
 
 	void HandleNSet(NHandlerFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID)
+	{
+		HandleNSet(
+			[handler](ServiceBase& service, const DataSet& commandSet, const DataSet& requestData,
+				DataSet& responseData, std::vector<Tag>&)
+			{
+				return handler(service,commandSet,requestData,responseData);
+			},
+			pdu,
+			command,
+			classUID);
+	}
+
+	void HandleNSet(NAttributeHandlerFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID)
 	{
 		RequireSCPRole(pdu,classUID);
 		ValidateNdimseRequest(command,Command::N_SET_RQ,classUID);
@@ -316,17 +343,18 @@ namespace dicom
 
 		DataSet requestData;
 		DataSet responseData;
+		std::vector<Tag> responseAttributeList;
 		ReadRequiredRequestDataSet(pdu,command,requestData);
-		const UINT16 status = handler(pdu,command,requestData,responseData);
+		const UINT16 status = handler(pdu,command,requestData,responseData,responseAttributeList);
 		if(!IsNSetResponseStatus(status))
 			throw exception("Invalid N-SET response status");
 
-		CommandSet::NSetRSP responseCommand(
-			msgID,
-			classUID,
-			instUID,
-			status,
-			responseData.empty() ? DataSetStatus::NO_DATA_SET : DataSetStatus::YES_DATA_SET);
+		const UINT16 responseDataSetType =
+			responseData.empty() ? DataSetStatus::NO_DATA_SET : DataSetStatus::YES_DATA_SET;
+		DataSet responseCommand =
+			responseAttributeList.empty() ?
+			DataSet(CommandSet::NSetRSP(msgID,classUID,instUID,status,responseDataSetType)) :
+			DataSet(CommandSet::NSetRSP(msgID,classUID,instUID,status,responseDataSetType,responseAttributeList));
 		pdu.WriteCommand(responseCommand,classUID);
 		if(!responseData.empty())
 			pdu.WriteDataSet(responseData,classUID);
@@ -379,6 +407,19 @@ namespace dicom
 
 	void HandleNCreate(NCreateHandlerFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID)
 	{
+		HandleNCreate(
+			[handler](ServiceBase& service, const DataSet& commandSet, const DataSet& requestData,
+				UID& responseInstUID, DataSet& responseData, std::vector<Tag>&)
+			{
+				return handler(service,commandSet,requestData,responseInstUID,responseData);
+			},
+			pdu,
+			command,
+			classUID);
+	}
+
+	void HandleNCreate(NCreateAttributeHandlerFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID)
+	{
 		RequireSCPRole(pdu,classUID);
 		ValidateNdimseRequest(command,Command::N_CREATE_RQ,classUID);
 
@@ -388,20 +429,21 @@ namespace dicom
 
 		DataSet requestData;
 		DataSet responseData;
+		std::vector<Tag> responseAttributeList;
 		ReadRequestDataSetIfPresent(pdu,command,requestData);
 		UID responseInstUID = instUID;
-		const UINT16 status = handler(pdu,command,requestData,responseInstUID,responseData);
+		const UINT16 status = handler(pdu,command,requestData,responseInstUID,responseData,responseAttributeList);
 		if(!IsNCreateResponseStatus(status))
 			throw exception("Invalid N-CREATE response status");
 		if(IsNdimseSuccessStatus(status) && responseInstUID.str().size() == 0)
 			throw exception("N-CREATE success response requires SOP Instance UID");
 
-		CommandSet::NCreateRSP responseCommand(
-			msgID,
-			classUID,
-			responseInstUID,
-			status,
-			responseData.empty() ? DataSetStatus::NO_DATA_SET : DataSetStatus::YES_DATA_SET);
+		const UINT16 responseDataSetType =
+			responseData.empty() ? DataSetStatus::NO_DATA_SET : DataSetStatus::YES_DATA_SET;
+		DataSet responseCommand =
+			responseAttributeList.empty() ?
+			DataSet(CommandSet::NCreateRSP(msgID,classUID,responseInstUID,status,responseDataSetType)) :
+			DataSet(CommandSet::NCreateRSP(msgID,classUID,responseInstUID,status,responseDataSetType,responseAttributeList));
 		pdu.WriteCommand(responseCommand,classUID);
 		if(!responseData.empty())
 			pdu.WriteDataSet(responseData,classUID);
