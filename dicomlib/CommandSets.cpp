@@ -178,6 +178,29 @@ namespace dicom
 				for(std::vector<Tag>::const_iterator I=attrList.begin(); I!=attrList.end(); ++I)
 					command.Put<VR_AT>(TAG_ATTR_ID_LIST, *I);
 			}
+
+			bool NCreateResponseMayCarryAffectedSOPInstanceUID(UINT16 stat)
+			{
+				return stat == Status::SUCCESS ||
+					stat == 0x0111 ||
+					stat == 0x0117;
+			}
+
+			bool NEventReportResponseMayCarryEventTypeID(UINT16 stat)
+			{
+				return stat == Status::SUCCESS ||
+					stat == 0x0113 ||
+					stat == 0x0114 ||
+					stat == 0x0115;
+			}
+
+			bool NActionResponseMayCarryActionTypeID(UINT16 stat)
+			{
+				return stat == Status::SUCCESS ||
+					stat == 0x0114 ||
+					stat == 0x0115 ||
+					stat == 0x0123;
+			}
 		}
 
 		/*!
@@ -212,7 +235,7 @@ namespace dicom
 			this->Put<VR_US>(TAG_STATUS, stat);
 			if(instUID.str().size()!=0)
 				this->Put<VR_UI>(TAG_AFF_SOP_INST_UID, instUID);
-			if (stat == Status::SUCCESS)
+			if (NEventReportResponseMayCarryEventTypeID(stat))
 				this->Put<VR_US>(TAG_EVENT_TYPE_ID, eventTypID);
 		}
 
@@ -311,7 +334,7 @@ namespace dicom
 			this->Put<VR_US>(TAG_STATUS, stat);
 			if(instUID.str().size()!=0)
 				this->Put<VR_UI>(TAG_AFF_SOP_INST_UID, instUID);
-			if (stat == Status::SUCCESS)
+			if (NActionResponseMayCarryActionTypeID(stat))
 				this->Put<VR_US>(TAG_ACTION_TYPE_ID, actionTypID);
 		}
 
@@ -341,7 +364,8 @@ namespace dicom
 			this->Put<VR_US>(TAG_MSG_ID_RSP, msgID);
 			this->Put<VR_US>(TAG_DATA_SET_TYPE, dsType);
 			this->Put<VR_US>(TAG_STATUS, stat);
-			if (stat == Status::SUCCESS)
+			if (NCreateResponseMayCarryAffectedSOPInstanceUID(stat) &&
+				instUID.str().size() != 0)
 				this->Put<VR_UI>(TAG_AFF_SOP_INST_UID, instUID);
 		}
 

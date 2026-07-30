@@ -110,6 +110,13 @@ namespace dicom
 				if(command.Values(TAG_AFF_SOP_INST_UID).size() > 1)
 					throw exception("Invalid N-DIMSE request SOP Instance UID");
 				command(TAG_AFF_SOP_CLASS_UID) >> commandClassUID;
+				if(command.exists(TAG_AFF_SOP_INST_UID))
+				{
+					UID instanceUID;
+					command(TAG_AFF_SOP_INST_UID) >> instanceUID;
+					if(instanceUID.str().size() == 0)
+						throw exception("Invalid N-DIMSE request SOP Instance UID");
+				}
 				break;
 			case Command::N_GET_RQ:
 			case Command::N_SET_RQ:
@@ -232,6 +239,21 @@ namespace dicom
 				throw exception("Invalid N-DIMSE response status");
 		}
 
+		bool IsNCreateDuplicateSOPInstanceStatus(UINT16 status)
+		{
+			return status == 0x0111;
+		}
+
+		bool IsInvalidObjectInstanceStatus(UINT16 status)
+		{
+			return status == 0x0117;
+		}
+
+		bool IsInvalidArgumentValueStatus(UINT16 status)
+		{
+			return status == 0x0115;
+		}
+
 		void ReadRequestDataSetIfPresent(ServiceBase& service, const DataSet& command, DataSet& data)
 		{
 			UINT16 dataSetType = 0;
@@ -348,7 +370,9 @@ namespace dicom
 		const UINT16 status = handler(pdu,command,requestData,responseData);
 		if(!IsNEventReportResponseStatus(status))
 			throw exception("Invalid N-EVENT-REPORT response status");
-		if(!IsNdimseSuccessStatus(status) && !responseData.empty())
+		if(!IsNdimseSuccessStatus(status) &&
+			!IsInvalidArgumentValueStatus(status) &&
+			!responseData.empty())
 			throw exception("N-EVENT-REPORT non-success response shall not include a data set");
 
 		CommandSet::NEventReportRSP responseCommand(
@@ -467,7 +491,9 @@ namespace dicom
 		const UINT16 status = handler(pdu,command,requestData,responseData);
 		if(!IsNActionResponseStatus(status))
 			throw exception("Invalid N-ACTION response status");
-		if(!IsNdimseSuccessStatus(status) && !responseData.empty())
+		if(!IsNdimseSuccessStatus(status) &&
+			!IsInvalidArgumentValueStatus(status) &&
+			!responseData.empty())
 			throw exception("N-ACTION non-success response shall not include a data set");
 
 		CommandSet::NActionRSP responseCommand(
@@ -648,8 +674,20 @@ namespace dicom
 			throw exception("N-DELETE response shall not include a data set");
 		if(expectedCommand == Command::N_CREATE_RSP &&
 			!IsNdimseSuccessStatus(status) &&
-			response.exists(TAG_AFF_SOP_INST_UID))
+			response.exists(TAG_AFF_SOP_INST_UID) &&
+			!IsNCreateDuplicateSOPInstanceStatus(status) &&
+			!IsInvalidObjectInstanceStatus(status))
 			throw exception("N-CREATE non-success response shall not include SOP Instance UID");
+		if(expectedCommand == Command::N_CREATE_RSP &&
+			(IsNCreateDuplicateSOPInstanceStatus(status) ||
+				IsInvalidObjectInstanceStatus(status)) &&
+			response.exists(TAG_AFF_SOP_INST_UID))
+		{
+			UID duplicateInstanceUID;
+			response(TAG_AFF_SOP_INST_UID) >> duplicateInstanceUID;
+			if(duplicateInstanceUID.str().size() == 0)
+				throw exception("N-CREATE response requires non-empty SOP Instance UID");
+		}
 		if(expectedCommand == Command::N_CREATE_RSP &&
 			IsNdimseSuccessStatus(status) &&
 			!hasLastSOPInstanceUID_)
@@ -664,6 +702,7 @@ namespace dicom
 		if((expectedCommand == Command::N_EVENT_REPORT_RSP ||
 			expectedCommand == Command::N_ACTION_RSP) &&
 			!IsNdimseSuccessStatus(status) &&
+			!IsInvalidArgumentValueStatus(status) &&
 			dataSetType != DataSetStatus::NO_DATA_SET)
 			throw exception("N-DIMSE non-success response shall not include a data set");
 		if(expectedCommand == Command::N_EVENT_REPORT_RSP &&
