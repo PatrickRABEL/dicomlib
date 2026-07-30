@@ -293,6 +293,8 @@ namespace dicom
 				return;
 			if(!data.exists(TAG_FAILED_SOPINSTUID_LIST))
 				throw exception("Retrieve response Identifier requires Failed SOP Instance UID List");
+			if(data.exists(TAG_CHAR_SET))
+				throw exception("Retrieve response Identifier shall not include Specific Character Set");
 			const std::vector<Value> failedUIDs = data.Values(TAG_FAILED_SOPINSTUID_LIST);
 			for(std::vector<Value>::const_iterator I=failedUIDs.begin();
 				I!=failedUIDs.end();

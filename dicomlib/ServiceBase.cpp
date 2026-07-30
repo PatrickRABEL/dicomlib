@@ -36,6 +36,18 @@ namespace dicom
 					return &(*I);
 			return 0;
 		}
+
+		const primitive::PresentationContextAccept* FindAcceptedPresentationContext(
+			const std::vector<primitive::PresentationContextAccept>& acceptedContexts,
+			BYTE presentationContextID)
+		{
+			for(std::vector<primitive::PresentationContextAccept>::const_iterator I=acceptedContexts.begin();
+				I!=acceptedContexts.end();
+				++I)
+				if(I->PresentationContextID_==presentationContextID)
+					return &(*I);
+			return 0;
+		}
 	}
 
 	ServiceBase::ServiceBase()
@@ -376,13 +388,13 @@ namespace dicom
 		const vector<PresentationContext>&	PCArray = AAssociateRQ_.ProposedPresentationContexts_;
 		//const vector<PresentationContext>& PCArray=AcceptedPresentationContexts_;
 
-
 		size_t Index = 0;
 		while ( Index < PCArray.size())
 		{
 			const PresentationContext& PresContext = PCArray.at ( Index );
-			const PresentationContextAccept& APresContext = AcceptedPresentationContexts_.at( Index );
-			if(PresContext.AbsSyntax_.UID_ == uid && APresContext.Result_==0)//The first accepted PresID ever found -Sam
+			const PresentationContextAccept* APresContext =
+				FindAcceptedPresentationContext(AcceptedPresentationContexts_,PresContext.ID_);
+			if(PresContext.AbsSyntax_.UID_ == uid && APresContext && APresContext->Result_==0)//The first accepted PresID ever found -Sam
 				return (PresContext.ID_);
 			++Index;
 		}
@@ -401,10 +413,9 @@ namespace dicom
 		for(size_t Index = 0; Index < PCArray.size(); ++Index)
 		{
 			const PresentationContext& PresContext = PCArray.at ( Index );
-			if(Index >= AcceptedPresentationContexts_.size())
-				break;
-			const PresentationContextAccept& APresContext = AcceptedPresentationContexts_.at( Index );
-			if(PresContext.AbsSyntax_.UID_ == uid && APresContext.Result_==0)
+			const PresentationContextAccept* APresContext =
+				FindAcceptedPresentationContext(AcceptedPresentationContexts_,PresContext.ID_);
+			if(PresContext.AbsSyntax_.UID_ == uid && APresContext && APresContext->Result_==0)
 				return (PresContext.ID_);
 		}
 		return 0;//not negotiated
@@ -432,7 +443,8 @@ namespace dicom
 				{
 
 					PCA = AcceptedPresentationContexts_.at ( Index );
-					if(PCA.TrnSyntax_.UID_ == TrnUID &&
+					if(PCA.Result_==0 &&
+						PCA.TrnSyntax_.UID_ == TrnUID &&
 						PCA.PresentationContextID_ == PresContext.ID_)
 					{
 						return ( PCA.PresentationContextID_);
@@ -581,8 +593,9 @@ namespace dicom
 		{
 			const primitive::PresentationContext& context =
 				AAssociateRQ_.ProposedPresentationContexts_.at(Index);
-			if(Index>=AcceptedPresentationContexts_.size() ||
-				AcceptedPresentationContexts_.at(Index).Result_!=0)
+			const primitive::PresentationContextAccept* acceptedContext =
+				FindAcceptedPresentationContext(AcceptedPresentationContexts_,context.ID_);
+			if(!acceptedContext || acceptedContext->Result_!=0)
 				continue;
 
 			const primitive::SCPSCURoleSelect* role =

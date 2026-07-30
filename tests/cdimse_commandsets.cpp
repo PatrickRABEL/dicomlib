@@ -319,6 +319,79 @@ namespace
 		defaultAcceptorState.ApplyAssociationNegotiationAsAcceptor(defaultRolesAcknowledgement.UserInfo_);
 		assert(!defaultAcceptorState.CanActAsSCU(classUID));
 		assert(defaultAcceptorState.CanActAsSCP(classUID));
+
+		const dicom::UID firstClassUID("1.2.826.0.1.3680043.10.1553.2.1");
+		const dicom::UID secondClassUID("1.2.826.0.1.3680043.10.1553.2.2");
+		dicom::PresentationContexts twoContexts;
+		twoContexts.Add(firstClassUID, dicom::TS(dicom::IMPL_VR_LE_TRANSFER_SYNTAX));
+		twoContexts.Add(secondClassUID, dicom::TS(dicom::IMPL_VR_LE_TRANSFER_SYNTAX));
+
+		dicom::primitive::PresentationContextAccept rejectedFirstContext;
+		rejectedFirstContext.PresentationContextID_ = twoContexts.at(0).ID_;
+		rejectedFirstContext.Result_ = 1;
+		rejectedFirstContext.TrnSyntax_ =
+			dicom::primitive::TransferSyntax(dicom::IMPL_VR_LE_TRANSFER_SYNTAX);
+
+		dicom::primitive::PresentationContextAccept acceptedSecondContext;
+		acceptedSecondContext.PresentationContextID_ = twoContexts.at(1).ID_;
+		acceptedSecondContext.Result_ = 0;
+		acceptedSecondContext.TrnSyntax_ =
+			dicom::primitive::TransferSyntax(dicom::IMPL_VR_LE_TRANSFER_SYNTAX);
+
+		dicom::primitive::AAssociateAC reorderedAcknowledgement;
+		reorderedAcknowledgement.PresContextAccepts_.push_back(acceptedSecondContext);
+		reorderedAcknowledgement.PresContextAccepts_.push_back(rejectedFirstContext);
+		reorderedAcknowledgement.UserInfo_.AddSCPSCURoleSelection(firstClassUID,true,false);
+		reorderedAcknowledgement.UserInfo_.AddSCPSCURoleSelection(secondClassUID,true,false);
+
+		NullService reorderedRequestorState;
+		reorderedRequestorState.AAssociateRQ_.ProposedPresentationContexts_ = twoContexts;
+		reorderedRequestorState.AcceptedPresentationContexts_ =
+			reorderedAcknowledgement.PresContextAccepts_;
+		reorderedRequestorState.ApplyAssociationNegotiationAsRequestor(reorderedAcknowledgement);
+		assert(!reorderedRequestorState.HasNegotiatedRole(firstClassUID));
+		assert(reorderedRequestorState.CanActAsSCU(secondClassUID));
+		assert(reorderedRequestorState.FindPresentationContextID(firstClassUID) == 0);
+		assert(reorderedRequestorState.FindPresentationContextID(secondClassUID) ==
+			twoContexts.at(1).ID_);
+		assert(reorderedRequestorState.GetPresentationContextID(secondClassUID) ==
+			twoContexts.at(1).ID_);
+		assert(reorderedRequestorState.GetPresentationContextID(
+			secondClassUID,
+			dicom::IMPL_VR_LE_TRANSFER_SYNTAX) == twoContexts.at(1).ID_);
+		bool rejectedContextLookupRejected = false;
+		try
+		{
+			reorderedRequestorState.GetPresentationContextID(firstClassUID);
+		}
+		catch(const dicom::exception&)
+		{
+			rejectedContextLookupRejected = true;
+		}
+		assert(rejectedContextLookupRejected);
+		bool rejectedContextTransferSyntaxLookupRejected = false;
+		try
+		{
+			reorderedRequestorState.GetPresentationContextID(
+				firstClassUID,
+				dicom::IMPL_VR_LE_TRANSFER_SYNTAX);
+		}
+		catch(const dicom::exception&)
+		{
+			rejectedContextTransferSyntaxLookupRejected = true;
+		}
+		assert(rejectedContextTransferSyntaxLookupRejected);
+
+		NullService reorderedAcceptorState;
+		reorderedAcceptorState.AAssociateRQ_.ProposedPresentationContexts_ = twoContexts;
+		reorderedAcceptorState.AcceptedPresentationContexts_ =
+			reorderedAcknowledgement.PresContextAccepts_;
+		reorderedAcceptorState.ApplyAssociationNegotiationAsAcceptor(reorderedAcknowledgement.UserInfo_);
+		assert(!reorderedAcceptorState.HasNegotiatedRole(firstClassUID));
+		assert(reorderedAcceptorState.CanActAsSCP(secondClassUID));
+		assert(reorderedAcceptorState.FindPresentationContextID(firstClassUID) == 0);
+		assert(reorderedAcceptorState.FindPresentationContextID(secondClassUID) ==
+			twoContexts.at(1).ID_);
 	}
 
 	struct TestCFindSCU : public dicom::CFindSCU
@@ -4825,6 +4898,197 @@ namespace
 			PairedService scuSide(sockets[0], classUID);
 			PairedService scpSide(sockets[1], classUID);
 
+			dicom::CommandSet::CGetRSP cancelWithSpecificCharacterSet(
+				123,
+				classUID,
+				dicom::Status::CANCEL,
+				dicom::DataSetStatus::YES_DATA_SET);
+			dicom::DataSet identifier;
+			identifier.Put<dicom::VR_UI>(
+				dicom::TAG_FAILED_SOPINSTUID_LIST,
+				dicom::UID("1.2.826.0.1.3680043.10.1553.14.8"));
+			identifier.Put<dicom::VR_CS>(dicom::TAG_CHAR_SET, std::string("ISO_IR 100"));
+			scpSide.WriteCommand(cancelWithSpecificCharacterSet, classUID);
+			scpSide.WriteDataSet(identifier, classUID);
+
+			TestCGetSCU scu(scuSide, classUID);
+			scu.setLastMessageID(123);
+
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			bool rejected = false;
+			try
+			{
+				scu.readRSP(status, response, data);
+			}
+			catch(const std::exception&)
+			{
+				rejected = true;
+			}
+			assert(rejected);
+		}
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService scuSide(sockets[0], classUID);
+			PairedService scpSide(sockets[1], classUID);
+
+			dicom::CommandSet::CGetRSP failureWithSpecificCharacterSet(
+				119,
+				classUID,
+				UINT16(0xa702),
+				dicom::DataSetStatus::YES_DATA_SET);
+			dicom::DataSet identifier;
+			identifier.Put<dicom::VR_UI>(
+				dicom::TAG_FAILED_SOPINSTUID_LIST,
+				dicom::UID("1.2.826.0.1.3680043.10.1553.14.6"));
+			identifier.Put<dicom::VR_CS>(dicom::TAG_CHAR_SET, std::string("ISO_IR 100"));
+			scpSide.WriteCommand(failureWithSpecificCharacterSet, classUID);
+			scpSide.WriteDataSet(identifier, classUID);
+
+			TestCGetSCU scu(scuSide, classUID);
+			scu.setLastMessageID(119);
+
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			bool rejected = false;
+			try
+			{
+				scu.readRSP(status, response, data);
+			}
+			catch(const std::exception&)
+			{
+				rejected = true;
+			}
+			assert(rejected);
+		}
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService scuSide(sockets[0], classUID);
+			PairedService scpSide(sockets[1], classUID);
+
+			dicom::CommandSet::CMoveRSP cancelWithSpecificCharacterSet(
+				125,
+				classUID,
+				dicom::Status::CANCEL,
+				dicom::DataSetStatus::YES_DATA_SET);
+			dicom::DataSet identifier;
+			identifier.Put<dicom::VR_UI>(
+				dicom::TAG_FAILED_SOPINSTUID_LIST,
+				dicom::UID("1.2.826.0.1.3680043.10.1553.14.9"));
+			identifier.Put<dicom::VR_CS>(dicom::TAG_CHAR_SET, std::string("ISO_IR 100"));
+			scpSide.WriteCommand(cancelWithSpecificCharacterSet, classUID);
+			scpSide.WriteDataSet(identifier, classUID);
+
+			TestCMoveSCU scu(scuSide, classUID);
+			scu.setLastMessageID(125);
+
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			bool rejected = false;
+			try
+			{
+				scu.readRSP(status, response, data);
+			}
+			catch(const std::exception&)
+			{
+				rejected = true;
+			}
+			assert(rejected);
+		}
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService scuSide(sockets[0], classUID);
+			PairedService scpSide(sockets[1], classUID);
+
+			dicom::CommandSet::CGetRSP warningWithSpecificCharacterSet(
+				117,
+				classUID,
+				dicom::Status::WARNING,
+				dicom::DataSetStatus::YES_DATA_SET);
+			dicom::DataSet identifier;
+			identifier.Put<dicom::VR_UI>(
+				dicom::TAG_FAILED_SOPINSTUID_LIST,
+				dicom::UID("1.2.826.0.1.3680043.10.1553.14.5"));
+			identifier.Put<dicom::VR_CS>(dicom::TAG_CHAR_SET, std::string("ISO_IR 100"));
+			scpSide.WriteCommand(warningWithSpecificCharacterSet, classUID);
+			scpSide.WriteDataSet(identifier, classUID);
+
+			TestCGetSCU scu(scuSide, classUID);
+			scu.setLastMessageID(117);
+
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			bool rejected = false;
+			try
+			{
+				scu.readRSP(
+					status,
+					response,
+					data,
+					[](dicom::ServiceBase&, const dicom::DataSet&, dicom::DataSet&)
+					{
+					});
+			}
+			catch(const std::exception&)
+			{
+				rejected = true;
+			}
+			assert(rejected);
+		}
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService scuSide(sockets[0], classUID);
+			PairedService scpSide(sockets[1], classUID);
+
+			dicom::CommandSet::CMoveRSP failureWithSpecificCharacterSet(
+				121,
+				classUID,
+				UINT16(0xa801),
+				dicom::DataSetStatus::YES_DATA_SET);
+			dicom::DataSet identifier;
+			identifier.Put<dicom::VR_UI>(
+				dicom::TAG_FAILED_SOPINSTUID_LIST,
+				dicom::UID("1.2.826.0.1.3680043.10.1553.14.7"));
+			identifier.Put<dicom::VR_CS>(dicom::TAG_CHAR_SET, std::string("ISO_IR 100"));
+			scpSide.WriteCommand(failureWithSpecificCharacterSet, classUID);
+			scpSide.WriteDataSet(identifier, classUID);
+
+			TestCMoveSCU scu(scuSide, classUID);
+			scu.setLastMessageID(121);
+
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			bool rejected = false;
+			try
+			{
+				scu.readRSP(status, response, data);
+			}
+			catch(const std::exception&)
+			{
+				rejected = true;
+			}
+			assert(rejected);
+		}
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService scuSide(sockets[0], classUID);
+			PairedService scpSide(sockets[1], classUID);
+
 			dicom::CommandSet::CGetRSP warningWithIdentifier(
 				103,
 				classUID,
@@ -4846,6 +5110,43 @@ namespace
 			scu.readRSP(status, response, data);
 			assert(status == dicom::Status::WARNING);
 			assert(data.exists(dicom::TAG_FAILED_SOPINSTUID_LIST));
+		}
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService scuSide(sockets[0], classUID);
+			PairedService scpSide(sockets[1], classUID);
+
+			dicom::CommandSet::CGetRSP warningWithSpecificCharacterSet(
+				113,
+				classUID,
+				dicom::Status::WARNING,
+				dicom::DataSetStatus::YES_DATA_SET);
+			dicom::DataSet identifier;
+			identifier.Put<dicom::VR_UI>(
+				dicom::TAG_FAILED_SOPINSTUID_LIST,
+				dicom::UID("1.2.826.0.1.3680043.10.1553.14.3"));
+			identifier.Put<dicom::VR_CS>(dicom::TAG_CHAR_SET, std::string("ISO_IR 100"));
+			scpSide.WriteCommand(warningWithSpecificCharacterSet, classUID);
+			scpSide.WriteDataSet(identifier, classUID);
+
+			TestCGetSCU scu(scuSide, classUID);
+			scu.setLastMessageID(113);
+
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			bool rejected = false;
+			try
+			{
+				scu.readRSP(status, response, data);
+			}
+			catch(const std::exception&)
+			{
+				rejected = true;
+			}
+			assert(rejected);
 		}
 
 		{
@@ -4945,6 +5246,43 @@ namespace
 			scu.readRSP(status, response, data);
 			assert(status == dicom::Status::WARNING);
 			assert(data.exists(dicom::TAG_FAILED_SOPINSTUID_LIST));
+		}
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService scuSide(sockets[0], classUID);
+			PairedService scpSide(sockets[1], classUID);
+
+			dicom::CommandSet::CMoveRSP warningWithSpecificCharacterSet(
+				115,
+				classUID,
+				dicom::Status::WARNING,
+				dicom::DataSetStatus::YES_DATA_SET);
+			dicom::DataSet identifier;
+			identifier.Put<dicom::VR_UI>(
+				dicom::TAG_FAILED_SOPINSTUID_LIST,
+				dicom::UID("1.2.826.0.1.3680043.10.1553.14.4"));
+			identifier.Put<dicom::VR_CS>(dicom::TAG_CHAR_SET, std::string("ISO_IR 100"));
+			scpSide.WriteCommand(warningWithSpecificCharacterSet, classUID);
+			scpSide.WriteDataSet(identifier, classUID);
+
+			TestCMoveSCU scu(scuSide, classUID);
+			scu.setLastMessageID(115);
+
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			bool rejected = false;
+			try
+			{
+				scu.readRSP(status, response, data);
+			}
+			catch(const std::exception&)
+			{
+				rejected = true;
+			}
+			assert(rejected);
 		}
 
 		{
