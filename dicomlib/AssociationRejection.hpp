@@ -1,5 +1,6 @@
 #ifndef ASSOCIATION_REJECTION_HPP_INCLUDE_GUARD_32470754
 #define ASSOCIATION_REJECTION_HPP_INCLUDE_GUARD_32470754
+#include <string>
 #include "Types.hpp"
 #include "Exceptions.hpp"
 namespace dicom
@@ -8,8 +9,8 @@ namespace dicom
 	/*!
 		This class stores the error fields passed in
 		an A-ASSOCIATE-RJ message, and provides human-
-		readable error strings. 
-		
+		readable error strings.
+
 		See  Part 8, table 9-21 for further documentation.
 	*/
 	class AssociationRejection : public dicom::exception

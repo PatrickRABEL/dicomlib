@@ -4,13 +4,14 @@
 #include <iostream>
 #include <exception>
 #include <map>
+#include <vector>
 #include "VR.hpp"
 #include "Value.hpp"
 #include "Tag.hpp"
 
 namespace dicom
 {
-	
+
 
 	//!Set of DICOM data elements
 	/*!
@@ -47,7 +48,7 @@ namespace dicom
 			return element->second;
 		}
 
- 		//!Insert an element
+		//!Insert an element
 		/*! I'd rather that the function signature was:
 				template <VR vr>
 				size_t Put(Tag tag, const typename TypeFromVR<vr>::Type& data)
@@ -70,16 +71,16 @@ namespace dicom
 			Value v(vr);
 			insert(value_type(tag,v));
 		}
-       
+
 
 		//!Get all values matching tag.
 		/*!
 			This helps the user avoid using the somewhat complex equal_range() interface.
-		*/        
+		*/
         std::vector<Value> Values(const Tag tag) const
         {
 			std::pair<const_iterator,const_iterator> P = equal_range(tag);
-			std::vector<Value> v;   
+			std::vector<Value> v;
 			for(const_iterator I=P.first;I!=P.second;I++)
 				v.push_back(I->second);
 			return v;
@@ -89,14 +90,14 @@ namespace dicom
 		//!Check if a Tag exists
 		/*!
 			This helps the user avoid running into/dealing with too many exceptions.
-		*/        
- 		bool exists(const Tag tag) const
+		*/
+		bool exists(const Tag tag) const
 		{
 			return (find(tag) != end());
 		}
 	};
 
-	
+
 	typedef std::vector<DataSet> Sequence;
 
 }//namespace DICOM

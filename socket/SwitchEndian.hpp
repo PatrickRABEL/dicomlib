@@ -2,6 +2,7 @@
 #define SWITCH_ENDIAN_HPP_INCLUDE_GUARD_2304875234560
 #include <algorithm>
 #include <type_traits>
+#include <vector>
 #include <unistd.h>
 
 //!Reverses the bytes in a variable.

@@ -28,7 +28,7 @@ namespace dicom
 	struct AssociationAborted : public dicom::exception
 	{
 		primitive::AAbortRQ abort_request_;
-		AssociationAborted (const primitive::AAbortRQ& abort_request) 
+		AssociationAborted (const primitive::AAbortRQ& abort_request)
 			: dicom::exception("Association Aborted"),
 			abort_request_(abort_request)
 		{}
@@ -67,12 +67,22 @@ namespace dicom
 
 		BYTE GetPresentationContextID(const UID& uid);
 		BYTE GetPresentationContextID(const UID& AbsUID,	const UID& TrnUID);
+		//!Like GetPresentationContextID(uid), but returns 0 instead of throwing.
+		/*!
+			0 is not a valid Presentation Context ID, so it unambiguously means
+			"this abstract syntax was not negotiated". Used where the absence of a
+			context is an expected case rather than an error, e.g. a Meta SOP Class
+			association (PS3.4 Annex H), where the child SOP Class named in the
+			command set has no presentation context of its own.
+		*/
+		BYTE FindPresentationContextID(const UID& uid);
 
 		//bool GetTransferSyntaxUID(BYTE, UID& TrnUID);
 
 		UID GetTransferSyntaxUID(BYTE PresentationContextID);
 
 		void RequestCancel(UINT16 messageID);
+		bool HasCancelRequest() const;
 		bool IsCancelRequested(UINT16 messageID) const;
 		void ClearCancelRequest(UINT16 messageID);
 
@@ -94,9 +104,23 @@ namespace dicom
 		bool HasNegotiatedAsynchronousOperationsWindow() const;
 		UINT16 MaximumNumberOperationsInvoked() const;
 		UINT16 MaximumNumberOperationsPerformed() const;
+		UINT16 OutstandingOperationsInvoked() const;
+		UINT16 OutstandingOperationsPerformed() const;
+		bool CanInvokeOperation() const;
+		bool CanPerformOperation() const;
+		bool IsInvokedOperationOutstanding(UINT16 messageID) const;
+		bool IsPerformedOperationOutstanding(UINT16 messageID) const;
+		void BeginInvokedOperation();
+		void BeginInvokedOperation(UINT16 messageID);
+		void CompleteInvokedOperation();
+		void CompleteInvokedOperation(UINT16 messageID);
+		void BeginPerformedOperation();
+		void BeginPerformedOperation(UINT16 messageID);
+		void CompletePerformedOperation();
+		void CompletePerformedOperation(UINT16 messageID);
 		bool HasNegotiatedSOPClassExtended(const UID& uid) const;
 		const std::vector<BYTE>& GetNegotiatedSOPClassExtendedInformation(const UID& uid) const;
-	
+
 
 		//Following two parameters keep a record of the conditions under which
 		//this services association was set up.
@@ -122,9 +146,13 @@ namespace dicom
 		bool HasNegotiatedAsynchronousOperationsWindow_;
 		UINT16 MaximumNumberOperationsInvoked_;
 		UINT16 MaximumNumberOperationsPerformed_;
+		UINT16 OutstandingOperationsInvoked_;
+		UINT16 OutstandingOperationsPerformed_;
+		std::set<UINT16> OutstandingInvokedMessageIDs_;
+		std::set<UINT16> OutstandingPerformedMessageIDs_;
 		std::map<UID,std::vector<BYTE> > NegotiatedSOPClassExtendedInformation_;
 
-		//this function should only be called on the client side because client decides which 
+		//this function should only be called on the client side because client decides which
 		//transfer syntax to use. -Sam
 		void SetCurrentPCID(BYTE pcid){CurrentPresentationContextID_=pcid;}
 		//!The socket on which we're communicating

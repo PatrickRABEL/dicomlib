@@ -5,6 +5,7 @@
 *
 *	See LICENSE.txt for copyright and licensing info.
 *************************************************************************/
+#include <algorithm>
 #include <iostream>
 #include "socket/Socket.hpp"
 #include "UIDs.hpp"
@@ -178,7 +179,7 @@ namespace dicom
 		//AcceptedPresentationContexts_.clear();
 
 
-        
+
         AcceptedPresentationContexts_ = acknowledgement.PresContextAccepts_;
 
         std::vector<primitive::PresentationContextAccept>::size_type unaccepted =

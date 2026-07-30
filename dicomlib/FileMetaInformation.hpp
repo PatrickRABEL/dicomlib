@@ -1,6 +1,7 @@
 #ifndef FILE_META_INFORMATION_HPP_INCLUDE_GUARD_784364843843
 #define FILE_META_INFORMATION_HPP_INCLUDE_GUARD_784364843843
 #include <iostream>
+#include <string>
 #include "DataSet.hpp"
 #include "Exceptions.hpp"
 #include "TransferSyntax.hpp"
@@ -37,7 +38,7 @@ namespace dicom
 
 		//!Infer instance and class UIDs from data set
 		FileMetaInformation(const DataSet& data,TS ts);
-		
+
 		//to make a Tiff-Dicom !mge @May 2009
 		FileMetaInformation(const DataSet& data,TS ts,long BytesToWrite);
 

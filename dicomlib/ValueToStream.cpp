@@ -6,7 +6,9 @@
 *	See LICENSE.txt for copyright and licensing info.
 *************************************************************************/
 
+#include <algorithm>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <map>
 #include "socket/Base.hpp"
@@ -31,7 +33,7 @@ namespace dicom
 			VR_MAP()
 			{
 				typedef pair<string,string> PAIR;
-				
+
 				(*this)[VR_AE]=PAIR("Application Entity","AE");
 				(*this) [VR_AS]=PAIR("Age String","AS");
 				(*this) [VR_AT]=PAIR("Attribute Tag","AT");
@@ -62,7 +64,7 @@ namespace dicom
 
 		//!Is this global thread-safe?
 		/*!
-			See comments on TheDataDictionary in DataDictionary.cpp, where we 
+			See comments on TheDataDictionary in DataDictionary.cpp, where we
 			use the same pattern.
 		*/
 
@@ -121,7 +123,7 @@ namespace dicom
 			out <<  "...(" <<  data.size() << " 2 byte pairs)" ;
 		}
 		template<>
-		void Dump2<VR_UN>(const Value& value,std::ostream& out)
+		void Dump2<VR_UN>(const Value&,std::ostream& out)
 		{
 			//out << VR_UN << ",";
 			out << "Unknown data";// of length " << value.size();
@@ -278,8 +280,8 @@ namespace dicom
 				return ValueFromStream<VR_AS>(In);
 			case VR_CS:
 				return ValueFromStream<VR_CS>(In);
- 			case VR_DA:
- 				return ValueFromStream<VR_DA>(In);
+			case VR_DA:
+				return ValueFromStream<VR_DA>(In);
 			case VR_DS:
 				return ValueFromStream<VR_DS>(In);
 			case VR_DT:

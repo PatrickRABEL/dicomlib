@@ -21,6 +21,7 @@
 #define VR_HPP_INCLUDE_GUARD_5645353874
 
 #include <sstream>
+#include <string>
 #include <vector>
 #include <type_traits>
 
@@ -40,11 +41,11 @@ namespace dicom
 
 	//!Value Representations.
 	/*!
-		Defined in  Part 5, section 6.2 
+		Defined in  Part 5, section 6.2
 	*/
 	enum VR {
 		VR_AE = 0x4541,	//!< Application Entity
-	 	VR_AS = 0x5341, //!< Age String
+		VR_AS = 0x5341, //!< Age String
 		VR_AT = 0x5441, //!< Attribute Tag
 		VR_CS = 0x5343, //!< Code String
 		VR_DA = 0x4144, //!< Date
@@ -146,9 +147,9 @@ namespace dicom
 	//do i need this?  Is there any platform where the following is not the case?
 	static_assert(sizeof(double)==8, "double must be 8 bytes");
 	static_assert(sizeof(float)==4, "float must be 4 bytes");
-	
+
     //static_assert(sizeof(signed long)==4);
-	
+
     static_assert(sizeof(signed short)==2, "signed short must be 2 bytes");
 
 	template<> struct TypeFromVR<VR_AE>{typedef	ApplicationEntity			Type;	};

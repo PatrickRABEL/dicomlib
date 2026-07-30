@@ -40,6 +40,10 @@ namespace dicom
 			const UID& expectedClassUID,
 			const UID* expectedInstanceUID = 0)
 		{
+			if(response.Values(TAG_CMD_FIELD).size() != 1)
+				throw exception("Invalid C-DIMSE response command field");
+			if(response.Values(TAG_MSG_ID_RSP).size() != 1)
+				throw exception("Invalid C-DIMSE response message ID");
 			UINT16 command = 0;
 			UINT16 responseMessageID = 0;
 			response(TAG_CMD_FIELD) >> command;
@@ -51,6 +55,8 @@ namespace dicom
 				throw exception("Unexpected C-DIMSE response message ID");
 			if(response.exists(TAG_AFF_SOP_CLASS_UID))
 			{
+				if(response.Values(TAG_AFF_SOP_CLASS_UID).size() != 1)
+					throw exception("Invalid C-DIMSE response SOP Class UID");
 				UID responseClassUID;
 				response(TAG_AFF_SOP_CLASS_UID) >> responseClassUID;
 				if(responseClassUID != expectedClassUID)
@@ -58,11 +64,17 @@ namespace dicom
 			}
 			if(expectedInstanceUID && response.exists(TAG_AFF_SOP_INST_UID))
 			{
+				if(response.Values(TAG_AFF_SOP_INST_UID).size() != 1)
+					throw exception("Invalid C-DIMSE response SOP Instance UID");
 				UID responseInstanceUID;
 				response(TAG_AFF_SOP_INST_UID) >> responseInstanceUID;
 				if(responseInstanceUID != *expectedInstanceUID)
 					throw exception("Unexpected C-DIMSE response SOP Instance UID");
 			}
+			if(response.Values(TAG_ERR_COMMENT).size() > 1)
+				throw exception("Invalid C-DIMSE response Error Comment");
+			if(response.Values(TAG_ERR_ID).size() > 1)
+				throw exception("Invalid C-DIMSE response Error ID");
 		}
 
 		void ValidateCdimseResponseStatus(UINT16 status, Command::Code command)
@@ -92,6 +104,12 @@ namespace dicom
 				throw exception("Invalid C-DIMSE response status");
 		}
 
+		void ValidateCdimseResponseStatusField(const DataSet& response)
+		{
+			if(response.Values(TAG_STATUS).size() != 1)
+				throw exception("Invalid C-DIMSE response status");
+		}
+
 		void ValidateFinalCdimseResponseStatus(UINT16 status, Command::Code command)
 		{
 			ValidateCdimseResponseStatus(status,command);
@@ -104,6 +122,8 @@ namespace dicom
 			Command::Code expectedCommand,
 			const UID* expectedClassUID = 0)
 		{
+			if(command.Values(TAG_CMD_FIELD).size() != 1)
+				throw exception("Invalid C-DIMSE request command field");
 			UINT16 commandField = 0;
 			command(TAG_CMD_FIELD) >> commandField;
 			if(commandField != expectedCommand)
@@ -111,11 +131,31 @@ namespace dicom
 
 			if(expectedClassUID)
 			{
+				if(command.Values(TAG_AFF_SOP_CLASS_UID).size() != 1)
+					throw exception("Invalid C-DIMSE request SOP Class UID");
 				UID commandClassUID;
 				command(TAG_AFF_SOP_CLASS_UID) >> commandClassUID;
 				if(commandClassUID != *expectedClassUID)
 					throw exception("Unexpected C-DIMSE request SOP Class UID");
 			}
+		}
+
+		void ValidateCdimseRequestMessageID(const DataSet& command)
+		{
+			if(command.Values(TAG_MSG_ID).size() != 1)
+				throw exception("Invalid C-DIMSE request message ID");
+		}
+
+		void ValidateCdimseMessageIDBeingRespondedTo(const DataSet& command)
+		{
+			if(command.Values(TAG_MSG_ID_RSP).size() != 1)
+				throw exception("Invalid C-DIMSE Message ID Being Responded To");
+		}
+
+		void ValidateCdimseCommandDataSetType(const DataSet& command)
+		{
+			if(command.Values(TAG_DATA_SET_TYPE).size() != 1)
+				throw exception("Invalid C-DIMSE command Data Set Type");
 		}
 
 		void ValidateCdimseRequestPriority(const DataSet& command)
@@ -134,10 +174,33 @@ namespace dicom
 		{
 			if(command.Values(TAG_MOVE_DEST).size() != 1)
 				throw exception("Invalid C-MOVE request Move Destination");
+			string destination;
+			command(TAG_MOVE_DEST) >> destination;
+			if(destination.empty())
+				throw exception("Invalid C-MOVE request Move Destination");
+		}
+
+		void ValidateCStoreRequestInstanceUID(const DataSet& command)
+		{
+			if(command.Values(TAG_AFF_SOP_INST_UID).size() != 1)
+				throw exception("Invalid C-STORE request SOP Instance UID");
+			UID instanceUID;
+			command(TAG_AFF_SOP_INST_UID) >> instanceUID;
+			if(instanceUID.str().empty())
+				throw exception("Invalid C-STORE request SOP Instance UID");
+		}
+
+		void ValidateCStoreRequestMoveOriginator(const DataSet& command)
+		{
+			if(command.Values(TAG_MOVE_ORIG_AET).size() > 1)
+				throw exception("Invalid C-STORE request Move Originator AE Title");
+			if(command.Values(TAG_MOVE_ORIG_MSG_ID).size() > 1)
+				throw exception("Invalid C-STORE request Move Originator Message ID");
 		}
 
 		void ValidateNoCommandDataSet(const DataSet& command)
 		{
+			ValidateCdimseCommandDataSetType(command);
 			UINT16 dataSetType = 0;
 			command(TAG_DATA_SET_TYPE) >> dataSetType;
 			if(dataSetType != DataSetStatus::NO_DATA_SET)
@@ -179,8 +242,25 @@ namespace dicom
 			UINT16 status,
 			Command::Code command)
 		{
+			if(response.Values(TAG_NUM_REMAIN_SUBOP).size() > 1 ||
+				response.Values(TAG_NUM_COMPL_SUBOP).size() > 1 ||
+				response.Values(TAG_NUM_FAIL_SUBOP).size() > 1 ||
+				response.Values(TAG_NUM_WARN_SUBOP).size() > 1)
+				throw exception("Invalid retrieve response sub-operation counters");
+
 			if(!IsCdimsePendingStatus(status))
+			{
+				if(!IsCdimseCancelStatus(status) &&
+					response.exists(TAG_NUM_REMAIN_SUBOP))
+				{
+					if(command == Command::C_GET_RSP)
+						throw exception("C-GET final response shall not include remaining sub-operation count");
+					if(command == Command::C_MOVE_RSP)
+						throw exception("C-MOVE final response shall not include remaining sub-operation count");
+					throw exception("Final retrieve response shall not include remaining sub-operation count");
+				}
 				return;
+			}
 
 			if(!response.exists(TAG_NUM_REMAIN_SUBOP) ||
 				!response.exists(TAG_NUM_COMPL_SUBOP) ||
@@ -195,20 +275,62 @@ namespace dicom
 			}
 		}
 
+		void ValidateRetrieveResponseIdentifier(
+			Command::Code command,
+			UINT16 status,
+			const DataSet& data)
+		{
+			if(command != Command::C_GET_RSP && command != Command::C_MOVE_RSP)
+				return;
+			const bool unableToProcess = (status & 0xf000) == 0xc000;
+			if(!IsCdimseCancelStatus(status) &&
+				!IsCdimseWarningStatus(status) &&
+				!unableToProcess &&
+				status != 0xa701 &&
+				status != 0xa702 &&
+				status != 0xa801 &&
+				status != 0xa900)
+				return;
+			if(!data.exists(TAG_FAILED_SOPINSTUID_LIST))
+				throw exception("Retrieve response Identifier requires Failed SOP Instance UID List");
+			const std::vector<Value> failedUIDs = data.Values(TAG_FAILED_SOPINSTUID_LIST);
+			for(std::vector<Value>::const_iterator I=failedUIDs.begin();
+				I!=failedUIDs.end();
+				++I)
+			{
+				if(I->empty())
+					throw exception("Retrieve response Identifier requires non-empty Failed SOP Instance UID values");
+			}
+		}
+
+		bool IsRetrieveResponseIdentifierStatus(UINT16 status)
+		{
+			return IsCdimseCancelStatus(status) ||
+				IsCdimseWarningStatus(status) ||
+				(status & 0xf000) == 0xc000 ||
+				status == 0xa701 ||
+				status == 0xa702 ||
+				status == 0xa801 ||
+				status == 0xa900;
+		}
+
 		void ReadRequiredCommand(ServiceBase& service, DataSet& command)
 		{
+			command = DataSet();
 			if(!service.Read(command))
 				throw exception("Unexpected association release while reading C-DIMSE response command");
 		}
 
 		void ReadRequiredDataSet(ServiceBase& service, DataSet& data)
 		{
+			data = DataSet();
 			if(!service.Read(data))
 				throw exception("Unexpected association release while reading C-DIMSE response data set");
 		}
 
 		void ReadRequiredRequestDataSet(ServiceBase& service, DataSet& data)
 		{
+			data = DataSet();
 			if(!service.Read(data))
 				throw exception("Unexpected association release while reading C-DIMSE request data set");
 		}
@@ -231,6 +353,63 @@ namespace dicom
 			response.setWarning(result.warning);
 		}
 
+		bool HasRetrieveFailedSOPInstanceUIDList(const CSubOperationResult& result)
+		{
+			if(!result.failedSOPInstanceUIDs.empty() &&
+				!IsRetrieveResponseIdentifierStatus(result.status))
+				throw exception("Retrieve failed SOP Instance UID List requires a Cancel, Failure, or Warning status");
+			for(std::vector<UID>::const_iterator I=result.failedSOPInstanceUIDs.begin();
+				I!=result.failedSOPInstanceUIDs.end();
+				++I)
+			{
+				if(I->str().empty())
+					throw exception("Retrieve failed SOP Instance UID List requires non-empty UID values");
+			}
+			return !result.failedSOPInstanceUIDs.empty();
+		}
+
+		DataSet MakeRetrieveFailedSOPInstanceUIDList(const CSubOperationResult& result)
+		{
+			DataSet identifier;
+			for(std::vector<UID>::const_iterator I=result.failedSOPInstanceUIDs.begin();
+				I!=result.failedSOPInstanceUIDs.end();
+				++I)
+				identifier.Put<VR_UI>(TAG_FAILED_SOPINSTUID_LIST,*I);
+			return identifier;
+		}
+
+		void WriteCGetFinalResponse(
+			ServiceBase& pdu,
+			UINT16 msgID,
+			const UID& classUID,
+			const CSubOperationResult& result)
+		{
+			const UINT16 dataSetType = HasRetrieveFailedSOPInstanceUIDList(result) ?
+				DataSetStatus::YES_DATA_SET :
+				DataSetStatus::NO_DATA_SET;
+			CommandSet::CGetRSP response(msgID,classUID,result.status,dataSetType);
+			SetCGetCounters(response,result);
+			pdu.WriteCommand(response,classUID);
+			if(dataSetType != DataSetStatus::NO_DATA_SET)
+				pdu.WriteDataSet(MakeRetrieveFailedSOPInstanceUIDList(result),classUID);
+		}
+
+		void WriteCMoveFinalResponse(
+			ServiceBase& pdu,
+			UINT16 msgID,
+			const UID& classUID,
+			const CSubOperationResult& result)
+		{
+			const UINT16 dataSetType = HasRetrieveFailedSOPInstanceUIDList(result) ?
+				DataSetStatus::YES_DATA_SET :
+				DataSetStatus::NO_DATA_SET;
+			CommandSet::CMoveRSP response(msgID,classUID,result.status,dataSetType);
+			SetCMoveCounters(response,result);
+			pdu.WriteCommand(response,classUID);
+			if(dataSetType != DataSetStatus::NO_DATA_SET)
+				pdu.WriteDataSet(MakeRetrieveFailedSOPInstanceUIDList(result),classUID);
+		}
+
 		void RequireSCURole(ServiceBase& service, const UID& classUID)
 		{
 			if(service.HasNegotiatedRole(classUID) && !service.CanActAsSCU(classUID))
@@ -242,6 +421,24 @@ namespace dicom
 			if(service.HasNegotiatedRole(classUID) && !service.CanActAsSCP(classUID))
 				throw exception("Association did not negotiate local SCP role for SOP Class");
 		}
+
+		struct PerformedOperationGuard
+		{
+			ServiceBase& service_;
+			UINT16 messageID_;
+
+			PerformedOperationGuard(ServiceBase& service, UINT16 messageID)
+			: service_(service)
+			, messageID_(messageID)
+			{
+				service_.BeginPerformedOperation(messageID_);
+			}
+
+			~PerformedOperationGuard()
+			{
+				service_.CompletePerformedOperation(messageID_);
+			}
+		};
 	}
 
 	CSubOperationResult::CSubOperationResult(
@@ -267,8 +464,10 @@ namespace dicom
 		RequireSCPRole(pdu,classUID);
 		ValidateCdimseRequest(command,Command::C_ECHO_RQ,&classUID);
 		ValidateNoCommandDataSet(command);
+		ValidateCdimseRequestMessageID(command);
 		UINT16 msgID;
 		command(TAG_MSG_ID)>>msgID;
+		PerformedOperationGuard performed(pdu,msgID);
 		CommandSet::CEchoRSP response(msgID,classUID);
 		pdu.WriteCommand(response,classUID);
 	}
@@ -277,10 +476,15 @@ namespace dicom
 	{
 		RequireSCPRole(pdu,classUID);
 		ValidateCdimseRequest(command,Command::C_STORE_RQ,&classUID);
+		ValidateCdimseRequestMessageID(command);
 		ValidateCdimseRequestPriority(command);
+		ValidateCStoreRequestInstanceUID(command);
+		ValidateCStoreRequestMoveOriginator(command);
+		ValidateCdimseCommandDataSetType(command);
 		UINT16 msgID,data_set_status;
 		UID instuid;
 		command(TAG_MSG_ID)>>msgID;
+		PerformedOperationGuard performed(pdu,msgID);
 		command(TAG_DATA_SET_TYPE)>>data_set_status;
 		command(TAG_AFF_SOP_INST_UID)>>instuid;
 		if(data_set_status==DataSetStatus::NO_DATA_SET)
@@ -312,12 +516,15 @@ namespace dicom
 	{
 		RequireSCPRole(pdu,classUID);
 		ValidateCdimseRequest(command,Command::C_FIND_RQ,&classUID);
+		ValidateCdimseRequestMessageID(command);
 		ValidateCdimseRequestPriority(command);
+		ValidateCdimseCommandDataSetType(command);
 #ifdef _DEBUG
 		cout  << "HandleCFind:" << endl << command;
 #endif
 		UINT16 msgID,data_set_status;
 		command(TAG_MSG_ID)>>msgID;
+		PerformedOperationGuard performed(pdu,msgID);
 		pdu.ClearCancelRequest(msgID);
 		command(TAG_DATA_SET_TYPE)>>data_set_status;
 		if(data_set_status==DataSetStatus::NO_DATA_SET)
@@ -375,20 +582,19 @@ namespace dicom
 
 	void CGetSCP::handle(ServiceBase& pdu, const DataSet& rqCmd, const UID& classUID)
 	{
-		(void)pdu;
-		(void)rqCmd;
-		(void)classUID;
-		//TODO
-		throw NotYetImplemented();
+		HandleCGet(handler_,pdu,rqCmd,classUID);
 	}
 
 	void HandleCGet(CGetFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID)
 	{
 		RequireSCPRole(pdu,classUID);
 		ValidateCdimseRequest(command,Command::C_GET_RQ,&classUID);
+		ValidateCdimseRequestMessageID(command);
 		ValidateCdimseRequestPriority(command);
+		ValidateCdimseCommandDataSetType(command);
 		UINT16 msgID,data_set_status;
 		command(TAG_MSG_ID)>>msgID;
+		PerformedOperationGuard performed(pdu,msgID);
 		pdu.ClearCancelRequest(msgID);
 		command(TAG_DATA_SET_TYPE)>>data_set_status;
 		if(data_set_status==DataSetStatus::NO_DATA_SET)
@@ -403,9 +609,12 @@ namespace dicom
 	{
 		RequireSCPRole(pdu,classUID);
 		ValidateCdimseRequest(command,Command::C_GET_RQ,&classUID);
+		ValidateCdimseRequestMessageID(command);
 		ValidateCdimseRequestPriority(command);
+		ValidateCdimseCommandDataSetType(command);
 		UINT16 msgID,data_set_status;
 		command(TAG_MSG_ID)>>msgID;
+		PerformedOperationGuard performed(pdu,msgID);
 		pdu.ClearCancelRequest(msgID);
 		command(TAG_DATA_SET_TYPE)>>data_set_status;
 		if(data_set_status==DataSetStatus::NO_DATA_SET)
@@ -417,14 +626,14 @@ namespace dicom
 		if(PollCCancelRQ(pdu,msgID))
 			result.status = Status::CANCEL;
 		ValidateFinalCdimseResponseStatus(result.status,Command::C_GET_RSP);
-		CommandSet::CGetRSP response(msgID,classUID,result.status,DataSetStatus::NO_DATA_SET);
-		SetCGetCounters(response,result);
-		pdu.WriteCommand(response,classUID);
+		WriteCGetFinalResponse(pdu,msgID,classUID,result);
 	}
 
 	void HandleCCancel(ServiceBase& pdu, const DataSet& command)
 	{
 		ValidateCdimseRequest(command,Command::C_CANCEL_RQ);
+		ValidateCdimseMessageIDBeingRespondedTo(command);
+		ValidateCdimseCommandDataSetType(command);
 		UINT16 messageIDBeingRespondedTo = 0;
 		UINT16 dataSetType = 0;
 		command(TAG_MSG_ID_RSP) >> messageIDBeingRespondedTo;
@@ -539,7 +748,9 @@ namespace dicom
 	{
 		Network::Socket* socket = pdu.GetSocket();
 		if(!socket || !socket->MoreData(0))
-			return pdu.IsCancelRequested(messageID);
+			return messageID == 0 ?
+				pdu.HasCancelRequest() :
+				pdu.IsCancelRequested(messageID);
 
 		DataSet command;
 		if(!pdu.Read(command))
@@ -552,11 +763,19 @@ namespace dicom
 
 		HandleCCancel(pdu, command);
 		if(messageID == 0)
-			return true;
+			return pdu.HasCancelRequest();
 		return pdu.IsCancelRequested(messageID);
 	}
 
 	CSubOperationResult SendCGetStoreSubOperations(ServiceBase& pdu, const Sequence& instances)
+	{
+		return SendCGetStoreSubOperations(pdu,instances,0);
+	}
+
+	CSubOperationResult SendCGetStoreSubOperations(
+		ServiceBase& pdu,
+		const Sequence& instances,
+		UINT16 cancelMessageID)
 	{
 		if(instances.size() > 0xffff)
 			throw exception("Too many C-GET sub-operations for UINT16 counters");
@@ -565,7 +784,12 @@ namespace dicom
 
 		for(Sequence::const_iterator I=instances.begin();I!=instances.end();I++)
 		{
-			if(PollCCancelRQ(pdu))
+			if(cancelMessageID != 0 && PollCCancelRQ(pdu,cancelMessageID))
+			{
+				result.status = Status::CANCEL;
+				return result;
+			}
+			if(cancelMessageID == 0 && PollCCancelRQ(pdu))
 			{
 				result.status = Status::CANCEL;
 				return result;
@@ -590,7 +814,10 @@ namespace dicom
 			else if(IsCdimseWarningStatus(storeStatus))
 				result.warning++;
 			else
+			{
 				result.failed++;
+				result.failedSOPInstanceUIDs.push_back(instUID);
+			}
 		}
 
 		if(result.failed != 0 || result.warning != 0)
@@ -653,7 +880,10 @@ namespace dicom
 			else if(IsCdimseWarningStatus(storeStatus))
 				result.warning++;
 			else
+			{
 				result.failed++;
+				result.failedSOPInstanceUIDs.push_back(instUID);
+			}
 		}
 
 		if(result.failed != 0 || result.warning != 0)
@@ -706,10 +936,13 @@ namespace dicom
 	{
 		RequireSCPRole(pdu,classUID);
 		ValidateCdimseRequest(command,Command::C_MOVE_RQ,&classUID);
+		ValidateCdimseRequestMessageID(command);
 		ValidateCdimseRequestPriority(command);
 		ValidateCMoveRequestDestination(command);
+		ValidateCdimseCommandDataSetType(command);
 		UINT16 msgID,data_set_status;
 		command(TAG_MSG_ID)>>msgID;
+		PerformedOperationGuard performed(pdu,msgID);
 		pdu.ClearCancelRequest(msgID);
 		command(TAG_DATA_SET_TYPE)>>data_set_status;
 		if(data_set_status==DataSetStatus::NO_DATA_SET)
@@ -717,7 +950,7 @@ namespace dicom
 		DataSet request_data;
 		ReadRequiredRequestDataSet(pdu,request_data);
 
-		//The rest part of implementation involves design of server and should be 
+		//The rest part of implementation involves design of server and should be
 		//implemented in serve. -Sam
 		handler(pdu,command,request_data);
 	}
@@ -727,10 +960,13 @@ namespace dicom
 	{
 		RequireSCPRole(pdu,classUID);
 		ValidateCdimseRequest(command,Command::C_MOVE_RQ,&classUID);
+		ValidateCdimseRequestMessageID(command);
 		ValidateCdimseRequestPriority(command);
 		ValidateCMoveRequestDestination(command);
+		ValidateCdimseCommandDataSetType(command);
 		UINT16 msgID,data_set_status;
 		command(TAG_MSG_ID)>>msgID;
+		PerformedOperationGuard performed(pdu,msgID);
 		pdu.ClearCancelRequest(msgID);
 		command(TAG_DATA_SET_TYPE)>>data_set_status;
 		if(data_set_status==DataSetStatus::NO_DATA_SET)
@@ -742,9 +978,7 @@ namespace dicom
 		if(PollCCancelRQ(pdu,msgID))
 			result.status = Status::CANCEL;
 		ValidateFinalCdimseResponseStatus(result.status,Command::C_MOVE_RSP);
-		CommandSet::CMoveRSP response(msgID,classUID,result.status,DataSetStatus::NO_DATA_SET);
-		SetCMoveCounters(response,result);
-		pdu.WriteCommand(response,classUID);
+		WriteCMoveFinalResponse(pdu,msgID,classUID,result);
 	}
 
 
@@ -752,6 +986,12 @@ namespace dicom
 	CEchoSCU::CEchoSCU(ServiceBase& service)
 	: SCU(service,VERIFICATION_SOP_CLASS)
 	{
+	}
+
+	void SCU::ensureNoOutstandingRequest() const
+	{
+		if(lastMessageID_ != 0 && service_.IsInvokedOperationOutstanding(lastMessageID_))
+			throw exception("SCU object already has an outstanding request");
 	}
 
 	void SCU::writeCancelForLastRQ()
@@ -765,9 +1005,19 @@ namespace dicom
 	void CEchoSCU::writeRQ()
 	{
 		RequireSCURole(service_,classUID_);
+		ensureNoOutstandingRequest();
 		lastMessageID_ = uniq16odd();
+		service_.BeginInvokedOperation(lastMessageID_);
 		CommandSet::CEchoRQ rq(lastMessageID_, classUID_);
-		service_.WriteCommand(rq, classUID_) ;
+		try
+		{
+			service_.WriteCommand(rq, classUID_) ;
+		}
+		catch(...)
+		{
+			service_.CompleteInvokedOperation(lastMessageID_);
+			throw;
+		}
 	}
 
 	void CEchoSCU::readRSP(UINT16& status)
@@ -781,8 +1031,10 @@ namespace dicom
 		ReadRequiredCommand(service_,response);
 		ValidateCdimseResponse(response, Command::C_ECHO_RSP, lastMessageID_, classUID_);
 		ValidateNoCommandDataSet(response);
+		ValidateCdimseResponseStatusField(response);
 		response(TAG_STATUS)>>status;
 		ValidateCdimseResponseStatus(status, Command::C_ECHO_RSP);
+		service_.CompleteInvokedOperation(lastMessageID_);
 	}
 
 	CStoreSCU::CStoreSCU(ServiceBase& service,const UID& classUID)
@@ -794,11 +1046,21 @@ namespace dicom
 	void CStoreSCU::writeRQ(const UID& instUID, const DataSet& data,/*TS ts,*/ UINT16 priority)
 	{
 		RequireSCURole(service_,classUID_);
+		ensureNoOutstandingRequest();
 		lastMessageID_ = uniq16odd();
+		service_.BeginInvokedOperation(lastMessageID_);
 		lastSOPInstanceUID_ = instUID;
 		CommandSet::CStoreRQ rq(lastMessageID_, classUID_, instUID, priority);
-		service_.WriteCommand(rq, classUID_);
-		service_.WriteDataSet(data, classUID_/*,ts*/);
+		try
+		{
+			service_.WriteCommand(rq, classUID_);
+			service_.WriteDataSet(data, classUID_/*,ts*/);
+		}
+		catch(...)
+		{
+			service_.CompleteInvokedOperation(lastMessageID_);
+			throw;
+		}
 	}
 
 	void CStoreSCU::writeMoveRQ(
@@ -809,7 +1071,9 @@ namespace dicom
 		UINT16 priority)
 	{
 		RequireSCURole(service_,classUID_);
+		ensureNoOutstandingRequest();
 		lastMessageID_ = uniq16odd();
+		service_.BeginInvokedOperation(lastMessageID_);
 		lastSOPInstanceUID_ = instUID;
 		CommandSet::CStoreRQ rq(
 			lastMessageID_,
@@ -818,8 +1082,16 @@ namespace dicom
 			moveOriginatorAET,
 			moveOriginatorMessageID,
 			priority);
-		service_.WriteCommand(rq, classUID_);
-		service_.WriteDataSet(data, classUID_);
+		try
+		{
+			service_.WriteCommand(rq, classUID_);
+			service_.WriteDataSet(data, classUID_);
+		}
+		catch(...)
+		{
+			service_.CompleteInvokedOperation(lastMessageID_);
+			throw;
+		}
 	}
 
 	void CStoreSCU::readRSP(UINT16& status)//maybe status should be a return value?TODO
@@ -833,8 +1105,10 @@ namespace dicom
 		ReadRequiredCommand(service_,response);
 		ValidateCdimseResponse(response, Command::C_STORE_RSP, lastMessageID_, classUID_, &lastSOPInstanceUID_);
 		ValidateNoCommandDataSet(response);
+		ValidateCdimseResponseStatusField(response);
 		response(TAG_STATUS) >> status;
 		ValidateCdimseResponseStatus(status, Command::C_STORE_RSP);
+		service_.CompleteInvokedOperation(lastMessageID_);
 	}
 //I'd prefer:
 /*
@@ -849,10 +1123,20 @@ namespace dicom
 	void CFindSCU::writeRQ(const DataSet& data, UINT16 priority)
 	{
 		RequireSCURole(service_,classUID_);
+		ensureNoOutstandingRequest();
 		lastMessageID_ = uniq16odd();
+		service_.BeginInvokedOperation(lastMessageID_);
 		CommandSet::CFindRQ rq(lastMessageID_, classUID_, priority);
-		service_.WriteCommand(rq, classUID_);
-		service_.WriteDataSet(data, classUID_);
+		try
+		{
+			service_.WriteCommand(rq, classUID_);
+			service_.WriteDataSet(data, classUID_);
+		}
+		catch(...)
+		{
+			service_.CompleteInvokedOperation(lastMessageID_);
+			throw;
+		}
 	}
 
 	void CFindSCU::writeCancelRQ()
@@ -876,12 +1160,16 @@ namespace dicom
 
 		ReadRequiredCommand(service_,response);
 		ValidateCdimseResponse(response, Command::C_FIND_RSP, lastMessageID_, classUID_);
+		ValidateCdimseCommandDataSetType(response);
+		ValidateCdimseResponseStatusField(response);
 		response(TAG_DATA_SET_TYPE)	>>	dstype;
 		response(TAG_STATUS)		>>	status;
 		ValidateCdimseResponseStatus(status, Command::C_FIND_RSP);
 		ValidateCdimseResponseDataSetType(Command::C_FIND_RSP,status,dstype);
 		if(dstype!=DataSetStatus::NO_DATA_SET)
 			ReadRequiredDataSet(service_,data);
+		if(!IsCdimsePendingStatus(status))
+			service_.CompleteInvokedOperation(lastMessageID_);
 
 	}
 
@@ -893,10 +1181,20 @@ namespace dicom
 	void CGetSCU::writeRQ(const DataSet& data, UINT16 priority)
 	{
 		RequireSCURole(service_,classUID_);
+		ensureNoOutstandingRequest();
 		lastMessageID_ = uniq16odd();
+		service_.BeginInvokedOperation(lastMessageID_);
 		CommandSet::CGetRQ rq(lastMessageID_, classUID_, priority);
-		service_.WriteCommand(rq, classUID_);
-		service_.WriteDataSet(data, classUID_);
+		try
+		{
+			service_.WriteCommand(rq, classUID_);
+			service_.WriteDataSet(data, classUID_);
+		}
+		catch(...)
+		{
+			service_.CompleteInvokedOperation(lastMessageID_);
+			throw;
+		}
 	}
 
 	void CGetSCU::writeCancelRQ()
@@ -915,13 +1213,20 @@ namespace dicom
 		UINT16 dstype = 0;
 		ReadRequiredCommand(service_,response);
 		ValidateCdimseResponse(response, Command::C_GET_RSP, lastMessageID_, classUID_);
+		ValidateCdimseCommandDataSetType(response);
+		ValidateCdimseResponseStatusField(response);
 		response(TAG_DATA_SET_TYPE)	>>	dstype;
 		response(TAG_STATUS)		>>	status;
 		ValidateCdimseResponseStatus(status, Command::C_GET_RSP);
 		ValidateCdimseResponseDataSetType(Command::C_GET_RSP,status,dstype);
 		ValidateRetrieveSubOperationCounters(response,status,Command::C_GET_RSP);
 		if(dstype!=DataSetStatus::NO_DATA_SET)
+		{
 			ReadRequiredDataSet(service_,data);
+			ValidateRetrieveResponseIdentifier(Command::C_GET_RSP,status,data);
+		}
+		if(!IsCdimsePendingStatus(status))
+			service_.CompleteInvokedOperation(lastMessageID_);
 
 	}
 
@@ -939,6 +1244,8 @@ namespace dicom
 			{
 				UINT16 dstype = 0;
 				ValidateCdimseResponse(command, Command::C_GET_RSP, lastMessageID_, classUID_);
+				ValidateCdimseCommandDataSetType(command);
+				ValidateCdimseResponseStatusField(command);
 				command(TAG_DATA_SET_TYPE) >> dstype;
 				command(TAG_STATUS) >> status;
 				ValidateCdimseResponseStatus(status, Command::C_GET_RSP);
@@ -946,7 +1253,12 @@ namespace dicom
 				ValidateRetrieveSubOperationCounters(command,status,Command::C_GET_RSP);
 				response = command;
 				if(dstype!=DataSetStatus::NO_DATA_SET)
+				{
 					ReadRequiredDataSet(service_,data);
+					ValidateRetrieveResponseIdentifier(Command::C_GET_RSP,status,data);
+				}
+				if(!IsCdimsePendingStatus(status))
+					service_.CompleteInvokedOperation(lastMessageID_);
 				return;
 			}
 
@@ -971,10 +1283,20 @@ namespace dicom
 							const DataSet& data, UINT16 priority)
 	{
 		RequireSCURole(service_,classUID_);
+		ensureNoOutstandingRequest();
 		lastMessageID_ = uniq16odd();
+		service_.BeginInvokedOperation(lastMessageID_);
 		CommandSet::CMoveRQ rq(lastMessageID_, classUID_, destAET, priority);
-		service_.WriteCommand(rq, classUID_);
-		service_.WriteDataSet(data, classUID_);
+		try
+		{
+			service_.WriteCommand(rq, classUID_);
+			service_.WriteDataSet(data, classUID_);
+		}
+		catch(...)
+		{
+			service_.CompleteInvokedOperation(lastMessageID_);
+			throw;
+		}
 	}
 
 	void CMoveSCU::writeCancelRQ()
@@ -999,13 +1321,20 @@ namespace dicom
 
 		ReadRequiredCommand(service_,response);
 		ValidateCdimseResponse(response, Command::C_MOVE_RSP, lastMessageID_, classUID_);
+		ValidateCdimseCommandDataSetType(response);
+		ValidateCdimseResponseStatusField(response);
 		response(TAG_DATA_SET_TYPE)	>>	dstype;
 		response(TAG_STATUS)		>>	status;
 		ValidateCdimseResponseStatus(status, Command::C_MOVE_RSP);
 		ValidateCdimseResponseDataSetType(Command::C_MOVE_RSP,status,dstype);
 		ValidateRetrieveSubOperationCounters(response,status,Command::C_MOVE_RSP);
 		if(dstype!=DataSetStatus::NO_DATA_SET)
+		{
 			ReadRequiredDataSet(service_,data);
+			ValidateRetrieveResponseIdentifier(Command::C_MOVE_RSP,status,data);
+		}
+		if(!IsCdimsePendingStatus(status))
+			service_.CompleteInvokedOperation(lastMessageID_);
 
 	}
 }//namespace dicom

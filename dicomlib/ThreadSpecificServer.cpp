@@ -238,17 +238,27 @@ namespace dicom
 						}
 					}
 
+					const bool hasFailedUIDs = !result.failedSOPInstanceUIDs.empty();
 					CommandSet::CMoveRSP response(
 						msgID,
 						classUID,
 						result.status,
-						DataSetStatus::NO_DATA_SET);
+						hasFailedUIDs ? DataSetStatus::YES_DATA_SET : DataSetStatus::NO_DATA_SET);
 					if(IsCdimsePendingStatus(result.status) || IsCdimseCancelStatus(result.status))
 						response.setRemaining(result.remaining);
 					response.setCompleted(result.completed);
 					response.setFailed(result.failed);
 					response.setWarning(result.warning);
 					WriteCommand(response,classUID);
+					if(hasFailedUIDs)
+					{
+						DataSet identifier;
+						for(std::vector<UID>::const_iterator I=result.failedSOPInstanceUIDs.begin();
+							I!=result.failedSOPInstanceUIDs.end();
+							++I)
+							identifier.Put<VR_UI>(TAG_FAILED_SOPINSTUID_LIST,*I);
+						WriteDataSet(identifier,classUID);
+					}
 				}
 				else if(server_.HasCancellableMoveHandler(classUID))
 				{
@@ -330,6 +340,11 @@ namespace dicom
 					throw dicom::exception("unsupported operation requested");
 				}
 
+			//The response has now been written. This is the only point at which an
+			//SCP may legitimately initiate a new message on the association (e.g. a
+			//Print Management N-EVENT-REPORT, PS3.4 Annex H) without interleaving it
+			//with the response the SCU is waiting for.
+			server_.OperationHandled(*this, cmd);
 		}
 
 		void ThreadSpecificServer::ProcessRequest()
@@ -422,7 +437,7 @@ namespace dicom
 				PresentationContext PresContext = ProposedPresentationContexts.at ( Index );
 
 				size_t IndexTrn = 0;
-				AcceptedPresentationContext.PresentationContextID_ = PresContext.ID_;	
+				AcceptedPresentationContext.PresentationContextID_ = PresContext.ID_;
 				//client expects this (non-unique) identifier to be bounced back, see
 				//part 8 table 9.13 and part 8 / 7.1.1.13
 

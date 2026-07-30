@@ -11,6 +11,8 @@
 #define COMMANDSETS_HPP_INCLUDE_GUARD_8K38ID7884D343DWKH
 
 #include "DataSet.hpp"
+#include <string>
+#include <vector>
 namespace dicom
 {
 

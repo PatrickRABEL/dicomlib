@@ -14,7 +14,7 @@ See the file LICENSE.txt for copyright and licensing info.
 HISTORY
 -------
 
-This library is based on UCDMC99 and previous work performed at 
+This library is based on UCDMC99 and previous work performed at
 University of California Davis, and Karl Franzens University, Graz.
 
 It is developed and maintained at Sunnybrook and Women's
@@ -22,11 +22,11 @@ College Health Science Centre.
 
 Contact email:
 	morgan@sten.sunnybrook.utoronto.ca
-	
+
 Latest versions are published at:
 	http://dicomlib.swresearch.ca
-	
-	
+
+
 DEPENDENCIES
 ------------
 
@@ -38,6 +38,11 @@ The Linux/macOS C++ library build requires:
 
 Boost is no longer required. The bundled socket code is built as part of
 the dicom static library.
+
+Default implementation identity:
+
+* Implementation Class UID: 1.2.826.0.1.3680043.10.1778
+* Implementation Version Name: DICOMLIB2008
 
 
 BUILD
@@ -55,9 +60,9 @@ REFERENCE
 
 The generated data dictionary and UID registry are based on the official
 DICOM 2026c DocBook XML published by NEMA.
-	
-	
-	
+
+
+
 DOCUMENTATION
 -------------
 

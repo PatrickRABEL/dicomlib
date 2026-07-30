@@ -30,6 +30,27 @@ namespace dicom
 			const UID& expectedClassUID,
 			const UID* expectedInstanceUID = 0)
 		{
+			if(response.Values(TAG_CMD_FIELD).size() != 1)
+				throw exception("Invalid N-DIMSE response command field");
+			if(response.Values(TAG_MSG_ID_RSP).size() != 1)
+				throw exception("Invalid N-DIMSE response message ID");
+			if(response.Values(TAG_AFF_SOP_CLASS_UID).size() != 1)
+				throw exception("Invalid N-DIMSE response SOP Class UID");
+			if(response.Values(TAG_DATA_SET_TYPE).size() != 1)
+				throw exception("Invalid N-DIMSE response Data Set Type");
+			if(response.Values(TAG_STATUS).size() != 1)
+				throw exception("Invalid N-DIMSE response status");
+			if(response.Values(TAG_AFF_SOP_INST_UID).size() > 1)
+				throw exception("Invalid N-DIMSE response SOP Instance UID");
+			if(response.Values(TAG_EVENT_TYPE_ID).size() > 1)
+				throw exception("Invalid N-DIMSE response Event Type ID");
+			if(response.Values(TAG_ACTION_TYPE_ID).size() > 1)
+				throw exception("Invalid N-DIMSE response Action Type ID");
+			if(response.Values(TAG_ERR_COMMENT).size() > 1)
+				throw exception("Invalid N-DIMSE response Error Comment");
+			if(response.Values(TAG_ERR_ID).size() > 1)
+				throw exception("Invalid N-DIMSE response Error ID");
+
 			UINT16 command = 0;
 			UINT16 responseMessageID = 0;
 			UID responseClassUID;
@@ -57,6 +78,13 @@ namespace dicom
 			Command::Code expectedCommand,
 			const UID& expectedClassUID)
 		{
+			if(command.Values(TAG_CMD_FIELD).size() != 1)
+				throw exception("Invalid N-DIMSE request command field");
+			if(command.Values(TAG_MSG_ID).size() != 1)
+				throw exception("Invalid N-DIMSE request message ID");
+			if(command.Values(TAG_DATA_SET_TYPE).size() != 1)
+				throw exception("Invalid N-DIMSE request Data Set Type");
+
 			UINT16 commandField = 0;
 			UID commandClassUID;
 			Tag instanceTag;
@@ -68,17 +96,29 @@ namespace dicom
 			switch(expectedCommand)
 			{
 			case Command::N_EVENT_REPORT_RQ:
+				if(command.Values(TAG_AFF_SOP_CLASS_UID).size() != 1)
+					throw exception("Invalid N-DIMSE request SOP Class UID");
+				if(command.Values(TAG_AFF_SOP_INST_UID).size() != 1)
+					throw exception("Invalid N-DIMSE request SOP Instance UID");
 				requiresInstanceUID = true;
 				instanceTag = TAG_AFF_SOP_INST_UID;
 				command(TAG_AFF_SOP_CLASS_UID) >> commandClassUID;
 				break;
 			case Command::N_CREATE_RQ:
+				if(command.Values(TAG_AFF_SOP_CLASS_UID).size() != 1)
+					throw exception("Invalid N-DIMSE request SOP Class UID");
+				if(command.Values(TAG_AFF_SOP_INST_UID).size() > 1)
+					throw exception("Invalid N-DIMSE request SOP Instance UID");
 				command(TAG_AFF_SOP_CLASS_UID) >> commandClassUID;
 				break;
 			case Command::N_GET_RQ:
 			case Command::N_SET_RQ:
 			case Command::N_ACTION_RQ:
 			case Command::N_DELETE_RQ:
+				if(command.Values(TAG_REQ_SOP_CLASS_UID).size() != 1)
+					throw exception("Invalid N-DIMSE request SOP Class UID");
+				if(command.Values(TAG_REQ_SOP_INST_UID).size() != 1)
+					throw exception("Invalid N-DIMSE request SOP Instance UID");
 				requiresInstanceUID = true;
 				instanceTag = TAG_REQ_SOP_INST_UID;
 				command(TAG_REQ_SOP_CLASS_UID) >> commandClassUID;
@@ -90,10 +130,10 @@ namespace dicom
 			if(commandClassUID != expectedClassUID)
 				throw exception("Unexpected N-DIMSE request SOP Class UID");
 			if(expectedCommand == Command::N_EVENT_REPORT_RQ &&
-				!command.exists(TAG_EVENT_TYPE_ID))
+				command.Values(TAG_EVENT_TYPE_ID).size() != 1)
 				throw exception("N-EVENT-REPORT request requires Event Type ID");
 			if(expectedCommand == Command::N_ACTION_RQ &&
-				!command.exists(TAG_ACTION_TYPE_ID))
+				command.Values(TAG_ACTION_TYPE_ID).size() != 1)
 				throw exception("N-ACTION request requires Action Type ID");
 			if(requiresInstanceUID)
 			{
@@ -117,6 +157,50 @@ namespace dicom
 			if(service.HasNegotiatedRole(classUID) && !service.CanActAsSCP(classUID))
 				throw exception("Association role selection does not permit local SCP role");
 		}
+
+		struct PerformedOperationGuard
+		{
+			ServiceBase& service_;
+			UINT16 messageID_;
+
+			PerformedOperationGuard(ServiceBase& service, UINT16 messageID)
+			: service_(service)
+			, messageID_(messageID)
+			{
+				service_.BeginPerformedOperation(messageID_);
+			}
+
+			~PerformedOperationGuard()
+			{
+				service_.CompletePerformedOperation(messageID_);
+			}
+		};
+
+		struct InvokedOperationRollback
+		{
+			ServiceBase& service_;
+			UINT16 messageID_;
+			bool active_;
+
+			InvokedOperationRollback(ServiceBase& service, UINT16 messageID)
+			: service_(service)
+			, messageID_(messageID)
+			, active_(true)
+			{
+				service_.BeginInvokedOperation(messageID_);
+			}
+
+			~InvokedOperationRollback()
+			{
+				if(active_)
+					service_.CompleteInvokedOperation(messageID_);
+			}
+
+			void release()
+			{
+				active_ = false;
+			}
+		};
 
 		void ValidateNdimseResponseStatus(UINT16 status, Command::Code command)
 		{
@@ -152,6 +236,7 @@ namespace dicom
 		{
 			UINT16 dataSetType = 0;
 			command(TAG_DATA_SET_TYPE) >> dataSetType;
+			data = DataSet();
 			if(dataSetType != DataSetStatus::NO_DATA_SET && !service.Read(data))
 				throw exception("Unexpected association release while reading N-DIMSE request data set");
 		}
@@ -162,6 +247,7 @@ namespace dicom
 			command(TAG_DATA_SET_TYPE) >> dataSetType;
 			if(dataSetType == DataSetStatus::NO_DATA_SET)
 				throw exception("N-DIMSE request requires a data set");
+			data = DataSet();
 			if(!service.Read(data))
 				throw exception("Unexpected association release while reading N-DIMSE request data set");
 		}
@@ -252,6 +338,7 @@ namespace dicom
 		UINT16 msgID = 0;
 		UINT16 eventTypeID = 0;
 		command(TAG_MSG_ID) >> msgID;
+		PerformedOperationGuard performed(pdu,msgID);
 		command(TAG_EVENT_TYPE_ID) >> eventTypeID;
 		UID instUID = ReadUIDIfPresent(command,TAG_AFF_SOP_INST_UID);
 
@@ -296,6 +383,7 @@ namespace dicom
 
 		UINT16 msgID = 0;
 		command(TAG_MSG_ID) >> msgID;
+		PerformedOperationGuard performed(pdu,msgID);
 		UID instUID = ReadUIDIfPresent(command,TAG_REQ_SOP_INST_UID);
 
 		DataSet requestData;
@@ -339,6 +427,7 @@ namespace dicom
 
 		UINT16 msgID = 0;
 		command(TAG_MSG_ID) >> msgID;
+		PerformedOperationGuard performed(pdu,msgID);
 		UID instUID = ReadUIDIfPresent(command,TAG_REQ_SOP_INST_UID);
 
 		DataSet requestData;
@@ -368,6 +457,7 @@ namespace dicom
 		UINT16 msgID = 0;
 		UINT16 actionTypeID = 0;
 		command(TAG_MSG_ID) >> msgID;
+		PerformedOperationGuard performed(pdu,msgID);
 		command(TAG_ACTION_TYPE_ID) >> actionTypeID;
 		UID instUID = ReadUIDIfPresent(command,TAG_REQ_SOP_INST_UID);
 
@@ -425,6 +515,7 @@ namespace dicom
 
 		UINT16 msgID = 0;
 		command(TAG_MSG_ID) >> msgID;
+		PerformedOperationGuard performed(pdu,msgID);
 		UID instUID = ReadUIDIfPresent(command,TAG_AFF_SOP_INST_UID);
 
 		DataSet requestData;
@@ -456,6 +547,7 @@ namespace dicom
 
 		UINT16 msgID = 0;
 		command(TAG_MSG_ID) >> msgID;
+		PerformedOperationGuard performed(pdu,msgID);
 		UID instUID = ReadUIDIfPresent(command,TAG_REQ_SOP_INST_UID);
 
 		DataSet requestData;
@@ -474,6 +566,7 @@ namespace dicom
 	NSCU::NSCU(ServiceBase& service, const UID& classUID)
 		:service_(service)
 		,classUID_(classUID)
+		,contextUID_(classUID)
 		,lastMessageID_(0)
 		,lastSOPInstanceUID_("")
 		,hasLastSOPInstanceUID_(false)
@@ -482,6 +575,12 @@ namespace dicom
 		,lastActionTypeID_(0)
 		,hasLastActionTypeID_(false)
 	{
+	}
+
+	void NSCU::ensureNoOutstandingRequest() const
+	{
+		if(lastMessageID_ != 0 && service_.IsInvokedOperationOutstanding(lastMessageID_))
+			throw exception("N-DIMSE SCU object already has an outstanding request");
 	}
 
 	void NSCU::setLastSOPInstanceUID(const UID& instUID)
@@ -527,6 +626,8 @@ namespace dicom
 		Command::Code expectedCommand)
 	{
 		UINT16 dataSetType = 0;
+		response = DataSet();
+		data = DataSet();
 		if(!service_.Read(response))
 			throw exception("Unexpected association release while reading N-DIMSE response command");
 		ValidateNdimseResponse(
@@ -591,6 +692,7 @@ namespace dicom
 			throw exception("N-ACTION response data set requires Action Type ID");
 		if(dataSetType!=DataSetStatus::NO_DATA_SET && !service_.Read(data))
 			throw exception("Unexpected association release while reading N-DIMSE response data set");
+		service_.CompleteInvokedOperation(lastMessageID_);
 	}
 
 	NEventReportSCU::NEventReportSCU(ServiceBase& service, const UID& classUID)
@@ -601,7 +703,9 @@ namespace dicom
 	void NEventReportSCU::writeRQ(const UID& instUID, UINT16 eventTypeID, const DataSet& data)
 	{
 		RequireSCURole(service_,classUID_);
+		ensureNoOutstandingRequest();
 		lastMessageID_ = uniq16odd();
+		InvokedOperationRollback invoked(service_,lastMessageID_);
 		setLastSOPInstanceUID(instUID);
 		setLastEventTypeID(eventTypeID);
 		clearLastActionTypeID();
@@ -611,14 +715,17 @@ namespace dicom
 			instUID,
 			eventTypeID,
 			DataSetStatus::YES_DATA_SET);
-		service_.WriteCommand(rq,classUID_);
-		service_.WriteDataSet(data,classUID_);
+		service_.WriteCommand(rq,contextUID_);
+		service_.WriteDataSet(data,contextUID_);
+		invoked.release();
 	}
 
 	void NEventReportSCU::writeRQ(const UID& instUID, UINT16 eventTypeID)
 	{
 		RequireSCURole(service_,classUID_);
+		ensureNoOutstandingRequest();
 		lastMessageID_ = uniq16odd();
+		InvokedOperationRollback invoked(service_,lastMessageID_);
 		setLastSOPInstanceUID(instUID);
 		setLastEventTypeID(eventTypeID);
 		clearLastActionTypeID();
@@ -628,7 +735,8 @@ namespace dicom
 			instUID,
 			eventTypeID,
 			DataSetStatus::NO_DATA_SET);
-		service_.WriteCommand(rq,classUID_);
+		service_.WriteCommand(rq,contextUID_);
+		invoked.release();
 	}
 
 	void NEventReportSCU::readRSP(UINT16& status, DataSet& response, DataSet& data)
@@ -644,12 +752,15 @@ namespace dicom
 	void NGetSCU::writeRQ(const UID& instUID, const std::vector<Tag>& attrList)
 	{
 		RequireSCURole(service_,classUID_);
+		ensureNoOutstandingRequest();
 		lastMessageID_ = uniq16odd();
+		InvokedOperationRollback invoked(service_,lastMessageID_);
 		setLastSOPInstanceUID(instUID);
 		clearLastEventTypeID();
 		clearLastActionTypeID();
 		CommandSet::NGetRQ rq(lastMessageID_,classUID_,instUID,attrList);
-		service_.WriteCommand(rq,classUID_);
+		service_.WriteCommand(rq,contextUID_);
+		invoked.release();
 	}
 
 	void NGetSCU::readRSP(UINT16& status, DataSet& response, DataSet& data)
@@ -665,13 +776,16 @@ namespace dicom
 	void NSetSCU::writeRQ(const UID& instUID, const DataSet& data)
 	{
 		RequireSCURole(service_,classUID_);
+		ensureNoOutstandingRequest();
 		lastMessageID_ = uniq16odd();
+		InvokedOperationRollback invoked(service_,lastMessageID_);
 		setLastSOPInstanceUID(instUID);
 		clearLastEventTypeID();
 		clearLastActionTypeID();
 		CommandSet::NSetRQ rq(lastMessageID_,classUID_,instUID);
-		service_.WriteCommand(rq,classUID_);
-		service_.WriteDataSet(data,classUID_);
+		service_.WriteCommand(rq,contextUID_);
+		service_.WriteDataSet(data,contextUID_);
+		invoked.release();
 	}
 
 	void NSetSCU::readRSP(UINT16& status, DataSet& response, DataSet& data)
@@ -687,7 +801,9 @@ namespace dicom
 	void NActionSCU::writeRQ(const UID& instUID, UINT16 actionTypeID, const DataSet& data)
 	{
 		RequireSCURole(service_,classUID_);
+		ensureNoOutstandingRequest();
 		lastMessageID_ = uniq16odd();
+		InvokedOperationRollback invoked(service_,lastMessageID_);
 		setLastSOPInstanceUID(instUID);
 		clearLastEventTypeID();
 		setLastActionTypeID(actionTypeID);
@@ -697,14 +813,17 @@ namespace dicom
 			instUID,
 			actionTypeID,
 			DataSetStatus::YES_DATA_SET);
-		service_.WriteCommand(rq,classUID_);
-		service_.WriteDataSet(data,classUID_);
+		service_.WriteCommand(rq,contextUID_);
+		service_.WriteDataSet(data,contextUID_);
+		invoked.release();
 	}
 
 	void NActionSCU::writeRQ(const UID& instUID, UINT16 actionTypeID)
 	{
 		RequireSCURole(service_,classUID_);
+		ensureNoOutstandingRequest();
 		lastMessageID_ = uniq16odd();
+		InvokedOperationRollback invoked(service_,lastMessageID_);
 		setLastSOPInstanceUID(instUID);
 		clearLastEventTypeID();
 		setLastActionTypeID(actionTypeID);
@@ -714,7 +833,8 @@ namespace dicom
 			instUID,
 			actionTypeID,
 			DataSetStatus::NO_DATA_SET);
-		service_.WriteCommand(rq,classUID_);
+		service_.WriteCommand(rq,contextUID_);
+		invoked.release();
 	}
 
 	void NActionSCU::readRSP(UINT16& status, DataSet& response, DataSet& data)
@@ -730,47 +850,59 @@ namespace dicom
 	void NCreateSCU::writeRQ(const UID& instUID, const DataSet& data)
 	{
 		RequireSCURole(service_,classUID_);
+		ensureNoOutstandingRequest();
 		lastMessageID_ = uniq16odd();
+		InvokedOperationRollback invoked(service_,lastMessageID_);
 		setLastSOPInstanceUID(instUID);
 		clearLastEventTypeID();
 		clearLastActionTypeID();
 		CommandSet::NCreateRQ rq(lastMessageID_,classUID_,instUID,DataSetStatus::YES_DATA_SET);
-		service_.WriteCommand(rq,classUID_);
-		service_.WriteDataSet(data,classUID_);
+		service_.WriteCommand(rq,contextUID_);
+		service_.WriteDataSet(data,contextUID_);
+		invoked.release();
 	}
 
 	void NCreateSCU::writeRQ(const UID& instUID)
 	{
 		RequireSCURole(service_,classUID_);
+		ensureNoOutstandingRequest();
 		lastMessageID_ = uniq16odd();
+		InvokedOperationRollback invoked(service_,lastMessageID_);
 		setLastSOPInstanceUID(instUID);
 		clearLastEventTypeID();
 		clearLastActionTypeID();
 		CommandSet::NCreateRQ rq(lastMessageID_,classUID_,instUID,DataSetStatus::NO_DATA_SET);
-		service_.WriteCommand(rq,classUID_);
+		service_.WriteCommand(rq,contextUID_);
+		invoked.release();
 	}
 
 	void NCreateSCU::writeRQ(const DataSet& data)
 	{
 		RequireSCURole(service_,classUID_);
+		ensureNoOutstandingRequest();
 		lastMessageID_ = uniq16odd();
+		InvokedOperationRollback invoked(service_,lastMessageID_);
 		clearLastSOPInstanceUID();
 		clearLastEventTypeID();
 		clearLastActionTypeID();
 		CommandSet::NCreateRQ rq(lastMessageID_,classUID_,DataSetStatus::YES_DATA_SET);
-		service_.WriteCommand(rq,classUID_);
-		service_.WriteDataSet(data,classUID_);
+		service_.WriteCommand(rq,contextUID_);
+		service_.WriteDataSet(data,contextUID_);
+		invoked.release();
 	}
 
 	void NCreateSCU::writeRQ()
 	{
 		RequireSCURole(service_,classUID_);
+		ensureNoOutstandingRequest();
 		lastMessageID_ = uniq16odd();
+		InvokedOperationRollback invoked(service_,lastMessageID_);
 		clearLastSOPInstanceUID();
 		clearLastEventTypeID();
 		clearLastActionTypeID();
 		CommandSet::NCreateRQ rq(lastMessageID_,classUID_,DataSetStatus::NO_DATA_SET);
-		service_.WriteCommand(rq,classUID_);
+		service_.WriteCommand(rq,contextUID_);
+		invoked.release();
 	}
 
 	void NCreateSCU::readRSP(UINT16& status, DataSet& response, DataSet& data)
@@ -786,12 +918,15 @@ namespace dicom
 	void NDeleteSCU::writeRQ(const UID& instUID)
 	{
 		RequireSCURole(service_,classUID_);
+		ensureNoOutstandingRequest();
 		lastMessageID_ = uniq16odd();
+		InvokedOperationRollback invoked(service_,lastMessageID_);
 		setLastSOPInstanceUID(instUID);
 		clearLastEventTypeID();
 		clearLastActionTypeID();
 		CommandSet::NDeleteRQ rq(lastMessageID_,classUID_,instUID);
-		service_.WriteCommand(rq,classUID_);
+		service_.WriteCommand(rq,contextUID_);
+		invoked.release();
 	}
 
 	void NDeleteSCU::readRSP(UINT16& status, DataSet& response, DataSet& data)
@@ -828,7 +963,7 @@ namespace dicom
 
 		UID instUID (command.Get<UID>(TAG_AFF_SOP_INST_UID));
 
-		if(instUID.str().size()==0)//this should never happen 
+		if(instUID.str().size()==0)//this should never happen
 		{
 			char buffer[64];
 			instUID = makeUID(buffer);
@@ -857,7 +992,7 @@ namespace dicom
 
 		if(!rspData.empty())
 			pdu.WriteDataSet(rspData, classUID) ;
-		
+
 		//return true;
 	}
 
@@ -879,7 +1014,7 @@ namespace dicom
 
 		DataSet rqData;
 		if (pdu.Read(rqData) == false)
-			return false;//should throw 
+			return false;//should throw
 
 		UINT16 stat = Status::SUCCESS;
 
@@ -891,7 +1026,7 @@ namespace dicom
 		NSetRSP rspCmd(msgID, classUID, stat,
 			rspData.empty() ? DataSetStatus::NO_DATA_SET : DataSetStatus::YES_DATA_SET);
 
-		pdu.WriteCommand(rspCmd, classUID); 
+		pdu.WriteCommand(rspCmd, classUID);
 		if(!rspData.empty() )
 			pdu.WriteDataSet(rspData, classUID);
 		return true;

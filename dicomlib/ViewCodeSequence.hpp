@@ -2,6 +2,7 @@
 #define VIEW_CODE_SEQUENCE_HPP_INCLUDE_GUARD_5748380725
 
 #include <string>
+#include "DataSet.hpp"
 
 /**
 *	switch between commonly used term such as "CC view" and dicom ViewCodeSequence
@@ -10,17 +11,17 @@
 */
 namespace dicom
 {
-	enum View 
+	enum View
 	{
 		ML,
-		MLO, 
-		LM, 
-		LMO, 
-		CC, 
-		FB, 
-		SIO, 
-		XCC, 
-		XCCL, 
+		MLO,
+		LM,
+		LMO,
+		CC,
+		FB,
+		SIO,
+		XCC,
+		XCCL,
 		XCCM
 	};
 
@@ -29,7 +30,7 @@ namespace dicom
 		std::string view_code_value;
 		std::string view_coding_scheme_designator;
 		std::string view_code_meaning;
-		
+
 		ViewCodeSequenceEntry( )
 			:view_code_value("")
 			,view_coding_scheme_designator("")

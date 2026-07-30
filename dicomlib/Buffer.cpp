@@ -1,4 +1,5 @@
 #include "Buffer.hpp"
+#include <algorithm>
 #include <iostream>
 namespace dicom
 {
@@ -14,11 +15,11 @@ namespace dicom
 	{
 		if(data.size()!=0)//Without this check, VC2005 build will crash here. -Sam 20070508
 		{
-			if(data.size()>(end()-position()))
+			if(data.size()>(size()-I_))
 				throw ReadBeyondBuffer("Attempting to read beyond end of buffer");
 			BYTE* pData=&data.front();
 			std::copy(position(),position()+data.size(),pData);//would vector assign be faster?
-			
+
 			//data.assign(position(),position()+data.size());//can we profile this please?
 
 			I_+=data.size();
@@ -28,11 +29,13 @@ namespace dicom
 
 	Buffer& Buffer::operator >>(std::vector<UINT16>& data)
 	{
+		if(data.empty())
+			return *this;
 		UINT16* pData=&data.front();
 		BYTE* pbData=reinterpret_cast<BYTE*>(pData);
-		if((data.size()*2)>(end()-position()))
+		if((data.size()*2)>(size()-I_))
 			throw ReadBeyondBuffer("Attempting to read beyond end of buffer");
-		
+
 		std::copy(position(),position()+data.size()*2,pbData);//would vector::assign() be faster here?
 
 		I_+=data.size()*2;
@@ -79,7 +82,7 @@ namespace dicom
 		*this << GroupTag(tag);
 		*this << ElementTag(tag);
 		return *this;
-		
+
 	}
 	/*
 		Really not at all happy about this.  Can we try using a deque?

@@ -218,6 +218,24 @@ endif()
 include(CTest)
 
 if(BUILD_TESTING)
+    add_test(
+        NAME standalone_headers
+        COMMAND
+            ${CMAKE_COMMAND}
+            -D DICOMLIB_SOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}
+            -D DICOMLIB_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}
+            -D DICOMLIB_CXX_COMPILER=${CMAKE_CXX_COMPILER}
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/CheckStandaloneHeaders.cmake
+    )
+
+    add_test(
+        NAME core_cleanup
+        COMMAND
+            ${CMAKE_COMMAND}
+            -D DICOMLIB_SOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/CheckCoreCleanup.cmake
+    )
+
     add_executable(dicom_cdimse_tests
         tests/cdimse_commandsets.cpp
     )

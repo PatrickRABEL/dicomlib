@@ -24,6 +24,7 @@
 
 
 
+#include <algorithm>
 #include <exception>
 #include <iostream>
 
@@ -69,14 +70,14 @@ namespace dicom
 
 	void Server::Logger::LogError(std::string Error)
 	{
- 		std::lock_guard<std::mutex> lock(cerr_mutex);
- 		std::cerr << Error << std::endl;
+		std::lock_guard<std::mutex> lock(cerr_mutex);
+		std::cerr << Error << std::endl;
 	}
 
 	void Server::Logger::LogMessage	(std::string Message)
 	{
- 		std::lock_guard<std::mutex> lock(cout_mutex);
- 		std::cout << Message << std::endl;
+		std::lock_guard<std::mutex> lock(cout_mutex);
+		std::cout << Message << std::endl;
 	}
 
 	Server::Server()
@@ -113,7 +114,7 @@ namespace dicom
 
     /*!
         Indicate that the currently executing thread can be safely deleted.
-        We do this by comparing thread identifiers in a cross-platform way via thread::operator == 
+        We do this by comparing thread identifiers in a cross-platform way via thread::operator ==
     */
     void Server::allDone()
     {
@@ -181,7 +182,7 @@ namespace dicom
 
             std::shared_ptr<std::thread> pThread(new std::thread(theThreadFunction,pAccepter,std::ref(*this)));
 
-            {     
+            {
                 std::lock_guard<std::mutex> scoped_lock(mutex_);
                 clientThreads_.insert(ThreadGroup::value_type(pThread,false));
             }
@@ -191,7 +192,7 @@ namespace dicom
 		}
 		//if we get here, the kill flag has been raised, so wait for
 		//all threads to terminate nicely...
-        
+
         threadCleanup(true);
 	}
 
@@ -273,6 +274,10 @@ namespace dicom
 	void Server::AssociationTerminated()
 	{
 		CurrentLogger_->AssociationTerminated();
+	}
+	void Server::OperationHandled(ServiceBase& service,UINT16 command)
+	{
+		CurrentLogger_->OperationHandled(service,command);
 	}
 
 	bool Server::IsAcceptableRemoteApplicationTitle(const std::string& title,std::string ip)
@@ -419,6 +424,12 @@ namespace dicom
 		{
 			std::lock_guard<std::mutex> scoped_lock(mutex_);
 			NDeleteHandlers_[uid]=Handler;
+		}
+
+		void Server::AddAcceptableAbstractSyntax(const UID& uid)
+		{
+			std::lock_guard<std::mutex> scoped_lock(mutex_);
+			AcceptableAbstractSyntaxes_.insert(uid);
 		}
 
 	bool Server::HasCancellableFindHandler(const UID& uid)
@@ -582,6 +593,8 @@ namespace dicom
 	bool Server::IsAcceptableAbstractSyntax(const UID& uid)
 	{
 		std::lock_guard<std::mutex> scoped_lock(mutex_);
+		if(AcceptableAbstractSyntaxes_.find(uid)!=AcceptableAbstractSyntaxes_.end())
+			return true;//explicitly accepted, e.g. a Meta SOP Class
 		if((Handlers_.find(uid)!=Handlers_.end()) ||
 			(FindHandlers_.find(uid)!=FindHandlers_.end()) ||
 			(CancellableFindHandlers_.find(uid)!=CancellableFindHandlers_.end()) ||
@@ -614,13 +627,35 @@ namespace dicom
 	void Server::GetImplementationClass(ImplementationClass &ImpClass)
 	{
 		std::lock_guard<std::mutex> scoped_lock(mutex_);//do we really need this?
-		ImpClass.UID_=ImplementationClassUID;
+		ImpClass.UID_=ImplementationClassUIDOverride_.empty()?
+			ImplementationClassUID
+			:
+			ImplementationClassUIDOverride_;
 	}
 
 	void Server::GetImplementationVersion(ImplementationVersion &ImpVersion)
 	{
 		std::lock_guard<std::mutex> scoped_lock(mutex_);//not sure we really need this.
-		ImpVersion.Name=ImplementationVersionName;
+		ImpVersion.Name=ImplementationVersionNameOverride_.empty()?
+			ImplementationVersionName
+			:
+			ImplementationVersionNameOverride_;
+	}
+
+	void Server::SetImplementationClassUID(const std::string& uid)
+	{
+		std::lock_guard<std::mutex> scoped_lock(mutex_);
+		ImplementationClassUIDOverride_=uid;
+	}
+
+	void Server::SetImplementationVersionName(const std::string& name)
+	{
+		std::lock_guard<std::mutex> scoped_lock(mutex_);
+		//PS3.7 D.3.3.2.3, Table D.3-3: 1 to 16 characters. Refuse anything longer
+		//rather than announce a non-conformant value.
+		if(name.size()>16)
+			return;
+		ImplementationVersionNameOverride_=name;
 	}
 
 

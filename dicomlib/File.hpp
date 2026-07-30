@@ -5,6 +5,8 @@
 #include "Exceptions.hpp"
 #include "FileMetaInformation.hpp"
 #include <fstream>
+#include <ostream>
+#include <string>
 
 
 namespace dicom
@@ -53,7 +55,7 @@ namespace dicom
 
 
 	void Read(std::string FileName,DataSet& data,size_t max_number_of_byte_to_read=-1);
-	
+
 	//Note: default Tiff compatible. Still allow to write Pure Dicom when supply false
 	//!mge @ May 2009
 	void Write(const DataSet& data, std::string FileName, TS ts=TS(IMPL_VR_LE_TRANSFER_SYNTAX), bool Tiff=true);//why implicit?

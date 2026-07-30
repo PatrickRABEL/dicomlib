@@ -7,9 +7,13 @@
 
 #include <functional>
 #include <memory>
+#include <exception>
+#include <map>
 #include <mutex>
 #include <set>
+#include <string>
 #include <thread>
+#include <vector>
 
 #include "socket/Socket.hpp"
 #include "Cdimse.hpp"
@@ -133,6 +137,20 @@ namespace dicom
 			std::map<UID,NCreateAttributeHandlerFunction> NCreateHandlers_;
 			std::map<UID,NHandlerFunction> NDeleteHandlers_;
 
+		//!Abstract syntaxes accepted at association negotiation even without a handler.
+		/*!
+			Needed for Meta SOP Classes (e.g. Basic Grayscale Print Management Meta,
+			PS3.4 Annex H): the SCU negotiates the Meta SOP Class as abstract syntax,
+			but the DIMSE-N operations carried on that presentation context name the
+			individual child SOP Classes in their Affected/Requested SOP Class UID.
+			The Meta SOP Class itself has no operations, hence no handler.
+		*/
+		std::set<UID> AcceptableAbstractSyntaxes_;
+
+		//!Identification announced at association negotiation; empty = library default.
+		std::string ImplementationClassUIDOverride_;
+		std::string ImplementationVersionNameOverride_;
+
 		/*
 			Would it be cleaner to explicitly specify CMoveHandlers_, CGetHandlers_ etc,
 			i.e. one container for each C-DIMSE and N-DIMSE message?
@@ -165,7 +183,7 @@ namespace dicom
 		//!returns true if a client has requested a connection, false if Kill flag has been raised, otherwise blocks.
 		bool ClientConnectionPending(Network::Socket* pSocket);
 
-        
+
         //!Our own thread collection type.
         /*!
             We do not use a thread group here, because we need to be able to clean up threads as we go
@@ -177,7 +195,7 @@ namespace dicom
         */
 
         typedef std::map<std::shared_ptr<std::thread>,bool> ThreadGroup;
-        
+
         //!Each thread owns an open socket connection to a client
         ThreadGroup clientThreads_;
 
@@ -208,6 +226,16 @@ namespace dicom
 			virtual void  AssociationNegotiated	(const primitive::AAssociateRQ& request){(void)request;}
 			//!Defaults to nothing
 			virtual void AssociationTerminated	(){}
+			//!Called after a DIMSE operation has been handled AND its response written.
+			/*!
+				The only point at which an SCP may initiate a new message on the
+				association without interleaving it with the response the SCU is
+				waiting for — needed to send Print Management N-EVENT-REPORT
+				(PS3.4 Annex H). `command` is the request command field (Tag.hpp
+				Command::* codes). Defaults to nothing.
+			*/
+			virtual void OperationHandled		(ServiceBase& service, UINT16 command)
+				{(void)service;(void)command;}
 
 		}DefaultLogger_;
 
@@ -246,6 +274,13 @@ namespace dicom
 			void AddNCreateHandler(const UID& uid,NCreateAttributeHandlerFunction Handler);
 			void AddNDeleteHandler(const UID& uid,NHandlerFunction Handler);
 
+			//!Accept this abstract syntax at negotiation even though it has no handler.
+			/*!
+				For Meta SOP Classes, whose operations are dispatched on the child
+				SOP Class UID carried in the command set.
+			*/
+			void AddAcceptableAbstractSyntax(const UID& uid);
+
 		HandlerFunction GetHandler(const UID& uid);
 		CFindFunction GetFindHandler(const UID& uid);
 		CFindStatusFunction GetCancellableFindHandler(const UID& uid);
@@ -277,12 +312,26 @@ namespace dicom
 		//ThreadSpecificServer, using the friend keyword.
 		void AssociationNegotiated					(const primitive::AAssociateRQ& request);
 		void AssociationTerminated					();
+		void OperationHandled						(ServiceBase& service,UINT16 command);
 
 		bool CanHandleTransferSyntax				(primitive::TransferSyntax &);
 
 		//these next two seem poorly thought out.
 		void GetImplementationClass					(primitive::ImplementationClass &);
 		void GetImplementationVersion				(primitive::ImplementationVersion &);
+
+		//!Override the Implementation Class UID announced at association negotiation.
+		/*!
+			PS3.7 D.3.3.2: the Implementation Class UID identifies the implementation,
+			and each implementor is expected to announce a UID under their OWN
+			registered org root. Without this, dicomlib announces its own value,
+			which belongs to the library author rather than to the application.
+			Pass an empty string to fall back to the library default.
+		*/
+		void SetImplementationClassUID				(const std::string& uid);
+		//!Override the (optional) Implementation Version Name. 1-16 characters
+		//!(PS3.7 D.3.3.2.3); longer values are rejected and the default kept.
+		void SetImplementationVersionName			(const std::string& name);
 
 		//!Constructor
 		Server();

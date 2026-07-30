@@ -19,7 +19,7 @@ namespace dicom
 		a Value object once it has been constructed, i.e. it's immutable.  This way
 		it's safe to share references to the same underlying data.
 	*/
-    
+
 	struct Value
 	{
     private:
@@ -110,7 +110,7 @@ namespace dicom
 		template<typename T>
 		void Get(T& t) const
 		{
- 			DynamicVRCheck<T>(vr_);	//check we have the right value representation.
+			DynamicVRCheck<T>(vr_);	//check we have the right value representation.
 			t=std::any_cast<T>(*(data_));
 		}
 
@@ -147,7 +147,7 @@ namespace dicom
 		}
 
 	private:
-		//!The data itself, implemented using BOOST utilities.
+		//!The data itself, implemented using C++17 standard library utilities.
 		std::shared_ptr<std::any> data_;
 
 	};

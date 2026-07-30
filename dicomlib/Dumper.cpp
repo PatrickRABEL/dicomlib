@@ -9,6 +9,7 @@
 #include "Dumper.hpp"
 #include "DataDictionary.hpp"
 #include "ValueToStream.hpp"
+#include <algorithm>
 using std::ostream;
 namespace dicom
 {

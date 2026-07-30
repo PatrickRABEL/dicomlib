@@ -1,5 +1,6 @@
 #ifndef QUERY_RETRIEVE_HPP_INCLUDE_GUARD_U4DI92XIN23
 #define QUERY_RETRIEVE_HPP_INCLUDE_GUARD_U4DI92XIN23
+#include <ostream>
 #include <string>
 #include "Tag.hpp"
 namespace dicom

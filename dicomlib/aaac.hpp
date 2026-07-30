@@ -10,6 +10,7 @@
 #ifndef AAAC_HPP_INCLUDE_GUARD_K7763KDIOXBK2
 #define AAAC_HPP_INCLUDE_GUARD_K7763KDIOXBK2
 
+#include <string>
 #include <vector>
 #include "aarq.hpp"
 
@@ -33,7 +34,7 @@ namespace dicom
 			static const BYTE				Reserved2_=0x00;
 			BYTE							Result_;
 			static const BYTE				Reserved4_=0x00;
-		
+
 			TransferSyntax				TrnSyntax_;
 			PresentationContextAccept();
 			//PresentationContextAccept(TransferSyntax &);
@@ -43,7 +44,7 @@ namespace dicom
 			UINT32		ReadDynamic(Network::Socket	&);
 			UINT16		Size();
 		};
-		
+
 
 		//!Should document where this is defined
 		class	AAssociateAC
@@ -71,7 +72,7 @@ namespace dicom
 			UINT32		Read(Network::Socket &);
 			UINT32		ReadDynamic(Network::Socket	&);
 			UINT32		Size();
-		};			
+		};
 	}//namespace primitive
 }//namespace dicom
 

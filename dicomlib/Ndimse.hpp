@@ -18,7 +18,7 @@
 #include <vector>
 
 /*
-	Is inheritance the correct mechanism to use here, or 
+	Is inheritance the correct mechanism to use here, or
 	would composition be more appropriate.  I.e, are we dealing
 	with 'IS A' or 'HAS A'?
 */
@@ -64,9 +64,21 @@ namespace dicom
 
 	class NSCU
 	{
+	public:
+		//!Abstract syntax whose presentation context carries these messages.
+		/*!
+			Defaults to the SOP Class UID of the operation. Set it to the negotiated
+			Meta SOP Class (PS3.4 Annex H) when the association was negotiated on the
+			Meta SOP Class rather than on the individual SOP Class: the command set
+			still names the individual SOP Class, but the messages travel on the
+			Meta SOP Class presentation context.
+		*/
+		void SetPresentationContextSOPClass(const UID& uid){contextUID_=uid;}
+
 	protected:
 		ServiceBase& service_;
 		UID classUID_;
+		UID contextUID_;
 		UINT16 lastMessageID_;
 		UID lastSOPInstanceUID_;
 		bool hasLastSOPInstanceUID_;
@@ -76,6 +88,7 @@ namespace dicom
 		bool hasLastActionTypeID_;
 
 		NSCU(ServiceBase& service, const UID& classUID);
+		void ensureNoOutstandingRequest() const;
 		void readRSP(UINT16& status, DataSet& response, DataSet& data, Command::Code expectedCommand);
 		void setLastSOPInstanceUID(const UID& instUID);
 		void clearLastSOPInstanceUID();
@@ -168,7 +181,7 @@ namespace dicom
 
 	void HandleNSetSCP(NHandlerFunction handler, ServiceBase& pdu, const DataSet& command, const UID& classUID);
 
-	class NCreateSCU  
+	class NCreateSCU
 	{
 		const dicom::UID m_classUID;
 	public:
@@ -181,7 +194,7 @@ namespace dicom
 		bool readRSP(UINT16& status, dicom::DataSet& response, dicom::DataSet& data, ServiceBase& pdu);
 	};
 
-	class NSetSCU  
+	class NSetSCU
 	{
 		const dicom::UID m_classUID;
 	public:

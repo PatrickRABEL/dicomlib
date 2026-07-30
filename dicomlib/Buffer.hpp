@@ -1,6 +1,7 @@
 #ifndef BUFFER_HPP_INCLUDE_GUARD_7711062925
 #define BUFFER_HPP_INCLUDE_GUARD_7711062925
 #include <queue>
+#include <string>
 #include <vector>
 #include <type_traits>
 
@@ -44,7 +45,7 @@ namespace dicom
 		We tried using std::deque to implement this, but took a big performance hit.
 		vector is the only guaranteed contiguous container, which means we can
 		directly pass data to socket and file functions.
-			
+
 			-Trevor
 
 		I do find that we need to support in-place endian swithches. In case of reading

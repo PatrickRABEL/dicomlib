@@ -4,6 +4,7 @@
 #include "VR.hpp"
 #include <ostream>
 #include <istream>
+#include <string>
 namespace dicom
 {
 	//!pipes a string representation of value onto the stream.

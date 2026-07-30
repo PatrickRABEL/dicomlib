@@ -1,3 +1,4 @@
+#include <algorithm>
 #include "pdata.hpp"
 #include <iostream>
 #include <assert.h>
@@ -41,28 +42,28 @@ namespace dicom
 		documented in Part 8, section 7.6,  figure  9-2 and tables 9-22 and 9-23
 	*/
 
- 	bool	PDataTF::ReadDynamic(Network::Socket& socket)
- 	{
+	bool	PDataTF::ReadDynamic(Network::Socket& socket)
+	{
 //		scoped_profiler prof("PDataTF::ReadDynamic") ;
- 		UINT32		Count;
+		UINT32		Count;
 
- 		if(!Length)//why would this ever not be the case?
- 		{
+		if(!Length)//why would this ever not be the case?
+		{
 			BYTE Reserved_dummy;
- 			socket >> Reserved_dummy;//shouldn't this fail?
- 			socket >> Length;
- 		}
+			socket >> Reserved_dummy;//shouldn't this fail?
+			socket >> Length;
+		}
 
- 		Count = Length;
- 		MsgStatus = 0;	// continue
+		Count = Length;
+		MsgStatus = 0;	// continue
 		PDV pdv;//should be inside following loop, i think
- 		while ( Count > 0)
- 		{
+		while ( Count > 0)
+		{
 
- 			//I think that this should happen in a member of PDV-.
- 			socket >> pdv.Length;
- 			socket >> pdv.PresentationContextID;
- 			socket >> pdv.MessageHeader;
+			//I think that this should happen in a member of PDV-.
+			socket >> pdv.Length;
+			socket >> pdv.PresentationContextID;
+			socket >> pdv.MessageHeader;
 
 
 			//now read actual data from socket onto buffer.
@@ -96,16 +97,16 @@ namespace dicom
 				We need profiling tests for both, such as dicomtest::SubmitLotsOfImages()
 			*/
 
- 			Count = Count - pdv.Length - sizeof(UINT32);
- 			Length = Length - pdv.Length - sizeof(UINT32);
+			Count = Count - pdv.Length - sizeof(UINT32);
+			Length = Length - pdv.Length - sizeof(UINT32);
 
 			if(pdv.IsLastFragment())
- 			{
- 				MsgStatus = 1;
- 				PresentationContextID = pdv.PresentationContextID;
- 				return ( true );
- 			}
- 		}
+			{
+				MsgStatus = 1;
+				PresentationContextID = pdv.PresentationContextID;
+				return ( true );
+			}
+		}
 
 		if(pdv.IsLastFragment())
 
@@ -114,10 +115,10 @@ namespace dicom
 			MsgStatus = 1;
 		}
 
- 		PresentationContextID = pdv.PresentationContextID;
+		PresentationContextID = pdv.PresentationContextID;
 
- 		return ( true );
- 	}
+		return ( true );
+	}
 
 	PDataTF::PDataTF(int ByteOrder)
 	:buffer_(ByteOrder)

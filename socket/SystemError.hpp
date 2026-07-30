@@ -1,6 +1,8 @@
 #ifndef SYSTEM_ERROR_INCLUDE_GUARD_573938574
 #define SYSTEM_ERROR_INCLUDE_GUARD_573938574
 
+#include <cerrno>
+#include <cstring>
 #include <exception>
 #include <string>
 #include <sstream>

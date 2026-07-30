@@ -145,7 +145,7 @@ namespace utility
 		//data.erase(TAG_SOP_CLASS_UID);
 		//data.Put<VR_UI>(TAG_SOP_CLASS_UID, SopClassUid);
 
-		//dicom::UID SopInstUid = makeUID("1.2.826.0.1.3680043.2.1553.1");
+		//dicom::UID SopInstUid = makeUID("1.2.826.0.1.3680043.10.1778.1");
 		//data.erase(TAG_SOP_INST_UID);
 		//data_set.Put<VR_UI>(TAG_SOP_INST_UID, SopInstUid);
 

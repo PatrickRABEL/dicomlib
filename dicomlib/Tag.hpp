@@ -4,6 +4,7 @@
 
 
 #include <utility>//for std::pair
+#include <string>
 #include "Types.hpp"
 #include "Exceptions.hpp"
 
@@ -156,7 +157,7 @@ namespace dicom
 		TAG_CLINICAL_TRIAL_SPONSOR	    = 0x00120010,
 		TAG_CLINICAL_TRIAL_PROT_NAME	= 0x00120021,
 		TAG_CLINICAL_TRIAL_SITE_NAME	= 0x00120031,
-		TAG_CLINICAL_TRIAL_CENTER       = 0x00120060,	
+		TAG_CLINICAL_TRIAL_CENTER       = 0x00120060,
 		TAG_CLINICAL_TRIAL_PROT_ID		= 0x00120020,
 		TAG_CLINICAL_TRIAL_SITE_ID		= 0x00120030,
 		TAG_CLINICAL_TRIAL_SUBJECT_ID	= 0x00120030,
@@ -188,7 +189,7 @@ namespace dicom
 		//TAG_MOVE_PORT                 = 0x00181019,
 		//TAG_MOVE_APP                  = 0x00181021,
 		//TAG_PASSWORD                  = 0x00181022,
-		//// End 
+		//// End
 
 		/*
 			The above tag names make no sense, and were obviously added
@@ -210,9 +211,9 @@ namespace dicom
 
 		TAG_DIST_SOURCE_DETECTOR	   = 0x00181110,
 		TAG_DIST_SOURCE_PATIENT		   = 0x00181111,
-		
 
-		//following block added by Trevor Morgan 
+
+		//following block added by Trevor Morgan
 		//-------------------------------------------
 		TAG_BODY_PART_THICKNESS		= 0x001811a0,
 		TAG_COMPRESSION_FORCE		= 0x001811a2,
@@ -345,7 +346,7 @@ namespace dicom
 		TAG_SEG_RED_PAL_LUT           = 0x00281221,
 		TAG_SEG_GREEN_PAL_LUT         = 0x00281222,
 		TAG_SEG_BLUE_PAL_LUT          = 0x00281223,
-		
+
 		TAG_LOSSY_IMAGE_COMPRESSION	  = 0x00282110,
 		TAG_LOSSY_IMAGE_COMPRESSION_RATIO = 0x00282112,
 		TAG_LOSSY_IMAGE_COMPRESSION_METHOD = 0x00282114,
@@ -521,12 +522,12 @@ namespace dicom
 		{
 
 		}
-    
-    	virtual const char* what() const throw(); 
+
+	virtual const char* what() const throw();
 		virtual ~TagNotFound() throw() {}
 	};
-	
-	
+
+
 
 	//!This value is always used to indicate undefined length
 	/*!

@@ -14,6 +14,7 @@
 
 #include <functional>
 #include <string>
+#include <vector>
 #include "ServiceBase.hpp"
 #include "CommandSets.hpp"
 #include "PresentationContexts.hpp"
@@ -52,6 +53,7 @@ namespace dicom
 		UINT16 completed;
 		UINT16 failed;
 		UINT16 warning;
+		std::vector<UID> failedSOPInstanceUIDs;
 
 		CSubOperationResult(
 			UINT16 statusCode = Status::SUCCESS,
@@ -103,6 +105,10 @@ namespace dicom
 	bool PollCCancelRQ(ServiceBase& pdu, UINT16 messageID = 0);
 
 	CSubOperationResult SendCGetStoreSubOperations(ServiceBase& pdu, const Sequence& instances);
+	CSubOperationResult SendCGetStoreSubOperations(
+		ServiceBase& pdu,
+		const Sequence& instances,
+		UINT16 cancelMessageID);
 	CSubOperationResult SendCMoveStoreSubOperations(
 		ServiceBase& destination,
 		const Sequence& instances,
@@ -139,7 +145,7 @@ namespace dicom
 	class CGetSCP
 	{
 		HandlerFunction handler_;
- 		Sequence m_sq;//is this needed???
+		Sequence m_sq;//is this needed???
 	public:
 		CGetSCP(HandlerFunction handler):handler_(handler){}
 		void handle(ServiceBase& pdu, const DataSet& rqCmd, const UID& classUID);
@@ -161,6 +167,7 @@ namespace dicom
 		ServiceBase& service_;
 		const UID classUID_;
 		UINT16 lastMessageID_;
+		void ensureNoOutstandingRequest() const;
 		void writeCancelForLastRQ();
 	public:
 		SCU(ServiceBase& service,UID classUID):service_(service),classUID_(classUID),lastMessageID_(0){}

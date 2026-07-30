@@ -62,6 +62,11 @@ The codebase was simplified for the maintained C++ library build:
 - The build system was consolidated around CMake.
 - POSIX threads are used through CMake's `Threads::Threads` target.
 
+Default implementation identity:
+
+- Implementation Class UID: `1.2.826.0.1.3680043.10.1778`
+- Implementation Version Name: `DICOMLIB2008`
+
 ## Transfer Syntax Policy
 
 Transfer syntax support is configured through CMake and exposed through the
@@ -194,41 +199,71 @@ association release before a mandatory request Data Set is received. C-FIND,
 C-GET, and C-MOVE SCP status handlers validate callback final response
 statuses before writing responses.
 C-CANCEL-RQ is encoded, accepted by SCP dispatch, recorded on association state,
-and can be polled by a running handler with `PollCCancelRQ()`. C-FIND SCP code
-can use `AddCancellableFindHandler()` to return a final `Status::CANCEL`;
+and can be polled by a running handler with `PollCCancelRQ()`, either for a
+specific Message ID or for any recorded cancellation. C-FIND SCP code can use
+`AddCancellableFindHandler()` to return a final `Status::CANCEL`;
 C-GET and C-MOVE can use `AddCancellableGetHandler()` and
 `AddCancellableMoveHandler()` to return final `Status::CANCEL` responses with
 sub-operation counters. `CGetSCU::readRSP(..., CStoreFunction)` can process
 incoming C-STORE sub-operations on the same association before the final
 C-GET-RSP, and `SendCGetStoreSubOperations()` provides sequential multi-instance
-C-STORE sending with aggregate counters for C-GET SCP handlers.
+C-STORE sending with aggregate counters for C-GET SCP handlers and can stop
+before the next sub-operation when a cancellation has already been recorded.
 `SendCMoveStoreSubOperations()` provides sequential multi-instance C-STORE
 sending on an application-opened Move Destination association, including Move
 Originator fields and aggregate counters for C-MOVE SCP handlers.
 `Server::SetMoveDestinationResolverCallback()` maps Move Destination AE Titles
 to host/port endpoints. `AddMoveStoreHandler()` lets dispatch open the
 destination association automatically when the handler supplies retrieved
-instances and destination storage Presentation Contexts. C-CANCEL is polled
+instances and destination storage Presentation Contexts. The legacy
+`CGetSCP::handle()` wrapper dispatches through the tested C-GET handler path.
+C-CANCEL is polled
 before final C-FIND/C-GET/C-MOVE responses and between automatic C-MOVE
-destination C-STORE sub-operations. Asynchronous termination of arbitrary
-application code and asynchronous operations are not yet claimed. Generic
-C-DIMSE status helpers classify the implemented `Success`,
+destination C-STORE sub-operations. The sequential C-GET and C-MOVE C-STORE
+helpers can stop before the next sub-operation when a matching cancellation has
+already been recorded on the associated C-GET/C-MOVE association.
+Asynchronous termination of arbitrary application code and asynchronous
+operations are not yet claimed. Generic C-DIMSE status helpers classify the
+implemented `Success`,
 `Pending`, `Cancel`, `Warning`, and final/non-final response states; SOP-class
 specific validators are provided for C-ECHO, C-STORE, and Query/Retrieve
 C-FIND, C-GET, and C-MOVE response statuses. SCP request handlers reject tested
+C-DIMSE requests with multi-valued common command fields, reject tested SCU
+responses with multi-valued common command fields on the C-FIND path and
+multi-valued C-STORE-RSP SOP Instance UID fields, reject tested
 C-STORE, C-FIND, C-GET, and C-MOVE requests whose `Priority` field is not one
 of `LOW`, `MEDIUM`, or `HIGH`, or whose `Priority` field is absent or
-multi-valued, and reject tested C-MOVE-RQ command sets that omit the mandatory
-`Move Destination`. C-GET/C-MOVE response construction omits
-`Number of Remaining Sub-operations` for tested final `Success`,
+multi-valued, reject tested C-STORE-RQ command sets that omit the mandatory SOP
+Instance UID, provide it as an empty or multi-valued command field, or duplicate
+optional Move Originator fields, and reject tested C-MOVE-RQ command sets that
+omit the mandatory `Move Destination` or provide it as an empty or multi-valued
+command field.
+Tested C-DIMSE and N-DIMSE response paths also reject multi-valued `Error
+Comment` and `Error ID` command fields. C-GET/C-MOVE
+response construction omits `Number of Remaining Sub-operations` for tested
+final `Success`,
 `Warning`, and `Failure` responses and keeps it available for `Pending` and
 `Cancel`; C-GET/C-MOVE SCU response validation rejects tested `Pending`
-responses that omit the required sub-operation counters. Generic N-DIMSE status validators
+responses that omit the required sub-operation counters, rejects multi-valued
+retrieve sub-operation counter fields, and rejects tested final non-Cancel
+C-GET/C-MOVE responses that include `Number of Remaining Sub-operations`.
+C-GET/C-MOVE `Cancel`, `Failure`, and `Warning` responses that announce an
+Identifier are validated to include non-empty `Failed SOP Instance UID List`
+values. Sequential C-GET and C-MOVE C-STORE sub-operation helpers record failed
+C-STORE SOP Instance UIDs, and final C-GET/C-MOVE status responses emit an
+Identifier with `Failed SOP Instance UID List` when that list is available.
+Final `Success` responses and empty caller-supplied failed SOP Instance UID
+values are rejected.
+Generic N-DIMSE status validators
 classify PS3.7 Annex C Success, Warning, Failure, and final response status
 classes for N-EVENT-REPORT, N-GET, N-SET, N-ACTION, N-CREATE, and N-DELETE; the
 N-DIMSE command set constructors are covered for their core command fields.
 N-GET-RSP, N-SET-RSP, and N-CREATE-RSP constructors can encode a multi-valued
 Attribute Identifier List command field for tested Annex C attribute statuses.
+Generic N-DIMSE request and response validation rejects multi-valued command
+fields whose VM is one in the covered services, including command field,
+message ID fields, SOP Class UID, SOP Instance UID, Data Set Type, Status,
+Event Type ID, and Action Type ID where applicable.
 Specialized free-function and thread-backed `Server` N-GET, N-SET, and
 N-CREATE SCP handlers can write that response command field from callbacks.
 N-EVENT-REPORT, N-GET, N-SET, N-ACTION, N-CREATE, and N-DELETE SCU request and
@@ -270,8 +305,20 @@ user-information round trips preserve SCP/SCU Role Selection, SOP Class
 Extended Negotiation, and Asynchronous Operations Window sub-items, and
 `ClientConnection` can send caller-provided User Information proposals.
 `ServiceBase` exposes the negotiated local SCU/SCP roles and asynchronous
-operation window values. Negotiated C-DIMSE and N-DIMSE SCU/SCP roles are
-enforced when association role state exists. `Server::SetSOPClassExtendedNegotiationCallback()`
+operation window values. C-DIMSE SCU request paths track locally outstanding
+invoked operations by Message ID, reject a new confirmed request when the
+negotiated invoked operation window is exhausted, keep Pending responses
+outstanding until a final response is read, reject reuse of a single SCU object
+for another outstanding request before its final response is read, and treat a
+negotiated invoked limit of `0` as unlimited.
+C-DIMSE SCP handler paths track locally outstanding performed operations during
+synchronous handler execution by Message ID, reject a new operation when the
+performed window is already exhausted or the same Message ID is already
+outstanding, and treat a negotiated performed limit of `0` as unlimited.
+Generic N-DIMSE SCU/SCP paths use the same invoked/performed operation window
+and Message ID tracking for their confirmed request/response paths.
+Negotiated C-DIMSE and N-DIMSE SCU/SCP roles are enforced when association role
+state exists. `Server::SetSOPClassExtendedNegotiationCallback()`
 lets application code generate SOP Class Extended Negotiation response bytes for
 accepted SOP Classes. Asynchronous C-DIMSE operation scheduling is not yet
 claimed.

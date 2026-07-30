@@ -27,10 +27,10 @@ Some of the size members can be consolidated?
 	(The initial fields generally being 'item type', 'reserved' and 'length'
 
 	So Length_ corresponds to the Length_ field, and Size() to the entire
-	message Size(). 
+	message Size().
 
-	There are two problems here from a coding perspective.  One is that the 
-	Size() function has non-obvious side effects, and the other is that we 
+	There are two problems here from a coding perspective.  One is that the
+	Size() function has non-obvious side effects, and the other is that we
 	seem to be duplicating information, which is asking for bugs, as has
 	already occured a few times.  My proposal is to lose Length_ completely
 	as a member, and when it is needed use Size()-(size of initial fields).
@@ -54,7 +54,7 @@ Some of the size members can be consolidated?
 namespace dicom
 {
 
-	
+
 
 	void EnforceItemType(BYTE Given, BYTE Expected)
 	{
@@ -119,7 +119,7 @@ namespace dicom
 		{	//	these  aren't thread safe, which could lead to horrendous complications if
 			//	you ever trust the data in them.  Only use them for dummy data
 			//	that never gets read.
-			
+
 			BYTE tmpBYTE;
 			UINT16 tmpUINT16;
 		}
@@ -302,11 +302,26 @@ namespace dicom
 			socket >> Length;
 			byteread+=sizeof(tmpBYTE)+sizeof(Length);
 
-			if(Length>16 )
-				throw dicom::exception("Implementation Version Length too long.");
+			/*
+				PS3.7 D.3.3.2.3, Table D.3-3 (verified in the current published edition)
+				defines Implementation-version-name as "a string of 1 to 16 ISO
+				646:1990 (basic G0 set) characters", and D.3.3.2 states the name is
+				optional. The sub-item is purely informational: it identifies the
+				peer's software, nothing in the protocol depends on its value - the
+				same table even marks the Reserved byte "not validated upon receipt".
+
+				Rejecting the association over an over-long name is disproportionate
+				and breaks interoperability with real devices that exceed the limit
+				(e.g. the reference Java implementation announces
+				"CharruaDICOMLibrary", 19 characters). We therefore consume the item
+				exactly as announced - so the stream stays in sync - and keep only the
+				first 16 characters, without failing the association.
+			*/
 			Name.assign(Length,' ');
 			socket.Read(Name);
 			byteread+=Length;
+			if(Length>16)
+				Name.resize(16);
 			return byteread;
 		}
 		void ImplementationVersion::Write(Network::Socket& socket)
@@ -788,7 +803,7 @@ namespace dicom
 	in it's current form and has been the root of a number of problems.
 
 	We need a more intelligent, unified way of creating and serializing these
-	message classes.  
+	message classes.
 	 ____        ____________        ____        ____________        ____
 	|data| <--> |MessageClass| <--> |Wire| <--> |MessageClass| <--> |data|
      ----        ------------        ----        ------------        ----
@@ -812,7 +827,7 @@ namespace dicom
 
 	Read(socket,AAssociateRQ);
 	Write(socket,AAssociateRQ);
-	
+
 	Most writes require size information, which needs to be either available
 	or calculatable.  I'm not sure that we should ever hold onto this.
 
@@ -841,13 +856,13 @@ We should maybe branch to try this out
 		{
 			UINT16 length = MaxSubLength_.Size();
 			length += ImpClass_.Size();
-			
+
 			/*
 				now ImpVersion_ and SCPSCURoleSelect are both optional.  This fact needs to be
 				taken into account when sending and receiving.
 
 			*/
-			
+
 			length += ImpVersion_.Size();
 			for(size_t Index = 0; Index < SCPSCURoles_.size(); ++Index)
 				length += SCPSCURoles_[Index].Size();
@@ -984,7 +999,7 @@ We should maybe branch to try this out
 					break;
 				case	0x20:
 					{
-						PresentationContext PresContext;//I'd rather these two lines were compacted to one 
+						PresentationContext PresContext;//I'd rather these two lines were compacted to one
 						tmp_read=PresContext.ReadDynamic(socket);//using a constructor.
 						byteread+=tmp_read;
 						BytesLeftToRead = BytesLeftToRead - tmp_read;//PresContext.Size();

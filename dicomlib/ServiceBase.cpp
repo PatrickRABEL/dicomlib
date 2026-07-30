@@ -6,6 +6,7 @@
 *	See LICENSE.txt for copyright and licensing info.
 *************************************************************************/
 
+#include <algorithm>
 #include <vector>
 #include <iostream>
 #include <stdexcept>
@@ -42,6 +43,8 @@ namespace dicom
 		,HasNegotiatedAsynchronousOperationsWindow_(false)
 		,MaximumNumberOperationsInvoked_(1)
 		,MaximumNumberOperationsPerformed_(1)
+		,OutstandingOperationsInvoked_(0)
+		,OutstandingOperationsPerformed_(0)
 	{}
 
 	//ServiceBase::ServiceBase(Network::Socket* socket):socket_(socket)
@@ -64,7 +67,19 @@ namespace dicom
 		//this maybe wrong -Sam Shen
 
 
-        CurrentPresentationContextID_= GetPresentationContextID(AbstractSyntaxUID);
+		/*
+			Look up the presentation context negotiated for this abstract syntax.
+			If there is none, keep the context the current message is being exchanged
+			on: with a Meta SOP Class (PS3.4 Annex H) the negotiated abstract syntax is
+			the Meta SOP Class, while the command set names the child SOP Class, which
+			has no presentation context of its own. PS3.7 requires the response to be
+			sent on the presentation context the request arrived on.
+		*/
+		BYTE NegotiatedPCID = FindPresentationContextID(AbstractSyntaxUID);
+		if(NegotiatedPCID!=0)
+			CurrentPresentationContextID_= NegotiatedPCID;
+		if(CurrentPresentationContextID_==0)
+			throw exception("No presentation context negotiated for this abstract syntax");
 /*
 		if(CurrentPresentationContextID_!=0)
 			PresentationContextID=CurrentPresentationContextID_;
@@ -132,9 +147,9 @@ namespace dicom
 		*/
 			*socket << BYTE(0x04);
 			*socket << BYTE(0x00);
-			
+
 			UINT32 BytesLeftToSend=static_cast<UINT32>((buffer.end()-buffer.position()));
-			
+
 			const UINT32 BytesInThisChunk=std::min<UINT32>(BytesLeftToSend,MaxPDULength-6);
 
 
@@ -171,14 +186,14 @@ namespace dicom
 
 	*/
 	/*
-	This function needs re-work. When servicebase,i.e. pdu read a dataset, it does 
+	This function needs re-work. When servicebase,i.e. pdu read a dataset, it does
 	not know ahead what transfersyntax it will be. It is not defined in the command
-	dataset. It is defined in the PresID in p_data_tf header. In principle(e.g. dcmtk), 
-	one AbstractSyntax(SOPClass) can support multiple TS. In other words, we will 
-	have to determine the ts on-the-fly. Or you can only support one ts, i.e. 
+	dataset. It is defined in the PresID in p_data_tf header. In principle(e.g. dcmtk),
+	one AbstractSyntax(SOPClass) can support multiple TS. In other words, we will
+	have to determine the ts on-the-fly. Or you can only support one ts, i.e.
 	implicitVR_littleEndian. That is why each time I try to support ExpliciVR
-	I have a problem. 
-	
+	I have a problem.
+
 	I change the interface of this function, removing the ts parameter. In theory,
 	a p_data_tf can contain more than one dataset due to the multiplicity of pdv items.
 	But in reality, because 1. the pdu's MaxSubSize is merely 16384, 2. nobody is doing that
@@ -215,7 +230,7 @@ namespace dicom
 					}
 					else
 						break;	//keep going through loop
-					
+
 				}
 				break;
 			case	0x05:	// A-RELEASE-RQ
@@ -253,21 +268,21 @@ namespace dicom
 	*/
 	void ServiceBase::ReadDynamic(Network::Socket& socket,Buffer& p_data_tf_buffer,MessageControlHeader::Code& msgHead,bool& ready_to_parse)
 	{
- 		UINT32		Count;
+		UINT32		Count;
 		//1. Read in the pdu fields
 		//BYTE pdu_type has been read before entering this function
 		BYTE pdu_reserve;
- 		socket >> pdu_reserve;
+		socket >> pdu_reserve;
 		UINT32 pdu_length;
- 		socket >> pdu_length;
+		socket >> pdu_length;
 
- 		Count = pdu_length;
- 		while ( Count > 0)
- 		{
+		Count = pdu_length;
+		while ( Count > 0)
+		{
 			UINT32 pdv_item_length;
- 			socket >> pdv_item_length;
- 			socket >> CurrentPresentationContextID_;
- 			socket >> msgHead;
+			socket >> pdv_item_length;
+			socket >> CurrentPresentationContextID_;
+			socket >> msgHead;
 
 
 			//now read actual data from socket onto buffer.
@@ -301,23 +316,23 @@ namespace dicom
 				We need profiling tests for both, such as dicomtest::SubmitLotsOfImages()
 			*/
 
- 			Count = Count - pdv_item_length - sizeof(UINT32);
- 			//Length = Length - pdv_item_length - sizeof(UINT32);
+			Count = Count - pdv_item_length - sizeof(UINT32);
+			//Length = Length - pdv_item_length - sizeof(UINT32);
 
 			if((msgHead bitand MessageControlHeader::LAST_FRAGMENT)!=0)
- 			{
- 				ready_to_parse = true;
- 				return;
- 			}
- 		}
+			{
+				ready_to_parse = true;
+				return;
+			}
+		}
 		//if((pdv_message_control_header bitand MessageControlHeader::LAST_FRAGMENT)!=0)
- 	//	{//what is this for? -Sam
- 	//		assert(0);//how can this ever happen?
+	//	{//what is this for? -Sam
+	//		assert(0);//how can this ever happen?
 		//	ready_to_parse = true;
- 	//		return;
- 	//	}
- 		return;
- 	}
+	//		return;
+	//	}
+		return;
+	}
 		void ServiceBase::ParseRawVRIntoDataSet(Buffer& p_data_tf_buffer,const MessageControlHeader::Code& msgHead, DataSet& command_or_data)
 		{
 		//first thing: determine the endian of the buffer
@@ -347,9 +362,9 @@ namespace dicom
 	*/
 		/*
 		I find it necessary to check both AbstractSyntaxUID and TransferSyntax UID when
-		test with dcmtk's storescu.exe. Storescu.exe negotiates with preferred ts over 
-		default(ImplicitLittleEndian) in the PCs. The preferred ts and default belong to 
-		two PresentationContextIDs. When not checked with ts, we have bug reporting the 
+		test with dcmtk's storescu.exe. Storescu.exe negotiates with preferred ts over
+		default(ImplicitLittleEndian) in the PCs. The preferred ts and default belong to
+		two PresentationContextIDs. When not checked with ts, we have bug reporting the
 		wrong PresentationContextID, of which we don't support the transfersyntax. -Sam
 
 		*/
@@ -360,8 +375,8 @@ namespace dicom
 		//But AcceptedPresentationContexts_ does not contain UID. -Sam
 		const vector<PresentationContext>&	PCArray = AAssociateRQ_.ProposedPresentationContexts_;
 		//const vector<PresentationContext>& PCArray=AcceptedPresentationContexts_;
-		
-		
+
+
 		size_t Index = 0;
 		while ( Index < PCArray.size())
 		{
@@ -379,6 +394,22 @@ namespace dicom
 
 	}
 
+	BYTE ServiceBase::FindPresentationContextID(const UID& uid)
+	{
+		const vector<PresentationContext>&	PCArray = AAssociateRQ_.ProposedPresentationContexts_;
+
+		for(size_t Index = 0; Index < PCArray.size(); ++Index)
+		{
+			const PresentationContext& PresContext = PCArray.at ( Index );
+			if(Index >= AcceptedPresentationContexts_.size())
+				break;
+			const PresentationContextAccept& APresContext = AcceptedPresentationContexts_.at( Index );
+			if(PresContext.AbsSyntax_.UID_ == uid && APresContext.Result_==0)
+				return (PresContext.ID_);
+		}
+		return 0;//not negotiated
+	}
+
 	/*!
 		Get the PCID for a given AbsUID and TrnUID
 	*/
@@ -388,11 +419,11 @@ namespace dicom
 		size_t Index = 0;
 
 		//shouldn't we just be interested in accepted presentation contexts?
-		
+
 		while ( Index < AAssociateRQ_.ProposedPresentationContexts_.size())
 		{
 			PresentationContext	PresContext = AAssociateRQ_.ProposedPresentationContexts_.at ( Index );
-			
+
 			if(PresContext.AbsSyntax_.UID_ == AbsUID)
 			{
 				PresentationContextAccept	PCA;
@@ -428,7 +459,7 @@ namespace dicom
 	//		std::find_if(AcceptedPresentationContexts_.begin(),AcceptedPresentationContexts_.end()
 	//		match(AbsUID,TrnUID));
 	//	if(I!=AcceptedPresentationContexts_.end())
-	//		return 
+	//		return
 	//	/*
 	//		search 	AcceptedPresentationContexts_
 	//		for matching pair.
@@ -436,7 +467,7 @@ namespace dicom
 	//	throw dicom::exception("given presentation context does not exist with specified transfer syntax.");
 	//}
 
-	
+
 
 
 	UID ServiceBase::GetTransferSyntaxUID(BYTE PresentationContextID)
@@ -452,6 +483,11 @@ namespace dicom
 	void ServiceBase::RequestCancel(UINT16 messageID)
 	{
 		CancelRequestedMessageIDs_.insert(messageID);
+	}
+
+	bool ServiceBase::HasCancelRequest() const
+	{
+		return !CancelRequestedMessageIDs_.empty();
 	}
 
 	bool ServiceBase::IsCancelRequested(UINT16 messageID) const
@@ -478,11 +514,16 @@ namespace dicom
 
 	void ServiceBase::ClearNegotiatedAssociationOptions()
 	{
+		CancelRequestedMessageIDs_.clear();
 		NegotiatedRoles_.clear();
 		NegotiatedSOPClassExtendedInformation_.clear();
 		HasNegotiatedAsynchronousOperationsWindow_ = false;
 		MaximumNumberOperationsInvoked_ = 1;
 		MaximumNumberOperationsPerformed_ = 1;
+		OutstandingOperationsInvoked_ = 0;
+		OutstandingOperationsPerformed_ = 0;
+		OutstandingInvokedMessageIDs_.clear();
+		OutstandingPerformedMessageIDs_.clear();
 	}
 
 	void ServiceBase::ApplyAssociationNegotiationAsRequestor(
@@ -599,6 +640,104 @@ namespace dicom
 	UINT16 ServiceBase::MaximumNumberOperationsPerformed() const
 	{
 		return MaximumNumberOperationsPerformed_;
+	}
+
+	UINT16 ServiceBase::OutstandingOperationsInvoked() const
+	{
+		return OutstandingOperationsInvoked_;
+	}
+
+	UINT16 ServiceBase::OutstandingOperationsPerformed() const
+	{
+		return OutstandingOperationsPerformed_;
+	}
+
+	bool ServiceBase::CanInvokeOperation() const
+	{
+		return MaximumNumberOperationsInvoked_ == 0 ||
+			OutstandingOperationsInvoked_ < MaximumNumberOperationsInvoked_;
+	}
+
+	bool ServiceBase::CanPerformOperation() const
+	{
+		return MaximumNumberOperationsPerformed_ == 0 ||
+			OutstandingOperationsPerformed_ < MaximumNumberOperationsPerformed_;
+	}
+
+	bool ServiceBase::IsInvokedOperationOutstanding(UINT16 messageID) const
+	{
+		return OutstandingInvokedMessageIDs_.find(messageID)!=OutstandingInvokedMessageIDs_.end();
+	}
+
+	bool ServiceBase::IsPerformedOperationOutstanding(UINT16 messageID) const
+	{
+		return OutstandingPerformedMessageIDs_.find(messageID)!=OutstandingPerformedMessageIDs_.end();
+	}
+
+	void ServiceBase::BeginInvokedOperation()
+	{
+		if(!CanInvokeOperation())
+			throw exception("Association asynchronous operations invoked window is exhausted");
+		if(OutstandingOperationsInvoked_ == 0xffff)
+			throw exception("Too many outstanding invoked operations for UINT16 counter");
+		++OutstandingOperationsInvoked_;
+	}
+
+	void ServiceBase::BeginInvokedOperation(UINT16 messageID)
+	{
+		if(IsInvokedOperationOutstanding(messageID))
+			throw exception("Duplicate outstanding invoked operation Message ID");
+		BeginInvokedOperation();
+		OutstandingInvokedMessageIDs_.insert(messageID);
+	}
+
+	void ServiceBase::CompleteInvokedOperation()
+	{
+		if(OutstandingOperationsInvoked_ == 0)
+			return;
+		--OutstandingOperationsInvoked_;
+	}
+
+	void ServiceBase::CompleteInvokedOperation(UINT16 messageID)
+	{
+		std::set<UINT16>::iterator I = OutstandingInvokedMessageIDs_.find(messageID);
+		if(I==OutstandingInvokedMessageIDs_.end())
+			return;
+		OutstandingInvokedMessageIDs_.erase(I);
+		CompleteInvokedOperation();
+	}
+
+	void ServiceBase::BeginPerformedOperation()
+	{
+		if(!CanPerformOperation())
+			throw exception("Association asynchronous operations performed window is exhausted");
+		if(OutstandingOperationsPerformed_ == 0xffff)
+			throw exception("Too many outstanding performed operations for UINT16 counter");
+		++OutstandingOperationsPerformed_;
+	}
+
+	void ServiceBase::BeginPerformedOperation(UINT16 messageID)
+	{
+		if(IsPerformedOperationOutstanding(messageID))
+			throw exception("Duplicate outstanding performed operation Message ID");
+		BeginPerformedOperation();
+		OutstandingPerformedMessageIDs_.insert(messageID);
+	}
+
+	void ServiceBase::CompletePerformedOperation()
+	{
+		if(OutstandingOperationsPerformed_ == 0)
+			return;
+		--OutstandingOperationsPerformed_;
+	}
+
+	void ServiceBase::CompletePerformedOperation(UINT16 messageID)
+	{
+		std::set<UINT16>::iterator I = OutstandingPerformedMessageIDs_.find(messageID);
+		if(I==OutstandingPerformedMessageIDs_.end())
+			return;
+		OutstandingPerformedMessageIDs_.erase(I);
+		CompletePerformedOperation();
 	}
 
 	bool ServiceBase::HasNegotiatedSOPClassExtended(const UID& uid) const

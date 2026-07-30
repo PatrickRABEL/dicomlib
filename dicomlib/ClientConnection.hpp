@@ -2,6 +2,7 @@
 #define CLIENT_CONNECTION_HPP_INCLUDE_GUARD_35872343523
 #include <memory>
 #include <string>
+#include <vector>
 #include "ServiceBase.hpp"
 #include "aaac.hpp"
 #include "PresentationContexts.hpp"

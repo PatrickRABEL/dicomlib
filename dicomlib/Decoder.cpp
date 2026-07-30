@@ -6,6 +6,8 @@
 *	See LICENSE.txt for copyright and licensing info.
 *************************************************************************/
 #include <iostream>
+#include <algorithm>
+#include <iterator>
 #include <type_traits>
 
 #include "DataSet.hpp"
@@ -85,10 +87,10 @@ namespace dicom{
 		struct EndOfSequence{};
 
 		/**
-			This is to handle those images with DICOM standard compliance problems. 
+			This is to handle those images with DICOM standard compliance problems.
 
 			Trevor might dislike it. However it's an unfortunate fact that not every single element
-			in the header of a DICOM image always comply perfectly with the DICOM standard. 
+			in the header of a DICOM image always comply perfectly with the DICOM standard.
 			When the problem is not critical, the capbility of opening the image is almost always expected.
 
 			Mei Ge, June 19, 2006
@@ -142,7 +144,7 @@ namespace dicom{
 				GetElementValue<vr>(tag);
 		}
 
-		
+
 
 		/*!
 			slightly different than above, as string multiplicity is handled differently than
@@ -163,7 +165,7 @@ namespace dicom{
 			}
 
 			StripTrailingWhitespace(s);
-			
+
 			/*
 				Technically speaking, we shouldn't have to do this, but there seem to be
 				many people producing images with null characters (0x00) in strings.
@@ -185,9 +187,9 @@ namespace dicom{
 				}
 			}
 
-			/**	Question: Is the multiplicity of CS 1 for the above block?  
+			/**	Question: Is the multiplicity of CS 1 for the above block?
 				Mei June 09, 2006
-			*/ 
+			*/
 		}
 
 		void DecodeUID(Tag tag, size_t length)
@@ -305,7 +307,7 @@ namespace dicom{
 			buffer_ >> b1;
 			buffer_ >> b2;
 			UINT16 w = (UINT16(b2)<<8)|b1;
-			
+
 			vr=VR(w);
 
 			if (vr == VR_UN || vr == VR_SQ || vr == VR_OW || vr == VR_OB || vr == VR_OD || vr == VR_OF || vr == VR_OL || vr == VR_OV || vr == VR_UC || vr == VR_UR || vr == VR_UT)//see Part5 / 7.1.2
@@ -346,8 +348,8 @@ namespace dicom{
 	*/
 	void Decoder::DecodeElement()
 	{
-		
-		
+
+
 		Tag tag;
 		buffer_ >> tag;
 
@@ -401,7 +403,7 @@ namespace dicom{
 		*/
 
 		/*
-			Part5, Annex A actually says we have to do some magic on a bunch of the 
+			Part5, Annex A actually says we have to do some magic on a bunch of the
 			OB/OW tags, depending on the transfer syntax, but currently we're ignoring
 			that, and letting the end user sort it out.
 		*/
@@ -671,7 +673,7 @@ namespace dicom{
     Trevor.Morgan@sri.utoronto.ca /  December 2012
     For now I've removed the above hack, because I want to write a more robust mechanism
     for handling 'incorrect' files.  This should ideally be handled in the context of a user
-    option; for example a 'strict' mode and a 'lax' mode for the parser.  Furthermore we 
+    option; for example a 'strict' mode and a 'lax' mode for the parser.  Furthermore we
     really need a solid suite of sample files to test against.
 */
 

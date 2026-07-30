@@ -1,3 +1,4 @@
+#include <algorithm>
 #include "JPEGXLCodec.hpp"
 
 #include "Exceptions.hpp"

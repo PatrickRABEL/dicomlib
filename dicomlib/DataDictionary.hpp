@@ -5,6 +5,7 @@
 #include "VR.hpp"
 #include "Exceptions.hpp"
 #include <map>
+#include <string>
 namespace dicom
 {
 	//!Thrown if we don't recognize a given tag.

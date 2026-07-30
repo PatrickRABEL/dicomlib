@@ -1,5 +1,6 @@
 #include <iostream>
 #include <algorithm>
+#include <cctype>
 
 #include "DataSet.hpp"
 //#include "Exceptions.hpp"
@@ -15,7 +16,7 @@ namespace dicom{
 		Sequence view_seq;
 		DataSet view_ds;
 		ViewCodeSequenceEntry entry;
-         
+
 		switch(view)
 		{
 			case ML:
@@ -145,7 +146,7 @@ namespace dicom{
 	std::string DicomViewToString(View view)
 	{
 		std::string vstr;
-         
+
 		switch(view)
 		{
 			case ML:
