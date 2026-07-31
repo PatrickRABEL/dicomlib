@@ -422,6 +422,26 @@ namespace dicom
 	}
 
 	/*!
+		Abstract syntax of the presentation context the last received PDV used.
+		Inverse of FindPresentationContextID(); empty UID if unknown.
+	*/
+
+	UID ServiceBase::CurrentAbstractSyntax() const
+	{
+		if(CurrentPresentationContextID_==0)
+			return UID("");
+
+		const vector<PresentationContext>&	PCArray = AAssociateRQ_.ProposedPresentationContexts_;
+		for(size_t Index = 0; Index < PCArray.size(); ++Index)
+		{
+			const PresentationContext& PresContext = PCArray.at ( Index );
+			if(PresContext.ID_ == CurrentPresentationContextID_)
+				return PresContext.AbsSyntax_.UID_;
+		}
+		return UID("");//unknown context ID
+	}
+
+	/*!
 		Get the PCID for a given AbsUID and TrnUID
 	*/
 

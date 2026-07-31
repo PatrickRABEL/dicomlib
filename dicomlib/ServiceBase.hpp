@@ -77,6 +77,19 @@ namespace dicom
 		*/
 		BYTE FindPresentationContextID(const UID& uid);
 
+		//!Abstract syntax of the presentation context the last message arrived on.
+		/*!
+			The inverse of FindPresentationContextID(). Returns an empty UID when
+			no message has been received yet, or when the context ID is unknown.
+
+			Needed because, under a Meta SOP Class (PS3.4 Annex H), the command set
+			alone does not say which Meta was used: a Basic Film Box N-CREATE looks
+			identical whether it arrived on the Grayscale or the Colour Meta, yet
+			the SCP must answer with Image Box SOP Class UIDs of the matching kind.
+			Only the presentation context carries that information.
+		*/
+		UID CurrentAbstractSyntax() const;
+
 		//bool GetTransferSyntaxUID(BYTE, UID& TrnUID);
 
 		UID GetTransferSyntaxUID(BYTE PresentationContextID);
