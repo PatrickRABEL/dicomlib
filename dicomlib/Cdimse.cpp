@@ -7,6 +7,7 @@
 *************************************************************************/
 #include <algorithm>
 #include <iostream>
+#include <vector>
 #include "Cdimse.hpp"
 #include "ClientConnection.hpp"
 #include "ServiceBase.hpp"
@@ -45,6 +46,12 @@ namespace dicom
 					throw exception("Command Set contains non-command element");
 		}
 
+		bool HasSingleNonEmptyValue(const DataSet& command, Tag tag)
+		{
+			const std::vector<Value> values = command.Values(tag);
+			return values.size() == 1 && !values[0].empty();
+		}
+
 		void ValidateCdimseResponse(
 			const DataSet& response,
 			Command::Code expectedCommand,
@@ -53,9 +60,9 @@ namespace dicom
 			const UID* expectedInstanceUID = 0)
 		{
 			ValidateCommandSetElements(response);
-			if(response.Values(TAG_CMD_FIELD).size() != 1)
+			if(!HasSingleNonEmptyValue(response,TAG_CMD_FIELD))
 				throw exception("Invalid C-DIMSE response command field");
-			if(response.Values(TAG_MSG_ID_RSP).size() != 1)
+			if(!HasSingleNonEmptyValue(response,TAG_MSG_ID_RSP))
 				throw exception("Invalid C-DIMSE response message ID");
 			if(response.exists(TAG_MSG_ID))
 				throw exception("Unexpected C-DIMSE response message ID");
@@ -145,7 +152,7 @@ namespace dicom
 
 		void ValidateCdimseResponseStatusField(const DataSet& response)
 		{
-			if(response.Values(TAG_STATUS).size() != 1)
+			if(!HasSingleNonEmptyValue(response,TAG_STATUS))
 				throw exception("Invalid C-DIMSE response status");
 		}
 
@@ -162,7 +169,7 @@ namespace dicom
 			const UID* expectedClassUID = 0)
 		{
 			ValidateCommandSetElements(command);
-			if(command.Values(TAG_CMD_FIELD).size() != 1)
+			if(!HasSingleNonEmptyValue(command,TAG_CMD_FIELD))
 				throw exception("Invalid C-DIMSE request command field");
 			if(command.exists(TAG_MSG_ID_RSP) &&
 				expectedCommand != Command::C_CANCEL_RQ)
@@ -212,25 +219,25 @@ namespace dicom
 
 		void ValidateCdimseRequestMessageID(const DataSet& command)
 		{
-			if(command.Values(TAG_MSG_ID).size() != 1)
+			if(!HasSingleNonEmptyValue(command,TAG_MSG_ID))
 				throw exception("Invalid C-DIMSE request message ID");
 		}
 
 		void ValidateCdimseMessageIDBeingRespondedTo(const DataSet& command)
 		{
-			if(command.Values(TAG_MSG_ID_RSP).size() != 1)
+			if(!HasSingleNonEmptyValue(command,TAG_MSG_ID_RSP))
 				throw exception("Invalid C-DIMSE Message ID Being Responded To");
 		}
 
 		void ValidateCdimseCommandDataSetType(const DataSet& command)
 		{
-			if(command.Values(TAG_DATA_SET_TYPE).size() != 1)
+			if(!HasSingleNonEmptyValue(command,TAG_DATA_SET_TYPE))
 				throw exception("Invalid C-DIMSE command Data Set Type");
 		}
 
 		void ValidateCdimseRequestPriority(const DataSet& command)
 		{
-			if(command.Values(TAG_PRIORITY).size() != 1)
+			if(!HasSingleNonEmptyValue(command,TAG_PRIORITY))
 				throw exception("Invalid C-DIMSE request priority");
 			UINT16 priority = 0;
 			command(TAG_PRIORITY) >> priority;
@@ -312,19 +319,26 @@ namespace dicom
 			UINT16 status,
 			Command::Code command)
 		{
-			if(response.Values(TAG_NUM_REMAIN_SUBOP).size() > 1 ||
-				response.Values(TAG_NUM_COMPL_SUBOP).size() > 1 ||
-				response.Values(TAG_NUM_FAIL_SUBOP).size() > 1 ||
-				response.Values(TAG_NUM_WARN_SUBOP).size() > 1)
-				throw exception("Invalid retrieve response sub-operation counters");
+			const Tag counterTags[] = {
+				TAG_NUM_REMAIN_SUBOP,
+				TAG_NUM_COMPL_SUBOP,
+				TAG_NUM_FAIL_SUBOP,
+				TAG_NUM_WARN_SUBOP
+			};
+			for(const Tag* I=counterTags; I!=counterTags+4; ++I)
+			{
+				const std::vector<Value> values = response.Values(*I);
+				if(values.size() > 1 || (values.size() == 1 && values[0].empty()))
+					throw exception("Invalid retrieve response sub-operation counters");
+			}
 
 			if(!IsCdimsePendingStatus(status))
 				return;
 
-			if(!response.exists(TAG_NUM_REMAIN_SUBOP) ||
-				!response.exists(TAG_NUM_COMPL_SUBOP) ||
-				!response.exists(TAG_NUM_FAIL_SUBOP) ||
-				!response.exists(TAG_NUM_WARN_SUBOP))
+			if(!HasSingleNonEmptyValue(response,TAG_NUM_REMAIN_SUBOP) ||
+				!HasSingleNonEmptyValue(response,TAG_NUM_COMPL_SUBOP) ||
+				!HasSingleNonEmptyValue(response,TAG_NUM_FAIL_SUBOP) ||
+				!HasSingleNonEmptyValue(response,TAG_NUM_WARN_SUBOP))
 			{
 				if(command == Command::C_GET_RSP)
 					throw exception("C-GET pending response requires sub-operation counters");

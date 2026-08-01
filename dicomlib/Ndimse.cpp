@@ -6,6 +6,7 @@
 *	See LICENSE.txt for copyright and licensing info.
 *************************************************************************/
 #include <string>
+#include <vector>
 #include "Ndimse.hpp"
 #include "CommandSets.hpp"
 #include "Types.hpp"
@@ -30,6 +31,12 @@ namespace dicom
 					throw exception("Command Set contains non-command element");
 		}
 
+		bool HasSingleNonEmptyValue(const DataSet& command, Tag tag)
+		{
+			const std::vector<Value> values = command.Values(tag);
+			return values.size() == 1 && !values[0].empty();
+		}
+
 		bool IsStatusRange(UINT16 status, UINT16 highNibble)
 		{
 			return (status & 0xf000) == highNibble;
@@ -43,17 +50,17 @@ namespace dicom
 			const UID* expectedInstanceUID = 0)
 		{
 			ValidateCommandSetElements(response);
-			if(response.Values(TAG_CMD_FIELD).size() != 1)
+			if(!HasSingleNonEmptyValue(response,TAG_CMD_FIELD))
 				throw exception("Invalid N-DIMSE response command field");
-			if(response.Values(TAG_MSG_ID_RSP).size() != 1)
+			if(!HasSingleNonEmptyValue(response,TAG_MSG_ID_RSP))
 				throw exception("Invalid N-DIMSE response message ID");
 			if(response.exists(TAG_MSG_ID))
 				throw exception("Unexpected N-DIMSE response message ID");
 			if(response.Values(TAG_AFF_SOP_CLASS_UID).size() > 1)
 				throw exception("Invalid N-DIMSE response SOP Class UID");
-			if(response.Values(TAG_DATA_SET_TYPE).size() != 1)
+			if(!HasSingleNonEmptyValue(response,TAG_DATA_SET_TYPE))
 				throw exception("Invalid N-DIMSE response Data Set Type");
-			if(response.Values(TAG_STATUS).size() != 1)
+			if(!HasSingleNonEmptyValue(response,TAG_STATUS))
 				throw exception("Invalid N-DIMSE response status");
 			if(response.Values(TAG_AFF_SOP_INST_UID).size() > 1)
 				throw exception("Invalid N-DIMSE response SOP Instance UID");
@@ -107,13 +114,13 @@ namespace dicom
 			const UID& expectedClassUID)
 		{
 			ValidateCommandSetElements(command);
-			if(command.Values(TAG_CMD_FIELD).size() != 1)
+			if(!HasSingleNonEmptyValue(command,TAG_CMD_FIELD))
 				throw exception("Invalid N-DIMSE request command field");
-			if(command.Values(TAG_MSG_ID).size() != 1)
+			if(!HasSingleNonEmptyValue(command,TAG_MSG_ID))
 				throw exception("Invalid N-DIMSE request message ID");
 			if(command.exists(TAG_MSG_ID_RSP))
 				throw exception("Unexpected N-DIMSE request message ID");
-			if(command.Values(TAG_DATA_SET_TYPE).size() != 1)
+			if(!HasSingleNonEmptyValue(command,TAG_DATA_SET_TYPE))
 				throw exception("Invalid N-DIMSE request Data Set Type");
 
 			UINT16 commandField = 0;
@@ -180,13 +187,13 @@ namespace dicom
 			if(commandClassUID != expectedClassUID)
 				throw exception("Unexpected N-DIMSE request SOP Class UID");
 			if(expectedCommand == Command::N_EVENT_REPORT_RQ &&
-				command.Values(TAG_EVENT_TYPE_ID).size() != 1)
+				!HasSingleNonEmptyValue(command,TAG_EVENT_TYPE_ID))
 				throw exception("N-EVENT-REPORT request requires Event Type ID");
 			if(expectedCommand != Command::N_EVENT_REPORT_RQ &&
 				command.exists(TAG_EVENT_TYPE_ID))
 				throw exception("Unexpected N-DIMSE request Event Type ID");
 			if(expectedCommand == Command::N_ACTION_RQ &&
-				command.Values(TAG_ACTION_TYPE_ID).size() != 1)
+				!HasSingleNonEmptyValue(command,TAG_ACTION_TYPE_ID))
 				throw exception("N-ACTION request requires Action Type ID");
 			if(expectedCommand != Command::N_ACTION_RQ &&
 				command.exists(TAG_ACTION_TYPE_ID))
