@@ -26,6 +26,9 @@ The maintained build targets are:
 - Linux on x86, x86_64, ARM 32-bit, and ARM 64-bit
 - macOS on x86_64 and ARM 64-bit
 
+Unsupported processor values are rejected at CMake configure time and covered
+by `supported_target_guards`.
+
 The library is built with CMake and C++17:
 
 ```sh
@@ -58,7 +61,8 @@ The codebase was simplified for the maintained C++ library build:
 
 - Boost usage was removed from the core library.
 - C++17 standard library facilities replaced Boost equivalents where needed.
-- The old Boost.Python binding and legacy SCons demo build files were removed.
+- The old Boost.Python binding and legacy SCons/Visual Studio build files were
+  removed.
 - The build system was consolidated around CMake.
 - POSIX threads are used through CMake's `Threads::Threads` target.
 
@@ -127,7 +131,11 @@ Optional configuration:
   CharLS, and JPEG-LS Near-Lossless Pixel Data for `.81` is encoded and decoded
   through CharLS.
 - `DICOMLIB_JPEGLS_NEAR_LOSSLESS`: defaults to `1`; sets the JPEG-LS `NEAR`
-  value used when encoding `1.2.840.10008.1.2.4.81`.
+  value used when encoding `1.2.840.10008.1.2.4.81`; values below `1` are
+  rejected at CMake configure time.
+- JPEG XL distance and HTJ2K quality factor build parameters are also rejected
+  at CMake configure time when outside their supported ranges; these checks are
+  covered by `unsupported_codec_options`.
 - `DICOMLIB_PREPARE_EXTERNAL_CODECS`: disabled by default; when enabled, CMake
   requires the external libraries needed for future pixel-compressed transfer
   syntax support.
@@ -155,7 +163,8 @@ External dependency mapping:
   `libavformat`, `libavutil`, and `libswscale`
 - MPEG2, MPEG-4 AVC/H.264, and HEVC/H.265 video Transfer Syntaxes: fragment
   pass-through only with `DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH`; no local
-  FFmpeg decode/encode is advertised
+  FFmpeg decode/encode is advertised. `DICOMLIB_WITH_FFMPEG` is intentionally
+  blocked by CMake until codec integration is implemented and tested.
 - SMPTE ST 2110 Transfer Syntaxes are recognized by UID but are not accepted
   through Pixel Data fragment pass-through; DICOM-RTV flow support is not
   implemented.
@@ -250,19 +259,20 @@ including status, Error Comment, and Error ID where applicable. Generic N-DIMSE
 request validation rejects tested response-only Message ID Being Responded To
 fields, and response validation rejects tested request-only Message ID fields.
 Generic N-DIMSE request and response validation reject tested empty mandatory
-Command Field, message ID, Data Set Type, Status, Event Type ID, and Action
-Type ID fields where applicable, and tested non-command Data Elements in
-command sets. Multi-valued Attribute Identifier List fields remain allowed
-where tested.
+Command Field, SOP Class UID, message ID, Data Set Type, Status, Event Type
+ID, and Action Type ID fields where applicable, and tested non-command Data
+Elements in command sets. Multi-valued Attribute Identifier List fields remain
+allowed where tested.
 
 N-DIMSE SCU request/response paths and SCP handlers are covered over local
 P-DATA for N-EVENT-REPORT, N-GET, N-SET, N-ACTION, N-CREATE, and N-DELETE.
 The tested paths include response SOP Class UID validation, response SOP
 Instance UID validation when the request instance is known and the response
-includes the field, N-CREATE response SOP Instance UID presence/non-empty
-rules, N-GET Success Attribute List presence validation, N-DELETE-RSP rejection
-of response Data Sets, and Event Type ID / Action Type ID validation when those
-fields are present.
+includes the field, tested rejection of empty optional response SOP Class UID
+and SOP Instance UID values when present, N-CREATE response SOP Instance UID
+presence/non-empty rules, N-GET Success Attribute List presence validation,
+N-DELETE-RSP rejection of response Data Sets, and Event Type ID / Action Type
+ID validation, including tested empty values, when those fields are present.
 
 N-DIMSE SCP handlers are exposed on `Server` for the six generic services. They
 validate request command fields, SOP Class UID consistency, mandatory SOP

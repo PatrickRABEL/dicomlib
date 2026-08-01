@@ -56,21 +56,25 @@ namespace dicom
 				throw exception("Invalid N-DIMSE response message ID");
 			if(response.exists(TAG_MSG_ID))
 				throw exception("Unexpected N-DIMSE response message ID");
-			if(response.Values(TAG_AFF_SOP_CLASS_UID).size() > 1)
+			if(response.exists(TAG_AFF_SOP_CLASS_UID) &&
+				!HasSingleNonEmptyValue(response,TAG_AFF_SOP_CLASS_UID))
 				throw exception("Invalid N-DIMSE response SOP Class UID");
 			if(!HasSingleNonEmptyValue(response,TAG_DATA_SET_TYPE))
 				throw exception("Invalid N-DIMSE response Data Set Type");
 			if(!HasSingleNonEmptyValue(response,TAG_STATUS))
 				throw exception("Invalid N-DIMSE response status");
-			if(response.Values(TAG_AFF_SOP_INST_UID).size() > 1)
+			if(response.exists(TAG_AFF_SOP_INST_UID) &&
+				!HasSingleNonEmptyValue(response,TAG_AFF_SOP_INST_UID))
 				throw exception("Invalid N-DIMSE response SOP Instance UID");
 			if(response.exists(TAG_REQ_SOP_CLASS_UID))
 				throw exception("Unexpected N-DIMSE response SOP Class UID");
 			if(response.exists(TAG_REQ_SOP_INST_UID))
 				throw exception("Unexpected N-DIMSE response SOP Instance UID");
-			if(response.Values(TAG_EVENT_TYPE_ID).size() > 1)
+			if(response.exists(TAG_EVENT_TYPE_ID) &&
+				!HasSingleNonEmptyValue(response,TAG_EVENT_TYPE_ID))
 				throw exception("Invalid N-DIMSE response Event Type ID");
-			if(response.Values(TAG_ACTION_TYPE_ID).size() > 1)
+			if(response.exists(TAG_ACTION_TYPE_ID) &&
+				!HasSingleNonEmptyValue(response,TAG_ACTION_TYPE_ID))
 				throw exception("Invalid N-DIMSE response Action Type ID");
 			if(expectedCommand != Command::N_EVENT_REPORT_RSP &&
 				response.exists(TAG_EVENT_TYPE_ID))
@@ -134,9 +138,9 @@ namespace dicom
 			switch(expectedCommand)
 			{
 			case Command::N_EVENT_REPORT_RQ:
-				if(command.Values(TAG_AFF_SOP_CLASS_UID).size() != 1)
+				if(!HasSingleNonEmptyValue(command,TAG_AFF_SOP_CLASS_UID))
 					throw exception("Invalid N-DIMSE request SOP Class UID");
-				if(command.Values(TAG_AFF_SOP_INST_UID).size() != 1)
+				if(!HasSingleNonEmptyValue(command,TAG_AFF_SOP_INST_UID))
 					throw exception("Invalid N-DIMSE request SOP Instance UID");
 				if(command.exists(TAG_REQ_SOP_CLASS_UID))
 					throw exception("Unexpected N-DIMSE request SOP Class UID");
@@ -147,30 +151,24 @@ namespace dicom
 				command(TAG_AFF_SOP_CLASS_UID) >> commandClassUID;
 				break;
 			case Command::N_CREATE_RQ:
-				if(command.Values(TAG_AFF_SOP_CLASS_UID).size() != 1)
+				if(!HasSingleNonEmptyValue(command,TAG_AFF_SOP_CLASS_UID))
 					throw exception("Invalid N-DIMSE request SOP Class UID");
-				if(command.Values(TAG_AFF_SOP_INST_UID).size() > 1)
+				if(command.exists(TAG_AFF_SOP_INST_UID) &&
+					!HasSingleNonEmptyValue(command,TAG_AFF_SOP_INST_UID))
 					throw exception("Invalid N-DIMSE request SOP Instance UID");
 				if(command.exists(TAG_REQ_SOP_CLASS_UID))
 					throw exception("Unexpected N-DIMSE request SOP Class UID");
 				if(command.exists(TAG_REQ_SOP_INST_UID))
 					throw exception("Unexpected N-DIMSE request SOP Instance UID");
 				command(TAG_AFF_SOP_CLASS_UID) >> commandClassUID;
-				if(command.exists(TAG_AFF_SOP_INST_UID))
-				{
-					UID instanceUID;
-					command(TAG_AFF_SOP_INST_UID) >> instanceUID;
-					if(instanceUID.str().size() == 0)
-						throw exception("Invalid N-DIMSE request SOP Instance UID");
-				}
 				break;
 			case Command::N_GET_RQ:
 			case Command::N_SET_RQ:
 			case Command::N_ACTION_RQ:
 			case Command::N_DELETE_RQ:
-				if(command.Values(TAG_REQ_SOP_CLASS_UID).size() != 1)
+				if(!HasSingleNonEmptyValue(command,TAG_REQ_SOP_CLASS_UID))
 					throw exception("Invalid N-DIMSE request SOP Class UID");
-				if(command.Values(TAG_REQ_SOP_INST_UID).size() != 1)
+				if(!HasSingleNonEmptyValue(command,TAG_REQ_SOP_INST_UID))
 					throw exception("Invalid N-DIMSE request SOP Instance UID");
 				if(command.exists(TAG_AFF_SOP_CLASS_UID))
 					throw exception("Unexpected N-DIMSE request SOP Class UID");

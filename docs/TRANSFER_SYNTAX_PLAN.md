@@ -30,9 +30,11 @@ corresponding encode/decode path is implemented and covered by tests.
 | JPEG XL | `1.2.840.10008.1.2.4.110`, `.111`, `.112` | `.110` lossless and `.112` lossy Pixel Data encode/decode through libjxl, with one encoded frame stored as one fragment; `.111` decodes JPEG XL JPEG Recompression streams and encodes only from existing encapsulated JPEG fragments through `JxlEncoderAddJPEGFrame`; `.112` encode writes DICOM lossy compression attributes with method `ISO_18181_1` | `DICOMLIB_WITH_JPEGXL` | `transfer_syntax_roundtrip` with JPEG XL |
 | SCU presentation context proposal | Implemented syntaxes only | `PresentationContexts::Add()` proposes enabled native, Deflated, RLE, or pass-through syntaxes | Build options above | `transfer_syntax_support` |
 | Encapsulated fragment pass-through | UIDs listed by generated `IsEncapsulatedTransferSyntaxUID()` | Fragment-level read/write without pixel decode | `DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH` | `transfer_syntax_support`, `transfer_syntax_roundtrip` |
-| MPEG/video fragment pass-through | `1.2.840.10008.1.2.4.100`, `.100.1`, `.101`, `.101.1`, `.102`, `.102.1`, `.103`, `.103.1`, `.104`, `.104.1`, `.105`, `.105.1`, `.106`, `.106.1`, `.107`, `.108` | Encapsulated Pixel Data fragments can be read/written unchanged; no FFmpeg decode/encode is advertised | `DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH` | `transfer_syntax_support`, `transfer_syntax_roundtrip` with pass-through |
+| MPEG/video fragment pass-through | `1.2.840.10008.1.2.4.100`, `.100.1`, `.101`, `.101.1`, `.102`, `.102.1`, `.103`, `.103.1`, `.104`, `.104.1`, `.105`, `.105.1`, `.106`, `.106.1`, `.107`, `.108` | Encapsulated Pixel Data fragments can be read/written unchanged; no FFmpeg decode/encode is advertised, and `DICOMLIB_WITH_FFMPEG` remains blocked until codec integration exists | `DICOMLIB_ENABLE_ENCAPSULATED_PASSTHROUGH` | `transfer_syntax_support`, `transfer_syntax_roundtrip` with pass-through, `unsupported_codec_options` |
 | SMPTE ST 2110 recognition | `1.2.840.10008.1.2.7.1`, `.7.2`, `.7.3` | Public UID constants and explicit rejection from encapsulated Pixel Data pass-through; no DICOM-RTV flow support is advertised | Always on | `transfer_syntax_support` |
 | External dependency discovery | zlib, JPEG, GDCM, CharLS, OpenJPEG, OpenJPH, libjxl, FFmpeg | CMake detection and missing dependency reporting | `DICOMLIB_PREPARE_EXTERNAL_CODECS` | Configure-time checks |
+| External codec option validation | JPEG-LS Near-Lossless `NEAR`, JPEG XL distance, HTJ2K quality factor, and unsupported FFmpeg codec integration | CMake rejects tested invalid codec option values before build generation | Build options above | `unsupported_codec_options` |
+| Supported target guard | Linux/macOS on x86, x86_64, ARM 32-bit, and ARM 64-bit | CMake rejects unsupported processor values before build generation | Always on | `supported_target_guards` |
 
 ## Remaining
 
@@ -51,7 +53,7 @@ corresponding encode/decode path is implemented and covered by tests.
 3. Add one codec backend at a time.
 4. For each backend, add tests from known valid DICOM files or minimal codestream fixtures before allowing association support.
 5. Update `TS::hasCompiledPixelCodec()` only after the codec path and tests are present.
-6. Keep unsupported pixel codec CMake options blocked with `FATAL_ERROR` until implementation is complete.
+6. Keep unsupported pixel codec CMake options blocked with `FATAL_ERROR` until implementation is complete; `DICOMLIB_WITH_FFMPEG` is covered by `unsupported_codec_options`.
 
 ## Local Dependency State
 

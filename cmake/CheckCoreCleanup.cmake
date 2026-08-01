@@ -16,6 +16,24 @@ if(DICOMLIB_LEGACY_SCONS)
     message(FATAL_ERROR "Legacy SCons build files remain in core sources:\n  - ${DICOMLIB_LEGACY_SCONS_TEXT}")
 endif()
 
+file(GLOB_RECURSE DICOMLIB_LEGACY_VISUAL_STUDIO
+    "${DICOMLIB_SOURCE_DIR}/*.sln"
+    "${DICOMLIB_SOURCE_DIR}/*.suo"
+    "${DICOMLIB_SOURCE_DIR}/*.vcproj"
+    "${DICOMLIB_SOURCE_DIR}/*.vcxproj"
+    "${DICOMLIB_SOURCE_DIR}/*.vcxproj.filters"
+    "${DICOMLIB_SOURCE_DIR}/*/*.sln"
+    "${DICOMLIB_SOURCE_DIR}/*/*.suo"
+    "${DICOMLIB_SOURCE_DIR}/*/*.vcproj"
+    "${DICOMLIB_SOURCE_DIR}/*/*.vcxproj"
+    "${DICOMLIB_SOURCE_DIR}/*/*.vcxproj.filters"
+)
+list(FILTER DICOMLIB_LEGACY_VISUAL_STUDIO EXCLUDE REGEX "/build[^/]*/")
+if(DICOMLIB_LEGACY_VISUAL_STUDIO)
+    list(JOIN DICOMLIB_LEGACY_VISUAL_STUDIO "\n  - " DICOMLIB_LEGACY_VISUAL_STUDIO_TEXT)
+    message(FATAL_ERROR "Legacy Visual Studio build files remain in core sources:\n  - ${DICOMLIB_LEGACY_VISUAL_STUDIO_TEXT}")
+endif()
+
 file(GLOB_RECURSE DICOMLIB_CORE_SOURCES
     "${DICOMLIB_SOURCE_DIR}/dicomlib/*.cpp"
     "${DICOMLIB_SOURCE_DIR}/dicomlib/*.hpp"
@@ -30,4 +48,4 @@ foreach(source IN LISTS DICOMLIB_CORE_SOURCES)
     endif()
 endforeach()
 
-message(STATUS "core sources have no Boost includes or legacy SCons build files")
+message(STATUS "core sources have no Boost includes or legacy build files")

@@ -28,6 +28,10 @@ set(DICOMLIB_REQUIRE_FFMPEG_AVFORMAT OFF)
 set(DICOMLIB_REQUIRE_FFMPEG_AVUTIL OFF)
 set(DICOMLIB_REQUIRE_FFMPEG_SWSCALE OFF)
 
+if(DICOMLIB_WITH_FFMPEG)
+    message(FATAL_ERROR "FFmpeg pixel codec dependencies can be detected, but MPEG/video pixel codec integration is not implemented yet. Leave DICOMLIB_WITH_FFMPEG OFF to remain standards-accurate.")
+endif()
+
 if(DICOMLIB_WITH_GDCM OR DICOMLIB_PREPARE_EXTERNAL_CODECS)
     set(DICOMLIB_REQUIRE_GDCM ON)
 endif()
@@ -68,10 +72,6 @@ if(DICOMLIB_WITH_HTJ2K)
     if(DICOMLIB_HTJ2K_QFACTOR LESS 1 OR DICOMLIB_HTJ2K_QFACTOR GREATER 100)
         message(FATAL_ERROR "DICOMLIB_HTJ2K_QFACTOR must be between 1 and 100")
     endif()
-endif()
-
-if(DICOMLIB_WITH_FFMPEG)
-    message(FATAL_ERROR "FFmpeg pixel codec dependencies can be detected, but MPEG/video pixel codec integration is not implemented yet. Leave DICOMLIB_WITH_FFMPEG OFF to remain standards-accurate.")
 endif()
 
 if(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
@@ -234,6 +234,24 @@ if(BUILD_TESTING)
             ${CMAKE_COMMAND}
             -D DICOMLIB_SOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}
             -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/CheckCoreCleanup.cmake
+    )
+
+    add_test(
+        NAME unsupported_codec_options
+        COMMAND
+            ${CMAKE_COMMAND}
+            -D DICOMLIB_SOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}
+            -D DICOMLIB_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/CheckUnsupportedCodecOptions.cmake
+    )
+
+    add_test(
+        NAME supported_target_guards
+        COMMAND
+            ${CMAKE_COMMAND}
+            -D DICOMLIB_SOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}
+            -D DICOMLIB_BINARY_DIR=${CMAKE_CURRENT_BINARY_DIR}
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/CheckTargetGuards.cmake
     )
 
     add_executable(dicom_cdimse_tests

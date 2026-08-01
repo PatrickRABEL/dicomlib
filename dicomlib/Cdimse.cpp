@@ -77,23 +77,19 @@ namespace dicom
 				throw exception("Unexpected C-DIMSE response message ID");
 			if(response.exists(TAG_AFF_SOP_CLASS_UID))
 			{
-				if(response.Values(TAG_AFF_SOP_CLASS_UID).size() != 1)
+				if(!HasSingleNonEmptyValue(response,TAG_AFF_SOP_CLASS_UID))
 					throw exception("Invalid C-DIMSE response SOP Class UID");
 				UID responseClassUID;
 				response(TAG_AFF_SOP_CLASS_UID) >> responseClassUID;
-				if(responseClassUID.str().empty())
-					throw exception("Invalid C-DIMSE response SOP Class UID");
 				if(responseClassUID != expectedClassUID)
 					throw exception("Unexpected C-DIMSE response SOP Class UID");
 			}
 			if(expectedInstanceUID && response.exists(TAG_AFF_SOP_INST_UID))
 			{
-				if(response.Values(TAG_AFF_SOP_INST_UID).size() != 1)
+				if(!HasSingleNonEmptyValue(response,TAG_AFF_SOP_INST_UID))
 					throw exception("Invalid C-DIMSE response SOP Instance UID");
 				UID responseInstanceUID;
 				response(TAG_AFF_SOP_INST_UID) >> responseInstanceUID;
-				if(responseInstanceUID.str().empty())
-					throw exception("Invalid C-DIMSE response SOP Instance UID");
 				if(responseInstanceUID != *expectedInstanceUID)
 					throw exception("Unexpected C-DIMSE response SOP Instance UID");
 			}
@@ -204,12 +200,10 @@ namespace dicom
 
 			if(expectedClassUID)
 			{
-				if(command.Values(TAG_AFF_SOP_CLASS_UID).size() != 1)
+				if(!HasSingleNonEmptyValue(command,TAG_AFF_SOP_CLASS_UID))
 					throw exception("Invalid C-DIMSE request SOP Class UID");
 				UID commandClassUID;
 				command(TAG_AFF_SOP_CLASS_UID) >> commandClassUID;
-				if(commandClassUID.str().empty())
-					throw exception("Invalid C-DIMSE request SOP Class UID");
 				if(commandClassUID != *expectedClassUID)
 					throw exception("Unexpected C-DIMSE request SOP Class UID");
 			}
@@ -249,22 +243,16 @@ namespace dicom
 
 		void ValidateCMoveRequestDestination(const DataSet& command)
 		{
-			if(command.Values(TAG_MOVE_DEST).size() != 1)
-				throw exception("Invalid C-MOVE request Move Destination");
-			string destination;
-			command(TAG_MOVE_DEST) >> destination;
-			if(destination.empty())
+			if(!HasSingleNonEmptyValue(command,TAG_MOVE_DEST))
 				throw exception("Invalid C-MOVE request Move Destination");
 		}
 
 		void ValidateCStoreRequestInstanceUID(const DataSet& command)
 		{
-			if(command.Values(TAG_AFF_SOP_INST_UID).size() != 1)
+			if(!HasSingleNonEmptyValue(command,TAG_AFF_SOP_INST_UID))
 				throw exception("Invalid C-STORE request SOP Instance UID");
 			UID instanceUID;
 			command(TAG_AFF_SOP_INST_UID) >> instanceUID;
-			if(instanceUID.str().empty())
-				throw exception("Invalid C-STORE request SOP Instance UID");
 		}
 
 		void ValidateCStoreRequestMoveOriginator(const DataSet& command)

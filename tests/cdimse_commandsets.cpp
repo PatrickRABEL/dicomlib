@@ -4053,6 +4053,22 @@ namespace
 			{
 				command.Put<dicom::VR_UI>(dicom::TAG_REQ_SOP_INST_UID,instUID);
 			});
+		assertAffectedClassRequestsRejected(
+			[](dicom::DataSet& command)
+			{
+				command.erase(dicom::TAG_AFF_SOP_CLASS_UID);
+				command.Put<dicom::VR_UI>(
+					dicom::TAG_AFF_SOP_CLASS_UID,
+					dicom::UID(""));
+			});
+		assertRequestedClassRequestsRejected(
+			[](dicom::DataSet& command)
+			{
+				command.erase(dicom::TAG_REQ_SOP_CLASS_UID);
+				command.Put<dicom::VR_UI>(
+					dicom::TAG_REQ_SOP_CLASS_UID,
+					dicom::UID(""));
+			});
 
 		dicom::CommandSet::NEventReportRQ eventUnexpectedRequestedClass(
 			165,
@@ -4856,10 +4872,26 @@ namespace
 		assertAllNdimseResponsesRejected(
 			[](dicom::DataSet& response)
 			{
+				response.erase(dicom::TAG_AFF_SOP_CLASS_UID);
+				response.Put<dicom::VR_UI>(
+					dicom::TAG_AFF_SOP_CLASS_UID,
+					dicom::UID(""));
+			});
+		assertAllNdimseResponsesRejected(
+			[](dicom::DataSet& response)
+			{
 				response.erase(dicom::TAG_AFF_SOP_INST_UID);
 				response.Put<dicom::VR_UI>(
 					dicom::TAG_AFF_SOP_INST_UID,
 					dicom::UID("1.2.826.0.1.3680043.10.1553.31.1.99"));
+			});
+		assertAllNdimseResponsesRejected(
+			[](dicom::DataSet& response)
+			{
+				response.erase(dicom::TAG_AFF_SOP_INST_UID);
+				response.Put<dicom::VR_UI>(
+					dicom::TAG_AFF_SOP_INST_UID,
+					dicom::UID(""));
 			});
 		assertAllNdimseResponsesRejected(
 			[](dicom::DataSet& response)
@@ -4977,6 +5009,18 @@ namespace
 			[](dicom::DataSet& response)
 			{
 				response.Put<dicom::VR_US>(dicom::TAG_ACTION_TYPE_ID,UINT16(7));
+			});
+		assertEventResponseRejected(
+			[](dicom::DataSet& response)
+			{
+				response.erase(dicom::TAG_EVENT_TYPE_ID);
+				response.Put<dicom::VR_US>(dicom::TAG_EVENT_TYPE_ID);
+			});
+		assertActionResponseRejected(
+			[](dicom::DataSet& response)
+			{
+				response.erase(dicom::TAG_ACTION_TYPE_ID);
+				response.Put<dicom::VR_US>(dicom::TAG_ACTION_TYPE_ID);
 			});
 
 		{
@@ -5822,6 +5866,19 @@ namespace
 			moveOriginatorMessageIDRejected = true;
 		}
 		assert(moveOriginatorMessageIDRejected);
+
+		dicom::CommandSet::CCancelRQ nonCommandElement(30);
+		nonCommandElement.Put<dicom::VR_LO>(dicom::TAG_PAT_ID,std::string("PATIENT"));
+		bool nonCommandElementRejected = false;
+		try
+		{
+			dicom::HandleCCancel(service, nonCommandElement);
+		}
+		catch(const std::exception&)
+		{
+			nonCommandElementRejected = true;
+		}
+		assert(nonCommandElementRejected);
 	}
 
 	void checkCCancelOverPData()
@@ -6921,6 +6978,56 @@ namespace
 		assertCMoveFinalEmptyCounterRejected(dicom::TAG_NUM_COMPL_SUBOP, 98);
 		assertCMoveFinalEmptyCounterRejected(dicom::TAG_NUM_FAIL_SUBOP, 100);
 		assertCMoveFinalEmptyCounterRejected(dicom::TAG_NUM_WARN_SUBOP, 102);
+		const auto assertCGetFinalStatusEmptyCounterRejected =
+			[&](UINT16 status, dicom::Tag emptyCounter, UINT16 messageID)
+			{
+				dicom::CommandSet::CGetRSP responseCommand(
+					messageID,
+					classUID,
+					status,
+					dicom::DataSetStatus::NO_DATA_SET);
+				addRetrieveCounters(responseCommand, true, true, true, true);
+				responseCommand.erase(emptyCounter);
+				responseCommand.Put<dicom::VR_US>(emptyCounter);
+				assertCGetResponseRejected(responseCommand, messageID);
+			};
+		const auto assertCMoveFinalStatusEmptyCounterRejected =
+			[&](UINT16 status, dicom::Tag emptyCounter, UINT16 messageID)
+			{
+				dicom::CommandSet::CMoveRSP responseCommand(
+					messageID,
+					classUID,
+					status,
+					dicom::DataSetStatus::NO_DATA_SET);
+				addRetrieveCounters(responseCommand, true, true, true, true);
+				responseCommand.erase(emptyCounter);
+				responseCommand.Put<dicom::VR_US>(emptyCounter);
+				assertCMoveResponseRejected(responseCommand, messageID);
+			};
+		assertCGetFinalStatusEmptyCounterRejected(
+			dicom::Status::WARNING,
+			dicom::TAG_NUM_REMAIN_SUBOP,
+			104);
+		assertCGetFinalStatusEmptyCounterRejected(
+			UINT16(0xa702),
+			dicom::TAG_NUM_COMPL_SUBOP,
+			106);
+		assertCGetFinalStatusEmptyCounterRejected(
+			dicom::Status::CANCEL,
+			dicom::TAG_NUM_FAIL_SUBOP,
+			108);
+		assertCMoveFinalStatusEmptyCounterRejected(
+			dicom::Status::WARNING,
+			dicom::TAG_NUM_REMAIN_SUBOP,
+			110);
+		assertCMoveFinalStatusEmptyCounterRejected(
+			UINT16(0xa702),
+			dicom::TAG_NUM_COMPL_SUBOP,
+			112);
+		assertCMoveFinalStatusEmptyCounterRejected(
+			dicom::Status::CANCEL,
+			dicom::TAG_NUM_FAIL_SUBOP,
+			114);
 
 		dicom::CommandSet::CGetRSP duplicateGetRemaining(
 			73,
@@ -8226,6 +8333,170 @@ namespace
 				}
 				assert(rejected);
 			};
+
+		const auto assertAllCdimseResponsesRejected =
+			[&](const std::function<void(dicom::DataSet&)>& mutateResponse)
+			{
+				assertCEchoResponseRejected(
+					[&](dicom::DataSet& response, UINT16)
+					{
+						mutateResponse(response);
+					});
+				assertCStoreResponseRejected(
+					[&](dicom::DataSet& response, UINT16, const dicom::UID&)
+					{
+						mutateResponse(response);
+					});
+
+				dicom::CommandSet::CFindRSP findResponse(
+					299,
+					classUID,
+					dicom::Status::SUCCESS,
+					dicom::DataSetStatus::NO_DATA_SET);
+				mutateResponse(findResponse);
+				assertCFindResponseRejected(findResponse, 299);
+
+				dicom::CommandSet::CGetRSP getResponse(
+					301,
+					classUID,
+					dicom::Status::SUCCESS,
+					dicom::DataSetStatus::NO_DATA_SET);
+				mutateResponse(getResponse);
+				assertCGetResponseRejected(getResponse, 301);
+
+				dicom::CommandSet::CGetRSP getResponseWithStoreHandler(
+					303,
+					classUID,
+					dicom::Status::SUCCESS,
+					dicom::DataSetStatus::NO_DATA_SET);
+				mutateResponse(getResponseWithStoreHandler);
+				assertCGetResponseRejectedWithStoreHandler(getResponseWithStoreHandler, 303);
+
+				dicom::CommandSet::CMoveRSP moveResponse(
+					305,
+					classUID,
+					dicom::Status::SUCCESS,
+					dicom::DataSetStatus::NO_DATA_SET);
+				mutateResponse(moveResponse);
+				assertCMoveResponseRejected(moveResponse, 305);
+			};
+
+		assertAllCdimseResponsesRejected(
+			[](dicom::DataSet& response)
+			{
+				response.erase(dicom::TAG_CMD_FIELD);
+				response.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD);
+			});
+		assertAllCdimseResponsesRejected(
+			[](dicom::DataSet& response)
+			{
+				response.erase(dicom::TAG_MSG_ID_RSP);
+				response.Put<dicom::VR_US>(dicom::TAG_MSG_ID_RSP);
+			});
+		assertAllCdimseResponsesRejected(
+			[](dicom::DataSet& response)
+			{
+				response.erase(dicom::TAG_STATUS);
+				response.Put<dicom::VR_US>(dicom::TAG_STATUS);
+			});
+		assertAllCdimseResponsesRejected(
+			[](dicom::DataSet& response)
+			{
+				response.erase(dicom::TAG_DATA_SET_TYPE);
+				response.Put<dicom::VR_US>(dicom::TAG_DATA_SET_TYPE);
+			});
+		assertAllCdimseResponsesRejected(
+			[](dicom::DataSet& response)
+			{
+				response.erase(dicom::TAG_AFF_SOP_CLASS_UID);
+				response.Put<dicom::VR_UI>(
+					dicom::TAG_AFF_SOP_CLASS_UID,
+					dicom::UID(""));
+			});
+		assertAllCdimseResponsesRejected(
+			[](dicom::DataSet& response)
+			{
+				response.Put<dicom::VR_US>(dicom::TAG_MSG_ID, UINT16(321));
+			});
+		assertAllCdimseResponsesRejected(
+			[](dicom::DataSet& response)
+			{
+				response.Put<dicom::VR_US>(dicom::TAG_PRIORITY, dicom::Priority::MEDIUM);
+			});
+		assertAllCdimseResponsesRejected(
+			[](dicom::DataSet& response)
+			{
+				response.Put<dicom::VR_AE>(dicom::TAG_MOVE_DEST, std::string("ARCHIVE_AE"));
+			});
+		assertAllCdimseResponsesRejected(
+			[](dicom::DataSet& response)
+			{
+				response.Put<dicom::VR_AE>(dicom::TAG_MOVE_ORIG_AET, std::string("MOVE_AE"));
+			});
+		assertAllCdimseResponsesRejected(
+			[](dicom::DataSet& response)
+			{
+				response.Put<dicom::VR_US>(dicom::TAG_MOVE_ORIG_MSG_ID, UINT16(323));
+			});
+		assertAllCdimseResponsesRejected(
+			[](dicom::DataSet& response)
+			{
+				response.Put<dicom::VR_UI>(
+					dicom::TAG_REQ_SOP_CLASS_UID,
+					dicom::CT_IMAGE_STORAGE_SOP_CLASS);
+			});
+		assertAllCdimseResponsesRejected(
+			[](dicom::DataSet& response)
+			{
+				response.Put<dicom::VR_UI>(
+					dicom::TAG_REQ_SOP_INST_UID,
+					dicom::UID("1.2.826.0.1.3680043.10.1553.12.325"));
+			});
+		assertAllCdimseResponsesRejected(
+			[](dicom::DataSet& response)
+			{
+				response.Put<dicom::VR_LO>(dicom::TAG_PAT_ID, std::string("PATIENT"));
+			});
+		const auto assertNonStorageResponsesRejected =
+			[&](const std::function<void(dicom::DataSet&)>& mutateResponse)
+			{
+				assertCEchoResponseRejected(
+					[&](dicom::DataSet& response, UINT16)
+					{
+						mutateResponse(response);
+					});
+
+				dicom::CommandSet::CFindRSP findResponse(
+					307,
+					classUID,
+					dicom::Status::SUCCESS,
+					dicom::DataSetStatus::NO_DATA_SET);
+				mutateResponse(findResponse);
+				assertCFindResponseRejected(findResponse, 307);
+
+				dicom::CommandSet::CGetRSP getResponse(
+					309,
+					classUID,
+					dicom::Status::SUCCESS,
+					dicom::DataSetStatus::NO_DATA_SET);
+				mutateResponse(getResponse);
+				assertCGetResponseRejected(getResponse, 309);
+
+				dicom::CommandSet::CMoveRSP moveResponse(
+					311,
+					classUID,
+					dicom::Status::SUCCESS,
+					dicom::DataSetStatus::NO_DATA_SET);
+				mutateResponse(moveResponse);
+				assertCMoveResponseRejected(moveResponse, 311);
+			};
+		assertNonStorageResponsesRejected(
+			[](dicom::DataSet& response)
+			{
+				response.Put<dicom::VR_UI>(
+					dicom::TAG_AFF_SOP_INST_UID,
+					dicom::UID(""));
+			});
 
 		assertCStoreResponseRejected(
 			[](dicom::DataSet& response, UINT16, const dicom::UID&)
@@ -9545,6 +9816,30 @@ namespace
 				command.erase(dicom::TAG_DATA_SET_TYPE);
 				command.Put<dicom::VR_US>(dicom::TAG_DATA_SET_TYPE);
 			});
+		assertAllNormalCdimseRequestsRejected(
+			[](dicom::DataSet& command)
+			{
+				command.Put<dicom::VR_UI>(
+					dicom::TAG_REQ_SOP_CLASS_UID,
+					dicom::CT_IMAGE_STORAGE_SOP_CLASS);
+			});
+		assertAllNormalCdimseRequestsRejected(
+			[](dicom::DataSet& command)
+			{
+				command.Put<dicom::VR_UI>(
+					dicom::TAG_REQ_SOP_INST_UID,
+					dicom::UID("1.2.826.0.1.3680043.10.1553.13.232"));
+			});
+		assertAllNormalCdimseRequestsRejected(
+			[](dicom::DataSet& command)
+			{
+				command.Put<dicom::VR_LO>(dicom::TAG_PAT_ID,std::string("PATIENT"));
+			});
+		assertAllNormalCdimseRequestsRejected(
+			[](dicom::DataSet& command)
+			{
+				command.Put<dicom::VR_US>(dicom::TAG_MSG_ID_RSP,UINT16(234));
+			});
 
 		dicom::CommandSet::CStoreRQ duplicateStoreCommandField(
 			82,
@@ -9713,6 +10008,12 @@ namespace
 		assertGetRequestRejected(wrongGetSOPClassUID);
 		assertLegacyGetRequestRejected(wrongGetSOPClassUID);
 
+		dicom::CommandSet::CGetRQ emptyGetSOPClassUID(155,classUID);
+		emptyGetSOPClassUID.erase(dicom::TAG_AFF_SOP_CLASS_UID);
+		emptyGetSOPClassUID.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_CLASS_UID,dicom::UID(""));
+		assertGetRequestRejected(emptyGetSOPClassUID);
+		assertLegacyGetRequestRejected(emptyGetSOPClassUID);
+
 		dicom::CommandSet::CGetRQ getRequestedClassUID(172,classUID);
 		getRequestedClassUID.Put<dicom::VR_UI>(
 			dicom::TAG_REQ_SOP_CLASS_UID,
@@ -9805,6 +10106,12 @@ namespace
 		assertMoveRequestRejected(wrongMoveSOPClassUID);
 		assertLegacyMoveRequestRejected(wrongMoveSOPClassUID);
 
+		dicom::CommandSet::CMoveRQ emptyMoveSOPClassUID(159,classUID,"ARCHIVE_AE");
+		emptyMoveSOPClassUID.erase(dicom::TAG_AFF_SOP_CLASS_UID);
+		emptyMoveSOPClassUID.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_CLASS_UID,dicom::UID(""));
+		assertMoveRequestRejected(emptyMoveSOPClassUID);
+		assertLegacyMoveRequestRejected(emptyMoveSOPClassUID);
+
 		dicom::CommandSet::CMoveRQ moveRequestedClassUID(176,classUID,"ARCHIVE_AE");
 		moveRequestedClassUID.Put<dicom::VR_UI>(
 			dicom::TAG_REQ_SOP_CLASS_UID,
@@ -9892,6 +10199,11 @@ namespace
 
 		dicom::CommandSet::CFindRQ wrongFindSOPClassUID(162,wrongClassUID);
 		assertFindRequestRejected(wrongFindSOPClassUID);
+
+		dicom::CommandSet::CFindRQ emptyFindSOPClassUID(163,classUID);
+		emptyFindSOPClassUID.erase(dicom::TAG_AFF_SOP_CLASS_UID);
+		emptyFindSOPClassUID.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_CLASS_UID,dicom::UID(""));
+		assertFindRequestRejected(emptyFindSOPClassUID);
 
 		dicom::CommandSet::CFindRQ findRequestedClassUID(180,classUID);
 		findRequestedClassUID.Put<dicom::VR_UI>(
