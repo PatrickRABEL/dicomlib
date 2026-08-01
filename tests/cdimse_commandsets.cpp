@@ -3597,6 +3597,34 @@ namespace
 				}
 				assert(rejected);
 			};
+		const auto assertGetRequestRejected =
+			[&](const dicom::DataSet& command)
+			{
+				bool rejected = false;
+				try
+				{
+					dicom::HandleNGet(noDataSuccess,nullService,command,classUID);
+				}
+				catch(const std::exception&)
+				{
+					rejected = true;
+				}
+				assert(rejected);
+			};
+		const auto assertSetRequestRejected =
+			[&](const dicom::DataSet& command)
+			{
+				bool rejected = false;
+				try
+				{
+					dicom::HandleNSet(noDataSuccess,nullService,command,classUID);
+				}
+				catch(const std::exception&)
+				{
+					rejected = true;
+				}
+				assert(rejected);
+			};
 		const auto assertCreateRequestRejected =
 			[&](const dicom::DataSet& command)
 			{
@@ -3611,6 +3639,445 @@ namespace
 				}
 				assert(rejected);
 			};
+
+		dicom::CommandSet::NEventReportRQ eventMissingCommand(
+			81,
+			classUID,
+			instUID,
+			UINT16(3),
+			dicom::DataSetStatus::NO_DATA_SET);
+		eventMissingCommand.erase(dicom::TAG_CMD_FIELD);
+		assertEventRequestRejected(eventMissingCommand);
+
+		dicom::CommandSet::NEventReportRQ eventMissingClass(
+			83,
+			classUID,
+			instUID,
+			UINT16(3),
+			dicom::DataSetStatus::NO_DATA_SET);
+		eventMissingClass.erase(dicom::TAG_AFF_SOP_CLASS_UID);
+		assertEventRequestRejected(eventMissingClass);
+
+		dicom::CommandSet::NEventReportRQ eventMissingMessage(
+			85,
+			classUID,
+			instUID,
+			UINT16(3),
+			dicom::DataSetStatus::NO_DATA_SET);
+		eventMissingMessage.erase(dicom::TAG_MSG_ID);
+		assertEventRequestRejected(eventMissingMessage);
+
+		dicom::CommandSet::NEventReportRQ eventMissingDataSetType(
+			87,
+			classUID,
+			instUID,
+			UINT16(3),
+			dicom::DataSetStatus::NO_DATA_SET);
+		eventMissingDataSetType.erase(dicom::TAG_DATA_SET_TYPE);
+		assertEventRequestRejected(eventMissingDataSetType);
+
+		dicom::CommandSet::NGetRQ getMissingCommand(
+			89,
+			classUID,
+			instUID,
+			std::vector<dicom::Tag>());
+		getMissingCommand.erase(dicom::TAG_CMD_FIELD);
+		assertGetRequestRejected(getMissingCommand);
+
+		dicom::CommandSet::NGetRQ getMissingClass(
+			91,
+			classUID,
+			instUID,
+			std::vector<dicom::Tag>());
+		getMissingClass.erase(dicom::TAG_REQ_SOP_CLASS_UID);
+		assertGetRequestRejected(getMissingClass);
+
+		dicom::CommandSet::NGetRQ getMissingMessage(
+			93,
+			classUID,
+			instUID,
+			std::vector<dicom::Tag>());
+		getMissingMessage.erase(dicom::TAG_MSG_ID);
+		assertGetRequestRejected(getMissingMessage);
+
+		dicom::CommandSet::NGetRQ getMissingDataSetType(
+			95,
+			classUID,
+			instUID,
+			std::vector<dicom::Tag>());
+		getMissingDataSetType.erase(dicom::TAG_DATA_SET_TYPE);
+		assertGetRequestRejected(getMissingDataSetType);
+
+		dicom::CommandSet::NSetRQ setMissingCommand(97,classUID,instUID);
+		setMissingCommand.erase(dicom::TAG_CMD_FIELD);
+		assertSetRequestRejected(setMissingCommand);
+
+		dicom::CommandSet::NSetRQ setMissingClass(99,classUID,instUID);
+		setMissingClass.erase(dicom::TAG_REQ_SOP_CLASS_UID);
+		assertSetRequestRejected(setMissingClass);
+
+		dicom::CommandSet::NSetRQ setMissingMessage(101,classUID,instUID);
+		setMissingMessage.erase(dicom::TAG_MSG_ID);
+		assertSetRequestRejected(setMissingMessage);
+
+		dicom::CommandSet::NSetRQ setMissingDataSetType(103,classUID,instUID);
+		setMissingDataSetType.erase(dicom::TAG_DATA_SET_TYPE);
+		assertSetRequestRejected(setMissingDataSetType);
+
+		dicom::CommandSet::NActionRQ actionMissingCommand(
+			105,
+			classUID,
+			instUID,
+			UINT16(7),
+			dicom::DataSetStatus::NO_DATA_SET);
+		actionMissingCommand.erase(dicom::TAG_CMD_FIELD);
+		assertActionRequestRejected(actionMissingCommand);
+
+		dicom::CommandSet::NActionRQ actionMissingClass(
+			107,
+			classUID,
+			instUID,
+			UINT16(7),
+			dicom::DataSetStatus::NO_DATA_SET);
+		actionMissingClass.erase(dicom::TAG_REQ_SOP_CLASS_UID);
+		assertActionRequestRejected(actionMissingClass);
+
+		dicom::CommandSet::NActionRQ actionMissingMessage(
+			109,
+			classUID,
+			instUID,
+			UINT16(7),
+			dicom::DataSetStatus::NO_DATA_SET);
+		actionMissingMessage.erase(dicom::TAG_MSG_ID);
+		assertActionRequestRejected(actionMissingMessage);
+
+		dicom::CommandSet::NActionRQ actionMissingDataSetType(
+			111,
+			classUID,
+			instUID,
+			UINT16(7),
+			dicom::DataSetStatus::NO_DATA_SET);
+		actionMissingDataSetType.erase(dicom::TAG_DATA_SET_TYPE);
+		assertActionRequestRejected(actionMissingDataSetType);
+
+		dicom::CommandSet::NCreateRQ createMissingCommand(
+			113,
+			classUID,
+			instUID,
+			dicom::DataSetStatus::NO_DATA_SET);
+		createMissingCommand.erase(dicom::TAG_CMD_FIELD);
+		assertCreateRequestRejected(createMissingCommand);
+
+		dicom::CommandSet::NCreateRQ createMissingClass(
+			115,
+			classUID,
+			instUID,
+			dicom::DataSetStatus::NO_DATA_SET);
+		createMissingClass.erase(dicom::TAG_AFF_SOP_CLASS_UID);
+		assertCreateRequestRejected(createMissingClass);
+
+		dicom::CommandSet::NCreateRQ createMissingMessage(
+			117,
+			classUID,
+			instUID,
+			dicom::DataSetStatus::NO_DATA_SET);
+		createMissingMessage.erase(dicom::TAG_MSG_ID);
+		assertCreateRequestRejected(createMissingMessage);
+
+		dicom::CommandSet::NCreateRQ createMissingDataSetType(
+			119,
+			classUID,
+			instUID,
+			dicom::DataSetStatus::NO_DATA_SET);
+		createMissingDataSetType.erase(dicom::TAG_DATA_SET_TYPE);
+		assertCreateRequestRejected(createMissingDataSetType);
+
+		dicom::CommandSet::NDeleteRQ deleteMissingCommand(121,classUID,instUID);
+		deleteMissingCommand.erase(dicom::TAG_CMD_FIELD);
+		assertDeleteRequestRejected(deleteMissingCommand);
+
+		dicom::CommandSet::NDeleteRQ deleteMissingClass(123,classUID,instUID);
+		deleteMissingClass.erase(dicom::TAG_REQ_SOP_CLASS_UID);
+		assertDeleteRequestRejected(deleteMissingClass);
+
+		dicom::CommandSet::NDeleteRQ deleteMissingMessage(125,classUID,instUID);
+		deleteMissingMessage.erase(dicom::TAG_MSG_ID);
+		assertDeleteRequestRejected(deleteMissingMessage);
+
+		dicom::CommandSet::NDeleteRQ deleteMissingDataSetType(127,classUID,instUID);
+		deleteMissingDataSetType.erase(dicom::TAG_DATA_SET_TYPE);
+		assertDeleteRequestRejected(deleteMissingDataSetType);
+
+		const auto assertAllNdimseRequestsRejected =
+			[&](const std::function<void(dicom::DataSet&)>& mutateCommand)
+			{
+				dicom::CommandSet::NEventReportRQ eventRequest(
+					129,
+					classUID,
+					instUID,
+					UINT16(3),
+					dicom::DataSetStatus::NO_DATA_SET);
+				mutateCommand(eventRequest);
+				assertEventRequestRejected(eventRequest);
+
+				dicom::CommandSet::NGetRQ getRequest(
+					131,
+					classUID,
+					instUID,
+					std::vector<dicom::Tag>());
+				mutateCommand(getRequest);
+				assertGetRequestRejected(getRequest);
+
+				dicom::CommandSet::NSetRQ setRequest(133,classUID,instUID);
+				mutateCommand(setRequest);
+				assertSetRequestRejected(setRequest);
+
+				dicom::CommandSet::NActionRQ actionRequest(
+					135,
+					classUID,
+					instUID,
+					UINT16(7),
+					dicom::DataSetStatus::NO_DATA_SET);
+				mutateCommand(actionRequest);
+				assertActionRequestRejected(actionRequest);
+
+				dicom::CommandSet::NCreateRQ createRequest(
+					137,
+					classUID,
+					instUID,
+					dicom::DataSetStatus::NO_DATA_SET);
+				mutateCommand(createRequest);
+				assertCreateRequestRejected(createRequest);
+
+				dicom::CommandSet::NDeleteRQ deleteRequest(139,classUID,instUID);
+				mutateCommand(deleteRequest);
+				assertDeleteRequestRejected(deleteRequest);
+			};
+		const auto assertAffectedClassRequestsRejected =
+			[&](const std::function<void(dicom::DataSet&)>& mutateCommand)
+			{
+				dicom::CommandSet::NEventReportRQ eventRequest(
+					141,
+					classUID,
+					instUID,
+					UINT16(3),
+					dicom::DataSetStatus::NO_DATA_SET);
+				mutateCommand(eventRequest);
+				assertEventRequestRejected(eventRequest);
+
+				dicom::CommandSet::NCreateRQ createRequest(
+					143,
+					classUID,
+					instUID,
+					dicom::DataSetStatus::NO_DATA_SET);
+				mutateCommand(createRequest);
+				assertCreateRequestRejected(createRequest);
+			};
+		const auto assertRequestedClassRequestsRejected =
+			[&](const std::function<void(dicom::DataSet&)>& mutateCommand)
+			{
+				dicom::CommandSet::NGetRQ getRequest(
+					145,
+					classUID,
+					instUID,
+					std::vector<dicom::Tag>());
+				mutateCommand(getRequest);
+				assertGetRequestRejected(getRequest);
+
+				dicom::CommandSet::NSetRQ setRequest(147,classUID,instUID);
+				mutateCommand(setRequest);
+				assertSetRequestRejected(setRequest);
+
+				dicom::CommandSet::NActionRQ actionRequest(
+					149,
+					classUID,
+					instUID,
+					UINT16(7),
+					dicom::DataSetStatus::NO_DATA_SET);
+				mutateCommand(actionRequest);
+				assertActionRequestRejected(actionRequest);
+
+				dicom::CommandSet::NDeleteRQ deleteRequest(151,classUID,instUID);
+				mutateCommand(deleteRequest);
+				assertDeleteRequestRejected(deleteRequest);
+			};
+		const auto assertAffectedInstanceRequestsRejected =
+			[&](const std::function<void(dicom::DataSet&)>& mutateCommand)
+			{
+				dicom::CommandSet::NEventReportRQ eventRequest(
+					153,
+					classUID,
+					instUID,
+					UINT16(3),
+					dicom::DataSetStatus::NO_DATA_SET);
+				mutateCommand(eventRequest);
+				assertEventRequestRejected(eventRequest);
+
+				dicom::CommandSet::NCreateRQ createRequest(
+					155,
+					classUID,
+					instUID,
+					dicom::DataSetStatus::NO_DATA_SET);
+				mutateCommand(createRequest);
+				assertCreateRequestRejected(createRequest);
+			};
+		const auto assertRequestedInstanceRequestsRejected =
+			[&](const std::function<void(dicom::DataSet&)>& mutateCommand)
+			{
+				dicom::CommandSet::NGetRQ getRequest(
+					157,
+					classUID,
+					instUID,
+					std::vector<dicom::Tag>());
+				mutateCommand(getRequest);
+				assertGetRequestRejected(getRequest);
+
+				dicom::CommandSet::NSetRQ setRequest(159,classUID,instUID);
+				mutateCommand(setRequest);
+				assertSetRequestRejected(setRequest);
+
+				dicom::CommandSet::NActionRQ actionRequest(
+					161,
+					classUID,
+					instUID,
+					UINT16(7),
+					dicom::DataSetStatus::NO_DATA_SET);
+				mutateCommand(actionRequest);
+				assertActionRequestRejected(actionRequest);
+
+				dicom::CommandSet::NDeleteRQ deleteRequest(163,classUID,instUID);
+				mutateCommand(deleteRequest);
+				assertDeleteRequestRejected(deleteRequest);
+			};
+
+		assertAllNdimseRequestsRejected(
+			[](dicom::DataSet& command)
+			{
+				command.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD,dicom::Command::N_DELETE_RQ);
+			});
+		assertAllNdimseRequestsRejected(
+			[](dicom::DataSet& command)
+			{
+				command.Put<dicom::VR_US>(dicom::TAG_MSG_ID,UINT16(165));
+			});
+		assertAllNdimseRequestsRejected(
+			[](dicom::DataSet& command)
+			{
+				command.Put<dicom::VR_US>(
+					dicom::TAG_DATA_SET_TYPE,
+					dicom::DataSetStatus::NO_DATA_SET);
+			});
+		assertAffectedClassRequestsRejected(
+			[&](dicom::DataSet& command)
+			{
+				command.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_CLASS_UID,classUID);
+			});
+		assertRequestedClassRequestsRejected(
+			[&](dicom::DataSet& command)
+			{
+				command.Put<dicom::VR_UI>(dicom::TAG_REQ_SOP_CLASS_UID,classUID);
+			});
+		assertAffectedInstanceRequestsRejected(
+			[&](dicom::DataSet& command)
+			{
+				command.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_INST_UID,instUID);
+			});
+		assertRequestedInstanceRequestsRejected(
+			[&](dicom::DataSet& command)
+			{
+				command.Put<dicom::VR_UI>(dicom::TAG_REQ_SOP_INST_UID,instUID);
+			});
+
+		dicom::CommandSet::NEventReportRQ eventWrongCommand(
+			167,
+			classUID,
+			instUID,
+			UINT16(3),
+			dicom::DataSetStatus::NO_DATA_SET);
+		eventWrongCommand.erase(dicom::TAG_CMD_FIELD);
+		eventWrongCommand.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD,dicom::Command::N_DELETE_RQ);
+		assertEventRequestRejected(eventWrongCommand);
+
+		dicom::CommandSet::NGetRQ getWrongCommand(
+			169,
+			classUID,
+			instUID,
+			std::vector<dicom::Tag>());
+		getWrongCommand.erase(dicom::TAG_CMD_FIELD);
+		getWrongCommand.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD,dicom::Command::N_DELETE_RQ);
+		assertGetRequestRejected(getWrongCommand);
+
+		dicom::CommandSet::NSetRQ setWrongCommand(171,classUID,instUID);
+		setWrongCommand.erase(dicom::TAG_CMD_FIELD);
+		setWrongCommand.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD,dicom::Command::N_DELETE_RQ);
+		assertSetRequestRejected(setWrongCommand);
+
+		dicom::CommandSet::NActionRQ actionWrongCommand(
+			173,
+			classUID,
+			instUID,
+			UINT16(7),
+			dicom::DataSetStatus::NO_DATA_SET);
+		actionWrongCommand.erase(dicom::TAG_CMD_FIELD);
+		actionWrongCommand.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD,dicom::Command::N_DELETE_RQ);
+		assertActionRequestRejected(actionWrongCommand);
+
+		dicom::CommandSet::NCreateRQ createWrongCommand(
+			175,
+			classUID,
+			instUID,
+			dicom::DataSetStatus::NO_DATA_SET);
+		createWrongCommand.erase(dicom::TAG_CMD_FIELD);
+		createWrongCommand.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD,dicom::Command::N_DELETE_RQ);
+		assertCreateRequestRejected(createWrongCommand);
+
+		dicom::CommandSet::NDeleteRQ deleteWrongCommand(177,classUID,instUID);
+		deleteWrongCommand.erase(dicom::TAG_CMD_FIELD);
+		deleteWrongCommand.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD,dicom::Command::N_GET_RQ);
+		assertDeleteRequestRejected(deleteWrongCommand);
+
+		const dicom::UID wrongClassUID("1.2.826.0.1.3680043.10.1553.31.98");
+		assertAffectedClassRequestsRejected(
+			[wrongClassUID](dicom::DataSet& command)
+			{
+				command.erase(dicom::TAG_AFF_SOP_CLASS_UID);
+				command.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_CLASS_UID,wrongClassUID);
+			});
+		assertRequestedClassRequestsRejected(
+			[wrongClassUID](dicom::DataSet& command)
+			{
+				command.erase(dicom::TAG_REQ_SOP_CLASS_UID);
+				command.Put<dicom::VR_UI>(dicom::TAG_REQ_SOP_CLASS_UID,wrongClassUID);
+			});
+
+		dicom::CommandSet::NEventReportRQ eventEmptyInstance(
+			179,
+			classUID,
+			dicom::UID(""),
+			UINT16(3),
+			dicom::DataSetStatus::NO_DATA_SET);
+		assertEventRequestRejected(eventEmptyInstance);
+
+		dicom::CommandSet::NGetRQ getEmptyInstance(
+			181,
+			classUID,
+			dicom::UID(""),
+			std::vector<dicom::Tag>());
+		assertGetRequestRejected(getEmptyInstance);
+
+		dicom::CommandSet::NSetRQ setEmptyInstance(183,classUID,dicom::UID(""));
+		assertSetRequestRejected(setEmptyInstance);
+
+		dicom::CommandSet::NActionRQ actionEmptyInstance(
+			185,
+			classUID,
+			dicom::UID(""),
+			UINT16(7),
+			dicom::DataSetStatus::NO_DATA_SET);
+		assertActionRequestRejected(actionEmptyInstance);
+
+		dicom::CommandSet::NDeleteRQ deleteEmptyInstance(187,classUID,dicom::UID(""));
+		assertDeleteRequestRejected(deleteEmptyInstance);
 
 		dicom::CommandSet::NDeleteRQ duplicateCommand(101,classUID,instUID);
 		duplicateCommand.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD,dicom::Command::N_DELETE_RQ);
@@ -3701,40 +4168,327 @@ namespace
 				}
 				assert(rejected);
 			};
+		const auto assertEventResponseRejected =
+			[&](const std::function<void(dicom::DataSet&)>& mutateResponse)
+			{
+				int sockets[2];
+				makeSocketPair(sockets);
+				PairedService scuService(sockets[0], classUID);
+				PairedService scpService(sockets[1], classUID);
 
-		assertDeleteResponseRejected(
+				dicom::NEventReportSCU scu(scuService,classUID);
+				scu.writeRQ(instUID,UINT16(3));
+
+				dicom::DataSet request;
+				requireRead(scpService,request);
+				const UINT16 messageID = get<UINT16>(request,dicom::TAG_MSG_ID);
+				dicom::CommandSet::NEventReportRSP responseCommand(
+					messageID,
+					classUID,
+					instUID,
+					dicom::Status::SUCCESS,
+					UINT16(3),
+					dicom::DataSetStatus::NO_DATA_SET);
+				mutateResponse(responseCommand);
+				scpService.WriteCommand(responseCommand,classUID);
+
+				UINT16 status = 0;
+				dicom::DataSet response;
+				dicom::DataSet data;
+				bool rejected = false;
+				try
+				{
+					scu.readRSP(status,response,data);
+				}
+				catch(const std::exception&)
+				{
+					rejected = true;
+				}
+				assert(rejected);
+			};
+		const auto assertGetResponseRejected =
+			[&](const std::function<void(dicom::DataSet&)>& mutateResponse)
+			{
+				int sockets[2];
+				makeSocketPair(sockets);
+				PairedService scuService(sockets[0], classUID);
+				PairedService scpService(sockets[1], classUID);
+
+				dicom::NGetSCU scu(scuService,classUID);
+				scu.writeRQ(instUID,std::vector<dicom::Tag>());
+
+				dicom::DataSet request;
+				requireRead(scpService,request);
+				const UINT16 messageID = get<UINT16>(request,dicom::TAG_MSG_ID);
+				dicom::CommandSet::NGetRSP responseCommand(
+					messageID,
+					classUID,
+					instUID,
+					UINT16(0x0110),
+					dicom::DataSetStatus::NO_DATA_SET);
+				mutateResponse(responseCommand);
+				scpService.WriteCommand(responseCommand,classUID);
+
+				UINT16 status = 0;
+				dicom::DataSet response;
+				dicom::DataSet data;
+				bool rejected = false;
+				try
+				{
+					scu.readRSP(status,response,data);
+				}
+				catch(const std::exception&)
+				{
+					rejected = true;
+				}
+				assert(rejected);
+			};
+		const auto assertSetResponseRejected =
+			[&](const std::function<void(dicom::DataSet&)>& mutateResponse)
+			{
+				int sockets[2];
+				makeSocketPair(sockets);
+				PairedService scuService(sockets[0], classUID);
+				PairedService scpService(sockets[1], classUID);
+
+				dicom::DataSet requestData;
+				requestData.Put<dicom::VR_UI>(dicom::TAG_SOP_INST_UID, instUID);
+				dicom::NSetSCU scu(scuService,classUID);
+				scu.writeRQ(instUID,requestData);
+
+				dicom::DataSet request;
+				requireRead(scpService,request);
+				dicom::DataSet ignoredRequestData;
+				requireRead(scpService,ignoredRequestData);
+				const UINT16 messageID = get<UINT16>(request,dicom::TAG_MSG_ID);
+				dicom::CommandSet::NSetRSP responseCommand(
+					messageID,
+					classUID,
+					instUID,
+					dicom::Status::SUCCESS,
+					dicom::DataSetStatus::NO_DATA_SET);
+				mutateResponse(responseCommand);
+				scpService.WriteCommand(responseCommand,classUID);
+
+				UINT16 status = 0;
+				dicom::DataSet response;
+				dicom::DataSet data;
+				bool rejected = false;
+				try
+				{
+					scu.readRSP(status,response,data);
+				}
+				catch(const std::exception&)
+				{
+					rejected = true;
+				}
+				assert(rejected);
+			};
+		const auto assertActionResponseRejected =
+			[&](const std::function<void(dicom::DataSet&)>& mutateResponse)
+			{
+				int sockets[2];
+				makeSocketPair(sockets);
+				PairedService scuService(sockets[0], classUID);
+				PairedService scpService(sockets[1], classUID);
+
+				dicom::NActionSCU scu(scuService,classUID);
+				scu.writeRQ(instUID,UINT16(7));
+
+				dicom::DataSet request;
+				requireRead(scpService,request);
+				const UINT16 messageID = get<UINT16>(request,dicom::TAG_MSG_ID);
+				dicom::CommandSet::NActionRSP responseCommand(
+					messageID,
+					classUID,
+					instUID,
+					dicom::Status::SUCCESS,
+					UINT16(7),
+					dicom::DataSetStatus::NO_DATA_SET);
+				mutateResponse(responseCommand);
+				scpService.WriteCommand(responseCommand,classUID);
+
+				UINT16 status = 0;
+				dicom::DataSet response;
+				dicom::DataSet data;
+				bool rejected = false;
+				try
+				{
+					scu.readRSP(status,response,data);
+				}
+				catch(const std::exception&)
+				{
+					rejected = true;
+				}
+				assert(rejected);
+			};
+		const auto assertCreateResponseRejected =
+			[&](const std::function<void(dicom::DataSet&)>& mutateResponse)
+			{
+				int sockets[2];
+				makeSocketPair(sockets);
+				PairedService scuService(sockets[0], classUID);
+				PairedService scpService(sockets[1], classUID);
+
+				dicom::NCreateSCU scu(scuService,classUID);
+				scu.writeRQ(instUID);
+
+				dicom::DataSet request;
+				requireRead(scpService,request);
+				const UINT16 messageID = get<UINT16>(request,dicom::TAG_MSG_ID);
+				dicom::CommandSet::NCreateRSP responseCommand(
+					messageID,
+					classUID,
+					instUID,
+					dicom::Status::SUCCESS,
+					dicom::DataSetStatus::NO_DATA_SET);
+				mutateResponse(responseCommand);
+				scpService.WriteCommand(responseCommand,classUID);
+
+				UINT16 status = 0;
+				dicom::DataSet response;
+				dicom::DataSet data;
+				bool rejected = false;
+				try
+				{
+					scu.readRSP(status,response,data);
+				}
+				catch(const std::exception&)
+				{
+					rejected = true;
+				}
+				assert(rejected);
+			};
+		const auto assertAllNdimseResponsesRejected =
+			[&](const std::function<void(dicom::DataSet&)>& mutateResponse)
+			{
+				assertEventResponseRejected(mutateResponse);
+				assertGetResponseRejected(mutateResponse);
+				assertSetResponseRejected(mutateResponse);
+				assertActionResponseRejected(mutateResponse);
+				assertCreateResponseRejected(mutateResponse);
+				assertDeleteResponseRejected(mutateResponse);
+			};
+
+		const std::vector<dicom::Tag> mandatoryResponseFields = {
+			dicom::TAG_CMD_FIELD,
+			dicom::TAG_MSG_ID_RSP,
+			dicom::TAG_AFF_SOP_CLASS_UID,
+			dicom::TAG_DATA_SET_TYPE,
+			dicom::TAG_STATUS
+		};
+		for(std::vector<dicom::Tag>::const_iterator I=mandatoryResponseFields.begin();
+			I!=mandatoryResponseFields.end();
+			++I)
+		{
+			const dicom::Tag field = *I;
+			const auto removeField =
+				[field](dicom::DataSet& response)
+				{
+					response.erase(field);
+				};
+			assertAllNdimseResponsesRejected(removeField);
+		}
+
+		assertEventResponseRejected(
 			[](dicom::DataSet& response)
 			{
+				response.erase(dicom::TAG_CMD_FIELD);
+				response.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD,dicom::Command::N_DELETE_RSP);
+			});
+		assertGetResponseRejected(
+			[](dicom::DataSet& response)
+			{
+				response.erase(dicom::TAG_CMD_FIELD);
+				response.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD,dicom::Command::N_DELETE_RSP);
+			});
+		assertSetResponseRejected(
+			[](dicom::DataSet& response)
+			{
+				response.erase(dicom::TAG_CMD_FIELD);
+				response.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD,dicom::Command::N_DELETE_RSP);
+			});
+		assertActionResponseRejected(
+			[](dicom::DataSet& response)
+			{
+				response.erase(dicom::TAG_CMD_FIELD);
+				response.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD,dicom::Command::N_DELETE_RSP);
+			});
+		assertCreateResponseRejected(
+			[](dicom::DataSet& response)
+			{
+				response.erase(dicom::TAG_CMD_FIELD);
 				response.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD,dicom::Command::N_DELETE_RSP);
 			});
 		assertDeleteResponseRejected(
 			[](dicom::DataSet& response)
 			{
+				response.erase(dicom::TAG_CMD_FIELD);
+				response.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD,dicom::Command::N_GET_RSP);
+			});
+
+		assertAllNdimseResponsesRejected(
+			[](dicom::DataSet& response)
+			{
+				response.erase(dicom::TAG_MSG_ID_RSP);
+				response.Put<dicom::VR_US>(dicom::TAG_MSG_ID_RSP,UINT16(0));
+			});
+		assertAllNdimseResponsesRejected(
+			[](dicom::DataSet& response)
+			{
+				response.erase(dicom::TAG_AFF_SOP_CLASS_UID);
+				response.Put<dicom::VR_UI>(
+					dicom::TAG_AFF_SOP_CLASS_UID,
+					dicom::UID("1.2.826.0.1.3680043.10.1553.31.99"));
+			});
+		assertAllNdimseResponsesRejected(
+			[](dicom::DataSet& response)
+			{
+				response.erase(dicom::TAG_AFF_SOP_INST_UID);
+				response.Put<dicom::VR_UI>(
+					dicom::TAG_AFF_SOP_INST_UID,
+					dicom::UID("1.2.826.0.1.3680043.10.1553.31.1.99"));
+			});
+		assertAllNdimseResponsesRejected(
+			[](dicom::DataSet& response)
+			{
+				response.erase(dicom::TAG_STATUS);
+				response.Put<dicom::VR_US>(dicom::TAG_STATUS,dicom::Status::PENDING);
+			});
+
+		assertAllNdimseResponsesRejected(
+			[](dicom::DataSet& response)
+			{
+				response.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD,dicom::Command::N_DELETE_RSP);
+			});
+		assertAllNdimseResponsesRejected(
+			[](dicom::DataSet& response)
+			{
 				response.Put<dicom::VR_US>(dicom::TAG_MSG_ID_RSP,UINT16(1));
 			});
-		assertDeleteResponseRejected(
+		assertAllNdimseResponsesRejected(
 			[&](dicom::DataSet& response)
 			{
 				response.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_CLASS_UID,classUID);
 			});
-		assertDeleteResponseRejected(
+		assertAllNdimseResponsesRejected(
 			[&](dicom::DataSet& response)
 			{
 				response.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_INST_UID,instUID);
 			});
-		assertDeleteResponseRejected(
+		assertAllNdimseResponsesRejected(
 			[](dicom::DataSet& response)
 			{
 				response.Put<dicom::VR_US>(
 					dicom::TAG_DATA_SET_TYPE,
 					dicom::DataSetStatus::NO_DATA_SET);
 			});
-		assertDeleteResponseRejected(
+		assertAllNdimseResponsesRejected(
 			[](dicom::DataSet& response)
 			{
 				response.Put<dicom::VR_US>(dicom::TAG_STATUS,dicom::Status::SUCCESS);
 			});
-		assertDeleteResponseRejected(
+		assertAllNdimseResponsesRejected(
 			[](dicom::DataSet& response)
 			{
 				response.Put<dicom::VR_LO>(
@@ -3744,7 +4498,7 @@ namespace
 					dicom::TAG_ERR_COMMENT,
 					std::string("second"));
 			});
-		assertDeleteResponseRejected(
+		assertAllNdimseResponsesRejected(
 			[](dicom::DataSet& response)
 			{
 				response.Put<dicom::VR_US>(dicom::TAG_ERR_ID,UINT16(1));
