@@ -3981,9 +3981,19 @@ namespace
 		assertAllNdimseRequestsRejected(
 			[](dicom::DataSet& command)
 			{
+				command.Put<dicom::VR_US>(dicom::TAG_MSG_ID_RSP,UINT16(165));
+			});
+		assertAllNdimseRequestsRejected(
+			[](dicom::DataSet& command)
+			{
 				command.Put<dicom::VR_US>(
 					dicom::TAG_DATA_SET_TYPE,
 					dicom::DataSetStatus::NO_DATA_SET);
+			});
+		assertAllNdimseRequestsRejected(
+			[](dicom::DataSet& command)
+			{
+				command.Put<dicom::VR_LO>(dicom::TAG_PAT_ID,std::string("PATIENT"));
 			});
 		assertAffectedClassRequestsRejected(
 			[&](dicom::DataSet& command)
@@ -4537,6 +4547,16 @@ namespace
 				assertCreateResponseRejected(mutateResponse);
 				assertDeleteResponseRejected(mutateResponse);
 			};
+		assertAllNdimseResponsesRejected(
+			[](dicom::DataSet& response)
+			{
+				response.Put<dicom::VR_LO>(dicom::TAG_PAT_ID,std::string("PATIENT"));
+			});
+		assertAllNdimseResponsesRejected(
+			[](dicom::DataSet& response)
+			{
+				response.Put<dicom::VR_US>(dicom::TAG_MSG_ID,UINT16(167));
+			});
 
 		const std::vector<dicom::Tag> mandatoryResponseFields = {
 			dicom::TAG_CMD_FIELD,
@@ -5571,6 +5591,19 @@ namespace
 		}
 		assert(duplicateMessageIDRejected);
 
+		dicom::CommandSet::CCancelRQ unexpectedMessageID(13);
+		unexpectedMessageID.Put<dicom::VR_US>(dicom::TAG_MSG_ID, UINT16(13));
+		bool unexpectedMessageIDRejected = false;
+		try
+		{
+			dicom::HandleCCancel(service, unexpectedMessageID);
+		}
+		catch(const std::exception&)
+		{
+			unexpectedMessageIDRejected = true;
+		}
+		assert(unexpectedMessageIDRejected);
+
 		dicom::CommandSet::CCancelRQ duplicateDataSetType(11);
 		duplicateDataSetType.Put<dicom::VR_US>(dicom::TAG_DATA_SET_TYPE, dicom::DataSetStatus::NO_DATA_SET);
 		bool duplicateDataSetTypeRejected = false;
@@ -6028,6 +6061,35 @@ namespace
 		assertCGetResponseAcceptedStatus(0xc123, 239);
 		assertCMoveResponseAcceptedStatus(0xa801, 241);
 		assertCMoveResponseAcceptedStatus(0xc123, 243);
+		assertCFindResponseAcceptedStatus(0x0122, 245);
+		assertCGetResponseAcceptedStatus(0x0122, 247);
+		assertCGetResponseAcceptedStatus(0x0124, 249);
+		assertCGetResponseAcceptedStatus(0x0210, 251);
+		assertCGetResponseAcceptedStatus(0x0211, 252);
+		assertCGetResponseAcceptedStatus(0x0212, 254);
+		assertCMoveResponseAcceptedStatus(0x0122, 256);
+		assertCMoveResponseAcceptedStatus(0x0124, 258);
+		assertCMoveResponseAcceptedStatus(0x0210, 260);
+		assertCMoveResponseAcceptedStatus(0x0211, 262);
+		assertCMoveResponseAcceptedStatus(0x0212, 264);
+
+		dicom::CommandSet::CFindRSP findResponseWithDataElement(
+			266,
+			classUID,
+			dicom::Status::SUCCESS,
+			dicom::DataSetStatus::NO_DATA_SET);
+		findResponseWithDataElement.Put<dicom::VR_LO>(
+			dicom::TAG_PAT_ID,
+			std::string("PATIENT"));
+		assertCFindResponseRejected(findResponseWithDataElement, 266);
+
+		dicom::CommandSet::CFindRSP findResponseWithMessageID(
+			268,
+			classUID,
+			dicom::Status::SUCCESS,
+			dicom::DataSetStatus::NO_DATA_SET);
+		findResponseWithMessageID.Put<dicom::VR_US>(dicom::TAG_MSG_ID, UINT16(268));
+		assertCFindResponseRejected(findResponseWithMessageID, 268);
 
 		dicom::CommandSet::CFindRSP findResponseWithRetrieveCounter(
 			253,
@@ -6557,7 +6619,7 @@ namespace
 		dicom::CommandSet::CMoveRSP invalidMoveResponseStatus(
 			193,
 			classUID,
-			UINT16(0x0210),
+			UINT16(0x020f),
 			dicom::DataSetStatus::NO_DATA_SET);
 		assertCMoveResponseRejected(invalidMoveResponseStatus, 193);
 
@@ -7899,6 +7961,8 @@ namespace
 
 		assertCEchoResponseAcceptedStatus(0x0122);
 		assertCEchoResponseAcceptedStatus(0x0210);
+		assertCEchoResponseAcceptedStatus(0x0211);
+		assertCEchoResponseAcceptedStatus(0x0212);
 
 		{
 			int sockets[2];
@@ -8144,6 +8208,12 @@ namespace
 		assertCStoreResponseAcceptedStatus(0xb000);
 		assertCStoreResponseAcceptedStatus(0xa700);
 		assertCStoreResponseAcceptedStatus(0xc123);
+		assertCStoreResponseAcceptedStatus(0x0117);
+		assertCStoreResponseAcceptedStatus(0x0122);
+		assertCStoreResponseAcceptedStatus(0x0124);
+		assertCStoreResponseAcceptedStatus(0x0210);
+		assertCStoreResponseAcceptedStatus(0x0211);
+		assertCStoreResponseAcceptedStatus(0x0212);
 
 		{
 			const dicom::UID instanceUID("1.2.826.0.1.3680043.10.1553.12.41");
@@ -9591,6 +9661,16 @@ namespace
 		dicom::CommandSet::CFindRQ findMoveOriginatorMessageID(216,classUID);
 		findMoveOriginatorMessageID.Put<dicom::VR_US>(dicom::TAG_MOVE_ORIG_MSG_ID, UINT16(216));
 		assertFindRequestRejected(findMoveOriginatorMessageID);
+
+		dicom::CommandSet::CFindRQ findWithDataElement(218,classUID);
+		findWithDataElement.Put<dicom::VR_LO>(dicom::TAG_PAT_ID,std::string("PATIENT"));
+		assertFindRequestRejected(findWithDataElement);
+
+		dicom::CommandSet::CFindRQ findWithMessageIDBeingRespondedTo(219,classUID);
+		findWithMessageIDBeingRespondedTo.Put<dicom::VR_US>(
+			dicom::TAG_MSG_ID_RSP,
+			UINT16(219));
+		assertFindRequestRejected(findWithMessageIDBeingRespondedTo);
 
 		dicom::DataSet invalidStorePriority;
 		invalidStorePriority.Put<dicom::VR_UI>(

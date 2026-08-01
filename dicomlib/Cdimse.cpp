@@ -33,6 +33,18 @@ namespace dicom
 {
 	namespace
 	{
+		bool IsCommandElement(Tag tag)
+		{
+			return (static_cast<unsigned int>(tag) & 0xffff0000u) == 0;
+		}
+
+		void ValidateCommandSetElements(const DataSet& command)
+		{
+			for(DataSet::const_iterator I=command.begin(); I!=command.end(); ++I)
+				if(!IsCommandElement(I->first))
+					throw exception("Command Set contains non-command element");
+		}
+
 		void ValidateCdimseResponse(
 			const DataSet& response,
 			Command::Code expectedCommand,
@@ -40,10 +52,13 @@ namespace dicom
 			const UID& expectedClassUID,
 			const UID* expectedInstanceUID = 0)
 		{
+			ValidateCommandSetElements(response);
 			if(response.Values(TAG_CMD_FIELD).size() != 1)
 				throw exception("Invalid C-DIMSE response command field");
 			if(response.Values(TAG_MSG_ID_RSP).size() != 1)
 				throw exception("Invalid C-DIMSE response message ID");
+			if(response.exists(TAG_MSG_ID))
+				throw exception("Unexpected C-DIMSE response message ID");
 			UINT16 command = 0;
 			UINT16 responseMessageID = 0;
 			response(TAG_CMD_FIELD) >> command;
@@ -146,8 +161,15 @@ namespace dicom
 			Command::Code expectedCommand,
 			const UID* expectedClassUID = 0)
 		{
+			ValidateCommandSetElements(command);
 			if(command.Values(TAG_CMD_FIELD).size() != 1)
 				throw exception("Invalid C-DIMSE request command field");
+			if(command.exists(TAG_MSG_ID_RSP) &&
+				expectedCommand != Command::C_CANCEL_RQ)
+				throw exception("Unexpected C-DIMSE request Message ID Being Responded To");
+			if(expectedCommand == Command::C_CANCEL_RQ &&
+				command.exists(TAG_MSG_ID))
+				throw exception("Unexpected C-CANCEL-RQ Message ID");
 			UINT16 commandField = 0;
 			command(TAG_CMD_FIELD) >> commandField;
 			if(commandField != expectedCommand)
@@ -739,6 +761,12 @@ namespace dicom
 	bool IsCStoreResponseStatus(UINT16 status)
 	{
 		return IsCdimseSuccessStatus(status) ||
+			status == 0x0117 ||
+			status == 0x0122 ||
+			status == 0x0124 ||
+			status == 0x0210 ||
+			status == 0x0211 ||
+			status == 0x0212 ||
 			status == 0xb000 ||
 			status == 0xb006 ||
 			status == 0xb007 ||
@@ -753,6 +781,7 @@ namespace dicom
 			status == Status::CANCEL ||
 			status == Status::PENDING ||
 			status == Status::PENDING1 ||
+			status == 0x0122 ||
 			status == 0xa700 ||
 			status == 0xa900 ||
 			IsUnableToProcessStatus(status);
@@ -764,6 +793,11 @@ namespace dicom
 			status == Status::CANCEL ||
 			status == Status::WARNING ||
 			status == Status::PENDING ||
+			status == 0x0122 ||
+			status == 0x0124 ||
+			status == 0x0210 ||
+			status == 0x0211 ||
+			status == 0x0212 ||
 			status == 0xa701 ||
 			status == 0xa702 ||
 			status == 0xa900 ||
@@ -776,6 +810,11 @@ namespace dicom
 			status == Status::CANCEL ||
 			status == Status::WARNING ||
 			status == Status::PENDING ||
+			status == 0x0122 ||
+			status == 0x0124 ||
+			status == 0x0210 ||
+			status == 0x0211 ||
+			status == 0x0212 ||
 			status == 0xa701 ||
 			status == 0xa702 ||
 			status == 0xa801 ||

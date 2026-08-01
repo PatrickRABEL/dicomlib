@@ -186,17 +186,22 @@ tests for:
 
 C-DIMSE SCU response readers validate command fields, Message ID Being
 Responded To, SOP Class UID values where applicable, service-specific response
-statuses, Data Set presence rules, tested rejection of retrieve sub-operation
-counters on non-retrieve responses, tested rejection of Affected SOP Instance
-UID fields on non-storage responses, tested rejection of Requested SOP
-Class/Instance UID fields on responses, tested rejection of Priority, Move
-Destination, and Move Originator fields on responses, and tested Query/Retrieve
-response Identifier rules. C-DIMSE SCP handlers validate request command fields,
+statuses including tested PS3.7 DIMSE generic failure statuses where listed for
+the implemented C-DIMSE service, Data Set presence rules, tested rejection of
+retrieve sub-operation counters on non-retrieve responses, tested rejection of
+Affected SOP Instance UID fields on non-storage responses, tested rejection of
+Requested SOP Class/Instance UID fields on responses, tested rejection of
+Priority, Move Destination, Move Originator, and request-only Message ID fields
+on responses, tested rejection of non-command Data Elements in command sets, and tested
+Query/Retrieve response Identifier rules. C-DIMSE SCP handlers validate request
+command fields,
 Affected SOP Class UIDs, tested rejection of Requested SOP Class/Instance UID
 fields, tested rejection of Affected SOP Instance UID fields on non-storage
 requests, request Data Set presence, Priority fields, C-STORE SOP Instance UID
 fields, C-MOVE Move Destination fields, tested rejection of Move Destination
-and Move Originator fields on unsupported request paths, and callback response
+and Move Originator fields on unsupported request paths, tested rejection of
+response-only Message ID Being Responded To fields on request paths, tested
+rejection of non-command Data Elements in command sets, and callback response
 statuses before writing responses.
 
 C-CANCEL-RQ is encoded, accepted by SCP dispatch, recorded on association
@@ -237,8 +242,12 @@ multi-valued command fields whose VM is one, including command field, message
 ID fields, SOP Class UID, SOP Instance UID, Data Set Type, Event Type ID, and
 Action Type ID where applicable. Generic N-DIMSE response validation rejects
 tested missing, unexpected, invalid, or multi-valued response command fields,
-including status, Error Comment, and Error ID where applicable. Multi-valued
-Attribute Identifier List fields remain allowed where tested.
+including status, Error Comment, and Error ID where applicable. Generic N-DIMSE
+request validation rejects tested response-only Message ID Being Responded To
+fields, and response validation rejects tested request-only Message ID fields.
+Generic N-DIMSE request and response validation reject tested non-command Data
+Elements in command sets. Multi-valued Attribute Identifier List fields remain
+allowed where tested.
 
 N-DIMSE SCU request/response paths and SCP handlers are covered over local
 P-DATA for N-EVENT-REPORT, N-GET, N-SET, N-ACTION, N-CREATE, and N-DELETE.

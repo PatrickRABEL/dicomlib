@@ -18,6 +18,18 @@ namespace dicom
 {
 	namespace
 	{
+		bool IsCommandElement(Tag tag)
+		{
+			return (static_cast<unsigned int>(tag) & 0xffff0000u) == 0;
+		}
+
+		void ValidateCommandSetElements(const DataSet& command)
+		{
+			for(DataSet::const_iterator I=command.begin(); I!=command.end(); ++I)
+				if(!IsCommandElement(I->first))
+					throw exception("Command Set contains non-command element");
+		}
+
 		bool IsStatusRange(UINT16 status, UINT16 highNibble)
 		{
 			return (status & 0xf000) == highNibble;
@@ -30,10 +42,13 @@ namespace dicom
 			const UID& expectedClassUID,
 			const UID* expectedInstanceUID = 0)
 		{
+			ValidateCommandSetElements(response);
 			if(response.Values(TAG_CMD_FIELD).size() != 1)
 				throw exception("Invalid N-DIMSE response command field");
 			if(response.Values(TAG_MSG_ID_RSP).size() != 1)
 				throw exception("Invalid N-DIMSE response message ID");
+			if(response.exists(TAG_MSG_ID))
+				throw exception("Unexpected N-DIMSE response message ID");
 			if(response.Values(TAG_AFF_SOP_CLASS_UID).size() > 1)
 				throw exception("Invalid N-DIMSE response SOP Class UID");
 			if(response.Values(TAG_DATA_SET_TYPE).size() != 1)
@@ -91,10 +106,13 @@ namespace dicom
 			Command::Code expectedCommand,
 			const UID& expectedClassUID)
 		{
+			ValidateCommandSetElements(command);
 			if(command.Values(TAG_CMD_FIELD).size() != 1)
 				throw exception("Invalid N-DIMSE request command field");
 			if(command.Values(TAG_MSG_ID).size() != 1)
 				throw exception("Invalid N-DIMSE request message ID");
+			if(command.exists(TAG_MSG_ID_RSP))
+				throw exception("Unexpected N-DIMSE request message ID");
 			if(command.Values(TAG_DATA_SET_TYPE).size() != 1)
 				throw exception("Invalid N-DIMSE request Data Set Type");
 
