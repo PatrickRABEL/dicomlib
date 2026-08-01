@@ -59,6 +59,8 @@ namespace dicom
 					throw exception("Invalid C-DIMSE response SOP Class UID");
 				UID responseClassUID;
 				response(TAG_AFF_SOP_CLASS_UID) >> responseClassUID;
+				if(responseClassUID.str().empty())
+					throw exception("Invalid C-DIMSE response SOP Class UID");
 				if(responseClassUID != expectedClassUID)
 					throw exception("Unexpected C-DIMSE response SOP Class UID");
 			}
@@ -68,13 +70,35 @@ namespace dicom
 					throw exception("Invalid C-DIMSE response SOP Instance UID");
 				UID responseInstanceUID;
 				response(TAG_AFF_SOP_INST_UID) >> responseInstanceUID;
+				if(responseInstanceUID.str().empty())
+					throw exception("Invalid C-DIMSE response SOP Instance UID");
 				if(responseInstanceUID != *expectedInstanceUID)
 					throw exception("Unexpected C-DIMSE response SOP Instance UID");
 			}
+			if(!expectedInstanceUID && response.exists(TAG_AFF_SOP_INST_UID))
+				throw exception("Unexpected C-DIMSE response SOP Instance UID");
+			if(response.exists(TAG_REQ_SOP_CLASS_UID))
+				throw exception("Unexpected C-DIMSE response SOP Class UID");
+			if(response.exists(TAG_REQ_SOP_INST_UID))
+				throw exception("Unexpected C-DIMSE response SOP Instance UID");
+			if(response.exists(TAG_PRIORITY))
+				throw exception("Unexpected C-DIMSE response priority");
+			if(response.exists(TAG_MOVE_DEST))
+				throw exception("Unexpected C-DIMSE response Move Destination");
+			if(response.exists(TAG_MOVE_ORIG_AET) ||
+				response.exists(TAG_MOVE_ORIG_MSG_ID))
+				throw exception("Unexpected C-DIMSE response Move Originator");
 			if(response.Values(TAG_ERR_COMMENT).size() > 1)
 				throw exception("Invalid C-DIMSE response Error Comment");
 			if(response.Values(TAG_ERR_ID).size() > 1)
 				throw exception("Invalid C-DIMSE response Error ID");
+			if(expectedCommand != Command::C_GET_RSP &&
+				expectedCommand != Command::C_MOVE_RSP &&
+				(response.exists(TAG_NUM_REMAIN_SUBOP) ||
+					response.exists(TAG_NUM_COMPL_SUBOP) ||
+					response.exists(TAG_NUM_FAIL_SUBOP) ||
+					response.exists(TAG_NUM_WARN_SUBOP)))
+				throw exception("Unexpected C-DIMSE response sub-operation counter");
 		}
 
 		void ValidateCdimseResponseStatus(UINT16 status, Command::Code command)
@@ -128,6 +152,26 @@ namespace dicom
 			command(TAG_CMD_FIELD) >> commandField;
 			if(commandField != expectedCommand)
 				throw exception("Unexpected C-DIMSE request command field");
+			if(command.exists(TAG_REQ_SOP_CLASS_UID))
+				throw exception("Unexpected C-DIMSE request SOP Class UID");
+			if(command.exists(TAG_REQ_SOP_INST_UID))
+				throw exception("Unexpected C-DIMSE request SOP Instance UID");
+			if(expectedCommand != Command::C_STORE_RQ &&
+				command.exists(TAG_AFF_SOP_INST_UID))
+				throw exception("Unexpected C-DIMSE request SOP Instance UID");
+			if(expectedCommand != Command::C_STORE_RQ &&
+				expectedCommand != Command::C_FIND_RQ &&
+				expectedCommand != Command::C_GET_RQ &&
+				expectedCommand != Command::C_MOVE_RQ &&
+				command.exists(TAG_PRIORITY))
+				throw exception("Unexpected C-DIMSE request priority");
+			if(expectedCommand != Command::C_MOVE_RQ &&
+				command.exists(TAG_MOVE_DEST))
+				throw exception("Unexpected C-DIMSE request Move Destination");
+			if(expectedCommand != Command::C_STORE_RQ &&
+				(command.exists(TAG_MOVE_ORIG_AET) ||
+					command.exists(TAG_MOVE_ORIG_MSG_ID)))
+				throw exception("Unexpected C-DIMSE request Move Originator");
 
 			if(expectedClassUID)
 			{
@@ -135,9 +179,13 @@ namespace dicom
 					throw exception("Invalid C-DIMSE request SOP Class UID");
 				UID commandClassUID;
 				command(TAG_AFF_SOP_CLASS_UID) >> commandClassUID;
+				if(commandClassUID.str().empty())
+					throw exception("Invalid C-DIMSE request SOP Class UID");
 				if(commandClassUID != *expectedClassUID)
 					throw exception("Unexpected C-DIMSE request SOP Class UID");
 			}
+			else if(command.exists(TAG_AFF_SOP_CLASS_UID))
+				throw exception("Unexpected C-DIMSE request SOP Class UID");
 		}
 
 		void ValidateCdimseRequestMessageID(const DataSet& command)
@@ -249,18 +297,7 @@ namespace dicom
 				throw exception("Invalid retrieve response sub-operation counters");
 
 			if(!IsCdimsePendingStatus(status))
-			{
-				if(!IsCdimseCancelStatus(status) &&
-					response.exists(TAG_NUM_REMAIN_SUBOP))
-				{
-					if(command == Command::C_GET_RSP)
-						throw exception("C-GET final response shall not include remaining sub-operation count");
-					if(command == Command::C_MOVE_RSP)
-						throw exception("C-MOVE final response shall not include remaining sub-operation count");
-					throw exception("Final retrieve response shall not include remaining sub-operation count");
-				}
 				return;
-			}
 
 			if(!response.exists(TAG_NUM_REMAIN_SUBOP) ||
 				!response.exists(TAG_NUM_COMPL_SUBOP) ||

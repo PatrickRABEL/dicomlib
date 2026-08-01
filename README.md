@@ -186,10 +186,17 @@ tests for:
 
 C-DIMSE SCU response readers validate command fields, Message ID Being
 Responded To, SOP Class UID values where applicable, service-specific response
-statuses, Data Set presence rules, and tested Query/Retrieve response
-Identifier rules. C-DIMSE SCP handlers validate request command fields,
-Affected SOP Class UIDs, request Data Set presence, Priority fields, C-STORE
-SOP Instance UID fields, C-MOVE Move Destination fields, and callback response
+statuses, Data Set presence rules, tested rejection of retrieve sub-operation
+counters on non-retrieve responses, tested rejection of Affected SOP Instance
+UID fields on non-storage responses, tested rejection of Requested SOP
+Class/Instance UID fields on responses, tested rejection of Priority, Move
+Destination, and Move Originator fields on responses, and tested Query/Retrieve
+response Identifier rules. C-DIMSE SCP handlers validate request command fields,
+Affected SOP Class UIDs, tested rejection of Requested SOP Class/Instance UID
+fields, tested rejection of Affected SOP Instance UID fields on non-storage
+requests, request Data Set presence, Priority fields, C-STORE SOP Instance UID
+fields, C-MOVE Move Destination fields, tested rejection of Move Destination
+and Move Originator fields on unsupported request paths, and callback response
 statuses before writing responses.
 
 C-CANCEL-RQ is encoded, accepted by SCP dispatch, recorded on association
@@ -201,9 +208,10 @@ stop before the next sub-operation when a matching cancellation has already
 been recorded.
 
 C-GET and C-MOVE response handling validates tested sub-operation counter
-rules, rejects tested final non-Cancel responses that include `Number of
-Remaining Sub-operations`, and validates non-empty `Failed SOP Instance UID
-List` values when Cancel, Failure, or Warning responses announce an Identifier.
+rules, accepts tested final Success, Warning, and Failure responses that include
+single-valued retrieve sub-operation counter fields, and validates non-empty
+`Failed SOP Instance UID List` values when Cancel, Failure, or Warning responses
+announce an Identifier.
 Asynchronous termination of arbitrary application code and asynchronous DIMSE
 operation scheduling are not claimed.
 

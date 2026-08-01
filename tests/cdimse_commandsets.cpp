@@ -5583,6 +5583,118 @@ namespace
 			duplicateDataSetTypeRejected = true;
 		}
 		assert(duplicateDataSetTypeRejected);
+
+		dicom::CommandSet::CCancelRQ requestedClassUID(14);
+		requestedClassUID.Put<dicom::VR_UI>(
+			dicom::TAG_REQ_SOP_CLASS_UID,
+			dicom::VERIFICATION_SOP_CLASS);
+		bool requestedClassUIDRejected = false;
+		try
+		{
+			dicom::HandleCCancel(service, requestedClassUID);
+		}
+		catch(const std::exception&)
+		{
+			requestedClassUIDRejected = true;
+		}
+		assert(requestedClassUIDRejected);
+
+		dicom::CommandSet::CCancelRQ requestedInstanceUID(16);
+		requestedInstanceUID.Put<dicom::VR_UI>(
+			dicom::TAG_REQ_SOP_INST_UID,
+			dicom::UID("1.2.826.0.1.3680043.10.1553.11.16"));
+		bool requestedInstanceUIDRejected = false;
+		try
+		{
+			dicom::HandleCCancel(service, requestedInstanceUID);
+		}
+		catch(const std::exception&)
+		{
+			requestedInstanceUIDRejected = true;
+		}
+		assert(requestedInstanceUIDRejected);
+
+		dicom::CommandSet::CCancelRQ affectedClassUID(18);
+		affectedClassUID.Put<dicom::VR_UI>(
+			dicom::TAG_AFF_SOP_CLASS_UID,
+			dicom::VERIFICATION_SOP_CLASS);
+		bool affectedClassUIDRejected = false;
+		try
+		{
+			dicom::HandleCCancel(service, affectedClassUID);
+		}
+		catch(const std::exception&)
+		{
+			affectedClassUIDRejected = true;
+		}
+		assert(affectedClassUIDRejected);
+
+		dicom::CommandSet::CCancelRQ affectedInstanceUID(20);
+		affectedInstanceUID.Put<dicom::VR_UI>(
+			dicom::TAG_AFF_SOP_INST_UID,
+			dicom::UID("1.2.826.0.1.3680043.10.1553.11.20"));
+		bool affectedInstanceUIDRejected = false;
+		try
+		{
+			dicom::HandleCCancel(service, affectedInstanceUID);
+		}
+		catch(const std::exception&)
+		{
+			affectedInstanceUIDRejected = true;
+		}
+		assert(affectedInstanceUIDRejected);
+
+		dicom::CommandSet::CCancelRQ priority(22);
+		priority.Put<dicom::VR_US>(dicom::TAG_PRIORITY, dicom::Priority::MEDIUM);
+		bool priorityRejected = false;
+		try
+		{
+			dicom::HandleCCancel(service, priority);
+		}
+		catch(const std::exception&)
+		{
+			priorityRejected = true;
+		}
+		assert(priorityRejected);
+
+		dicom::CommandSet::CCancelRQ moveDestination(24);
+		moveDestination.Put<dicom::VR_AE>(dicom::TAG_MOVE_DEST, std::string("ARCHIVE_AE"));
+		bool moveDestinationRejected = false;
+		try
+		{
+			dicom::HandleCCancel(service, moveDestination);
+		}
+		catch(const std::exception&)
+		{
+			moveDestinationRejected = true;
+		}
+		assert(moveDestinationRejected);
+
+		dicom::CommandSet::CCancelRQ moveOriginatorAET(26);
+		moveOriginatorAET.Put<dicom::VR_AE>(dicom::TAG_MOVE_ORIG_AET, std::string("MOVE_AE"));
+		bool moveOriginatorAETRejected = false;
+		try
+		{
+			dicom::HandleCCancel(service, moveOriginatorAET);
+		}
+		catch(const std::exception&)
+		{
+			moveOriginatorAETRejected = true;
+		}
+		assert(moveOriginatorAETRejected);
+
+		dicom::CommandSet::CCancelRQ moveOriginatorMessageID(28);
+		moveOriginatorMessageID.Put<dicom::VR_US>(dicom::TAG_MOVE_ORIG_MSG_ID, UINT16(28));
+		bool moveOriginatorMessageIDRejected = false;
+		try
+		{
+			dicom::HandleCCancel(service, moveOriginatorMessageID);
+		}
+		catch(const std::exception&)
+		{
+			moveOriginatorMessageIDRejected = true;
+		}
+		assert(moveOriginatorMessageIDRejected);
 	}
 
 	void checkCCancelOverPData()
@@ -5916,6 +6028,162 @@ namespace
 		assertCGetResponseAcceptedStatus(0xc123, 239);
 		assertCMoveResponseAcceptedStatus(0xa801, 241);
 		assertCMoveResponseAcceptedStatus(0xc123, 243);
+
+		dicom::CommandSet::CFindRSP findResponseWithRetrieveCounter(
+			253,
+			classUID,
+			dicom::Status::SUCCESS,
+			dicom::DataSetStatus::NO_DATA_SET);
+		findResponseWithRetrieveCounter.Put<dicom::VR_US>(
+			dicom::TAG_NUM_REMAIN_SUBOP,
+			UINT16(0));
+		assertCFindResponseRejected(findResponseWithRetrieveCounter, 253);
+
+		dicom::CommandSet::CFindRSP findResponseWithSOPInstanceUID(
+			255,
+			classUID,
+			dicom::Status::SUCCESS,
+			dicom::DataSetStatus::NO_DATA_SET);
+		findResponseWithSOPInstanceUID.Put<dicom::VR_UI>(
+			dicom::TAG_AFF_SOP_INST_UID,
+			dicom::UID("1.2.826.0.1.3680043.10.1553.14.24"));
+		assertCFindResponseRejected(findResponseWithSOPInstanceUID, 255);
+
+		dicom::CommandSet::CGetRSP getResponseWithSOPInstanceUID(
+			257,
+			classUID,
+			dicom::Status::SUCCESS,
+			dicom::DataSetStatus::NO_DATA_SET);
+		getResponseWithSOPInstanceUID.Put<dicom::VR_UI>(
+			dicom::TAG_AFF_SOP_INST_UID,
+			dicom::UID("1.2.826.0.1.3680043.10.1553.14.25"));
+		assertCGetResponseRejected(getResponseWithSOPInstanceUID, 257);
+
+		dicom::CommandSet::CMoveRSP moveResponseWithSOPInstanceUID(
+			259,
+			classUID,
+			dicom::Status::SUCCESS,
+			dicom::DataSetStatus::NO_DATA_SET);
+		moveResponseWithSOPInstanceUID.Put<dicom::VR_UI>(
+			dicom::TAG_AFF_SOP_INST_UID,
+			dicom::UID("1.2.826.0.1.3680043.10.1553.14.26"));
+		assertCMoveResponseRejected(moveResponseWithSOPInstanceUID, 259);
+
+		dicom::CommandSet::CFindRSP findResponseWithRequestedClassUID(
+			261,
+			classUID,
+			dicom::Status::SUCCESS,
+			dicom::DataSetStatus::NO_DATA_SET);
+		findResponseWithRequestedClassUID.Put<dicom::VR_UI>(
+			dicom::TAG_REQ_SOP_CLASS_UID,
+			classUID);
+		assertCFindResponseRejected(findResponseWithRequestedClassUID, 261);
+
+		dicom::CommandSet::CGetRSP getResponseWithRequestedClassUID(
+			263,
+			classUID,
+			dicom::Status::SUCCESS,
+			dicom::DataSetStatus::NO_DATA_SET);
+		getResponseWithRequestedClassUID.Put<dicom::VR_UI>(
+			dicom::TAG_REQ_SOP_CLASS_UID,
+			classUID);
+		assertCGetResponseRejected(getResponseWithRequestedClassUID, 263);
+
+		dicom::CommandSet::CMoveRSP moveResponseWithRequestedClassUID(
+			265,
+			classUID,
+			dicom::Status::SUCCESS,
+			dicom::DataSetStatus::NO_DATA_SET);
+		moveResponseWithRequestedClassUID.Put<dicom::VR_UI>(
+			dicom::TAG_REQ_SOP_CLASS_UID,
+			classUID);
+		assertCMoveResponseRejected(moveResponseWithRequestedClassUID, 265);
+
+		dicom::CommandSet::CFindRSP findResponseWithRequestedInstanceUID(
+			267,
+			classUID,
+			dicom::Status::SUCCESS,
+			dicom::DataSetStatus::NO_DATA_SET);
+		findResponseWithRequestedInstanceUID.Put<dicom::VR_UI>(
+			dicom::TAG_REQ_SOP_INST_UID,
+			dicom::UID("1.2.826.0.1.3680043.10.1553.14.27"));
+		assertCFindResponseRejected(findResponseWithRequestedInstanceUID, 267);
+
+		dicom::CommandSet::CGetRSP getResponseWithRequestedInstanceUID(
+			269,
+			classUID,
+			dicom::Status::SUCCESS,
+			dicom::DataSetStatus::NO_DATA_SET);
+		getResponseWithRequestedInstanceUID.Put<dicom::VR_UI>(
+			dicom::TAG_REQ_SOP_INST_UID,
+			dicom::UID("1.2.826.0.1.3680043.10.1553.14.28"));
+		assertCGetResponseRejected(getResponseWithRequestedInstanceUID, 269);
+
+		dicom::CommandSet::CMoveRSP moveResponseWithRequestedInstanceUID(
+			271,
+			classUID,
+			dicom::Status::SUCCESS,
+			dicom::DataSetStatus::NO_DATA_SET);
+		moveResponseWithRequestedInstanceUID.Put<dicom::VR_UI>(
+			dicom::TAG_REQ_SOP_INST_UID,
+			dicom::UID("1.2.826.0.1.3680043.10.1553.14.29"));
+		assertCMoveResponseRejected(moveResponseWithRequestedInstanceUID, 271);
+
+		dicom::CommandSet::CFindRSP findResponseWithPriority(
+			273,
+			classUID,
+			dicom::Status::SUCCESS,
+			dicom::DataSetStatus::NO_DATA_SET);
+		findResponseWithPriority.Put<dicom::VR_US>(dicom::TAG_PRIORITY, dicom::Priority::MEDIUM);
+		assertCFindResponseRejected(findResponseWithPriority, 273);
+
+		dicom::CommandSet::CGetRSP getResponseWithMoveDestination(
+			275,
+			classUID,
+			dicom::Status::SUCCESS,
+			dicom::DataSetStatus::NO_DATA_SET);
+		getResponseWithMoveDestination.Put<dicom::VR_AE>(
+			dicom::TAG_MOVE_DEST,
+			std::string("ARCHIVE_AE"));
+		assertCGetResponseRejected(getResponseWithMoveDestination, 275);
+
+		dicom::CommandSet::CMoveRSP moveResponseWithMoveOriginatorAET(
+			277,
+			classUID,
+			dicom::Status::SUCCESS,
+			dicom::DataSetStatus::NO_DATA_SET);
+		moveResponseWithMoveOriginatorAET.Put<dicom::VR_AE>(
+			dicom::TAG_MOVE_ORIG_AET,
+			std::string("MOVE_AE"));
+		assertCMoveResponseRejected(moveResponseWithMoveOriginatorAET, 277);
+
+		dicom::CommandSet::CFindRSP findResponseWithMoveDestination(
+			279,
+			classUID,
+			dicom::Status::SUCCESS,
+			dicom::DataSetStatus::NO_DATA_SET);
+		findResponseWithMoveDestination.Put<dicom::VR_AE>(
+			dicom::TAG_MOVE_DEST,
+			std::string("ARCHIVE_AE"));
+		assertCFindResponseRejected(findResponseWithMoveDestination, 279);
+
+		dicom::CommandSet::CGetRSP getResponseWithMoveOriginatorMessageID(
+			281,
+			classUID,
+			dicom::Status::SUCCESS,
+			dicom::DataSetStatus::NO_DATA_SET);
+		getResponseWithMoveOriginatorMessageID.Put<dicom::VR_US>(
+			dicom::TAG_MOVE_ORIG_MSG_ID,
+			UINT16(281));
+		assertCGetResponseRejected(getResponseWithMoveOriginatorMessageID, 281);
+
+		dicom::CommandSet::CMoveRSP moveResponseWithPriority(
+			283,
+			classUID,
+			dicom::Status::SUCCESS,
+			dicom::DataSetStatus::NO_DATA_SET);
+		moveResponseWithPriority.Put<dicom::VR_US>(dicom::TAG_PRIORITY, dicom::Priority::MEDIUM);
+		assertCMoveResponseRejected(moveResponseWithPriority, 283);
 
 		{
 			int sockets[2];
@@ -6466,53 +6734,205 @@ namespace
 		duplicateMoveWarning.Put<dicom::VR_US>(dicom::TAG_NUM_WARN_SUBOP, UINT16(0));
 		assertCMoveResponseRejected(duplicateMoveWarning, 87);
 
-		dicom::CommandSet::CGetRSP successGetWithRemaining(
-			89,
-			classUID,
-			dicom::Status::SUCCESS,
-			dicom::DataSetStatus::NO_DATA_SET);
-		successGetWithRemaining.setRemaining(0);
-		assertCGetResponseRejected(successGetWithRemaining, 89);
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService scuSide(sockets[0], classUID);
+			PairedService scpSide(sockets[1], classUID);
+			dicom::CommandSet::CGetRSP successWithRemaining(
+				89,
+				classUID,
+				dicom::Status::SUCCESS,
+				dicom::DataSetStatus::NO_DATA_SET);
+			successWithRemaining.setRemaining(0);
+			successWithRemaining.setCompleted(3);
+			successWithRemaining.setFailed(0);
+			successWithRemaining.setWarning(0);
+			scpSide.WriteCommand(successWithRemaining, classUID);
 
-		dicom::CommandSet::CGetRSP warningGetWithRemaining(
-			91,
-			classUID,
-			dicom::Status::WARNING,
-			dicom::DataSetStatus::YES_DATA_SET);
-		warningGetWithRemaining.setRemaining(0);
-		assertCGetResponseRejectedWithStoreHandler(warningGetWithRemaining, 91);
+			TestCGetSCU scu(scuSide, classUID);
+			scu.setLastMessageID(89);
 
-		dicom::CommandSet::CGetRSP failureGetWithRemaining(
-			93,
-			classUID,
-			UINT16(0xa702),
-			dicom::DataSetStatus::YES_DATA_SET);
-		failureGetWithRemaining.setRemaining(0);
-		assertCGetResponseRejected(failureGetWithRemaining, 93);
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			scu.readRSP(status, response, data);
+			assert(status == dicom::Status::SUCCESS);
+			assert(get<UINT16>(response, dicom::TAG_NUM_REMAIN_SUBOP) == 0);
+			assert(get<UINT16>(response, dicom::TAG_NUM_COMPL_SUBOP) == 3);
+			assert(get<UINT16>(response, dicom::TAG_NUM_FAIL_SUBOP) == 0);
+			assert(get<UINT16>(response, dicom::TAG_NUM_WARN_SUBOP) == 0);
+		}
 
-		dicom::CommandSet::CMoveRSP successMoveWithRemaining(
-			95,
-			classUID,
-			dicom::Status::SUCCESS,
-			dicom::DataSetStatus::NO_DATA_SET);
-		successMoveWithRemaining.setRemaining(0);
-		assertCMoveResponseRejected(successMoveWithRemaining, 95);
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService scuSide(sockets[0], classUID);
+			PairedService scpSide(sockets[1], classUID);
+			dicom::CommandSet::CGetRSP warningWithRemaining(
+				91,
+				classUID,
+				dicom::Status::WARNING,
+				dicom::DataSetStatus::YES_DATA_SET);
+			warningWithRemaining.setRemaining(0);
+			warningWithRemaining.setCompleted(2);
+			warningWithRemaining.setFailed(0);
+			warningWithRemaining.setWarning(1);
+			dicom::DataSet identifier;
+			identifier.Put<dicom::VR_UI>(
+				dicom::TAG_FAILED_SOPINSTUID_LIST,
+				dicom::UID("1.2.826.0.1.3680043.10.1553.14.20"));
+			scpSide.WriteCommand(warningWithRemaining, classUID);
+			scpSide.WriteDataSet(identifier, classUID);
 
-		dicom::CommandSet::CMoveRSP warningMoveWithRemaining(
-			97,
-			classUID,
-			dicom::Status::WARNING,
-			dicom::DataSetStatus::YES_DATA_SET);
-		warningMoveWithRemaining.setRemaining(0);
-		assertCMoveResponseRejected(warningMoveWithRemaining, 97);
+			TestCGetSCU scu(scuSide, classUID);
+			scu.setLastMessageID(91);
 
-		dicom::CommandSet::CMoveRSP failureMoveWithRemaining(
-			99,
-			classUID,
-			UINT16(0xa702),
-			dicom::DataSetStatus::YES_DATA_SET);
-		failureMoveWithRemaining.setRemaining(0);
-		assertCMoveResponseRejected(failureMoveWithRemaining, 99);
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			scu.readRSP(status, response, data);
+			assert(status == dicom::Status::WARNING);
+			assert(get<UINT16>(response, dicom::TAG_NUM_REMAIN_SUBOP) == 0);
+			assert(get<UINT16>(response, dicom::TAG_NUM_COMPL_SUBOP) == 2);
+			assert(get<UINT16>(response, dicom::TAG_NUM_FAIL_SUBOP) == 0);
+			assert(get<UINT16>(response, dicom::TAG_NUM_WARN_SUBOP) == 1);
+		}
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService scuSide(sockets[0], classUID);
+			PairedService scpSide(sockets[1], classUID);
+			dicom::CommandSet::CGetRSP failureWithRemaining(
+				93,
+				classUID,
+				UINT16(0xa702),
+				dicom::DataSetStatus::YES_DATA_SET);
+			failureWithRemaining.setRemaining(0);
+			failureWithRemaining.setCompleted(1);
+			failureWithRemaining.setFailed(2);
+			failureWithRemaining.setWarning(0);
+			dicom::DataSet identifier;
+			identifier.Put<dicom::VR_UI>(
+				dicom::TAG_FAILED_SOPINSTUID_LIST,
+				dicom::UID("1.2.826.0.1.3680043.10.1553.14.21"));
+			scpSide.WriteCommand(failureWithRemaining, classUID);
+			scpSide.WriteDataSet(identifier, classUID);
+
+			TestCGetSCU scu(scuSide, classUID);
+			scu.setLastMessageID(93);
+
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			scu.readRSP(status, response, data);
+			assert(status == UINT16(0xa702));
+			assert(get<UINT16>(response, dicom::TAG_NUM_REMAIN_SUBOP) == 0);
+			assert(get<UINT16>(response, dicom::TAG_NUM_COMPL_SUBOP) == 1);
+			assert(get<UINT16>(response, dicom::TAG_NUM_FAIL_SUBOP) == 2);
+			assert(get<UINT16>(response, dicom::TAG_NUM_WARN_SUBOP) == 0);
+		}
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService scuSide(sockets[0], classUID);
+			PairedService scpSide(sockets[1], classUID);
+			dicom::CommandSet::CMoveRSP successWithRemaining(
+				95,
+				classUID,
+				dicom::Status::SUCCESS,
+				dicom::DataSetStatus::NO_DATA_SET);
+			successWithRemaining.setRemaining(0);
+			successWithRemaining.setCompleted(3);
+			successWithRemaining.setFailed(0);
+			successWithRemaining.setWarning(0);
+			scpSide.WriteCommand(successWithRemaining, classUID);
+
+			TestCMoveSCU scu(scuSide, classUID);
+			scu.setLastMessageID(95);
+
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			scu.readRSP(status, response, data);
+			assert(status == dicom::Status::SUCCESS);
+			assert(get<UINT16>(response, dicom::TAG_NUM_REMAIN_SUBOP) == 0);
+			assert(get<UINT16>(response, dicom::TAG_NUM_COMPL_SUBOP) == 3);
+			assert(get<UINT16>(response, dicom::TAG_NUM_FAIL_SUBOP) == 0);
+			assert(get<UINT16>(response, dicom::TAG_NUM_WARN_SUBOP) == 0);
+		}
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService scuSide(sockets[0], classUID);
+			PairedService scpSide(sockets[1], classUID);
+			dicom::CommandSet::CMoveRSP warningWithRemaining(
+				97,
+				classUID,
+				dicom::Status::WARNING,
+				dicom::DataSetStatus::YES_DATA_SET);
+			warningWithRemaining.setRemaining(0);
+			warningWithRemaining.setCompleted(2);
+			warningWithRemaining.setFailed(0);
+			warningWithRemaining.setWarning(1);
+			dicom::DataSet identifier;
+			identifier.Put<dicom::VR_UI>(
+				dicom::TAG_FAILED_SOPINSTUID_LIST,
+				dicom::UID("1.2.826.0.1.3680043.10.1553.14.22"));
+			scpSide.WriteCommand(warningWithRemaining, classUID);
+			scpSide.WriteDataSet(identifier, classUID);
+
+			TestCMoveSCU scu(scuSide, classUID);
+			scu.setLastMessageID(97);
+
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			scu.readRSP(status, response, data);
+			assert(status == dicom::Status::WARNING);
+			assert(get<UINT16>(response, dicom::TAG_NUM_REMAIN_SUBOP) == 0);
+			assert(get<UINT16>(response, dicom::TAG_NUM_COMPL_SUBOP) == 2);
+			assert(get<UINT16>(response, dicom::TAG_NUM_FAIL_SUBOP) == 0);
+			assert(get<UINT16>(response, dicom::TAG_NUM_WARN_SUBOP) == 1);
+		}
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedService scuSide(sockets[0], classUID);
+			PairedService scpSide(sockets[1], classUID);
+			dicom::CommandSet::CMoveRSP failureWithRemaining(
+				99,
+				classUID,
+				UINT16(0xa702),
+				dicom::DataSetStatus::YES_DATA_SET);
+			failureWithRemaining.setRemaining(0);
+			failureWithRemaining.setCompleted(1);
+			failureWithRemaining.setFailed(2);
+			failureWithRemaining.setWarning(0);
+			dicom::DataSet identifier;
+			identifier.Put<dicom::VR_UI>(
+				dicom::TAG_FAILED_SOPINSTUID_LIST,
+				dicom::UID("1.2.826.0.1.3680043.10.1553.14.23"));
+			scpSide.WriteCommand(failureWithRemaining, classUID);
+			scpSide.WriteDataSet(identifier, classUID);
+
+			TestCMoveSCU scu(scuSide, classUID);
+			scu.setLastMessageID(99);
+
+			UINT16 status = 0;
+			dicom::DataSet response;
+			dicom::DataSet data;
+			scu.readRSP(status, response, data);
+			assert(status == UINT16(0xa702));
+			assert(get<UINT16>(response, dicom::TAG_NUM_REMAIN_SUBOP) == 0);
+			assert(get<UINT16>(response, dicom::TAG_NUM_COMPL_SUBOP) == 1);
+			assert(get<UINT16>(response, dicom::TAG_NUM_FAIL_SUBOP) == 2);
+			assert(get<UINT16>(response, dicom::TAG_NUM_WARN_SUBOP) == 0);
+		}
 
 		{
 			int sockets[2];
@@ -7353,6 +7773,11 @@ namespace
 		assertCEchoResponseRejected(
 			[](dicom::DataSet& response, UINT16)
 			{
+				response.Put<dicom::VR_US>(dicom::TAG_NUM_REMAIN_SUBOP, UINT16(0));
+			});
+		assertCEchoResponseRejected(
+			[](dicom::DataSet& response, UINT16)
+			{
 				response.erase(dicom::TAG_STATUS);
 				response.Put<dicom::VR_US>(dicom::TAG_STATUS, dicom::Status::WARNING);
 			});
@@ -7395,6 +7820,55 @@ namespace
 				response.Put<dicom::VR_UI>(
 					dicom::TAG_AFF_SOP_CLASS_UID,
 					dicom::CT_IMAGE_STORAGE_SOP_CLASS);
+			});
+		assertCEchoResponseRejected(
+			[](dicom::DataSet& response, UINT16)
+			{
+				response.erase(dicom::TAG_AFF_SOP_CLASS_UID);
+				response.Put<dicom::VR_UI>(
+					dicom::TAG_AFF_SOP_CLASS_UID,
+					dicom::UID(""));
+			});
+		assertCEchoResponseRejected(
+			[](dicom::DataSet& response, UINT16)
+			{
+				response.Put<dicom::VR_UI>(
+					dicom::TAG_AFF_SOP_INST_UID,
+					dicom::UID("1.2.826.0.1.3680043.10.1553.12.31"));
+			});
+		assertCEchoResponseRejected(
+			[](dicom::DataSet& response, UINT16)
+			{
+				response.Put<dicom::VR_UI>(
+					dicom::TAG_REQ_SOP_CLASS_UID,
+					dicom::VERIFICATION_SOP_CLASS);
+			});
+		assertCEchoResponseRejected(
+			[](dicom::DataSet& response, UINT16)
+			{
+				response.Put<dicom::VR_UI>(
+					dicom::TAG_REQ_SOP_INST_UID,
+					dicom::UID("1.2.826.0.1.3680043.10.1553.12.32"));
+			});
+		assertCEchoResponseRejected(
+			[](dicom::DataSet& response, UINT16)
+			{
+				response.Put<dicom::VR_US>(dicom::TAG_PRIORITY, dicom::Priority::MEDIUM);
+			});
+		assertCEchoResponseRejected(
+			[](dicom::DataSet& response, UINT16)
+			{
+				response.Put<dicom::VR_AE>(dicom::TAG_MOVE_DEST, std::string("ARCHIVE_AE"));
+			});
+		assertCEchoResponseRejected(
+			[](dicom::DataSet& response, UINT16)
+			{
+				response.Put<dicom::VR_AE>(dicom::TAG_MOVE_ORIG_AET, std::string("MOVE_AE"));
+			});
+		assertCEchoResponseRejected(
+			[](dicom::DataSet& response, UINT16)
+			{
+				response.Put<dicom::VR_US>(dicom::TAG_MOVE_ORIG_MSG_ID, UINT16(33));
 			});
 		const auto assertCEchoResponseAcceptedStatus =
 			[](UINT16 expectedStatus)
@@ -7539,6 +8013,11 @@ namespace
 		assertCStoreResponseRejected(
 			[](dicom::DataSet& response, UINT16, const dicom::UID&)
 			{
+				response.Put<dicom::VR_US>(dicom::TAG_NUM_REMAIN_SUBOP, UINT16(0));
+			});
+		assertCStoreResponseRejected(
+			[](dicom::DataSet& response, UINT16, const dicom::UID&)
+			{
 				response.erase(dicom::TAG_STATUS);
 				response.Put<dicom::VR_US>(dicom::TAG_STATUS, dicom::Status::CANCEL);
 			});
@@ -7581,6 +8060,54 @@ namespace
 				response.Put<dicom::VR_UI>(
 					dicom::TAG_AFF_SOP_CLASS_UID,
 					dicom::VERIFICATION_SOP_CLASS);
+			});
+		assertCStoreResponseRejected(
+			[](dicom::DataSet& response, UINT16, const dicom::UID&)
+			{
+				response.erase(dicom::TAG_AFF_SOP_CLASS_UID);
+				response.Put<dicom::VR_UI>(
+					dicom::TAG_AFF_SOP_CLASS_UID,
+					dicom::UID(""));
+			});
+		assertCStoreResponseRejected(
+			[](dicom::DataSet& response, UINT16, const dicom::UID&)
+			{
+				response.erase(dicom::TAG_AFF_SOP_INST_UID);
+				response.Put<dicom::VR_UI>(
+					dicom::TAG_AFF_SOP_INST_UID,
+					dicom::UID(""));
+			});
+		assertCStoreResponseRejected(
+			[](dicom::DataSet& response, UINT16, const dicom::UID&)
+			{
+				response.Put<dicom::VR_UI>(
+					dicom::TAG_REQ_SOP_CLASS_UID,
+					dicom::CT_IMAGE_STORAGE_SOP_CLASS);
+			});
+		assertCStoreResponseRejected(
+			[](dicom::DataSet& response, UINT16, const dicom::UID& instanceUID)
+			{
+				response.Put<dicom::VR_UI>(dicom::TAG_REQ_SOP_INST_UID, instanceUID);
+			});
+		assertCStoreResponseRejected(
+			[](dicom::DataSet& response, UINT16, const dicom::UID&)
+			{
+				response.Put<dicom::VR_US>(dicom::TAG_PRIORITY, dicom::Priority::MEDIUM);
+			});
+		assertCStoreResponseRejected(
+			[](dicom::DataSet& response, UINT16, const dicom::UID&)
+			{
+				response.Put<dicom::VR_AE>(dicom::TAG_MOVE_DEST, std::string("ARCHIVE_AE"));
+			});
+		assertCStoreResponseRejected(
+			[](dicom::DataSet& response, UINT16, const dicom::UID&)
+			{
+				response.Put<dicom::VR_AE>(dicom::TAG_MOVE_ORIG_AET, std::string("MOVE_AE"));
+			});
+		assertCStoreResponseRejected(
+			[](dicom::DataSet& response, UINT16, const dicom::UID&)
+			{
+				response.Put<dicom::VR_US>(dicom::TAG_MOVE_ORIG_MSG_ID, UINT16(31));
 			});
 		const auto assertCStoreResponseAcceptedStatus =
 			[](UINT16 expectedStatus)
@@ -8525,6 +9052,45 @@ namespace
 			dicom::Command::C_STORE_RQ);
 		assertEchoRequestRejected(wrongEchoCommandField);
 
+		dicom::CommandSet::CEchoRQ emptyEchoSOPClassUID(218,dicom::VERIFICATION_SOP_CLASS);
+		emptyEchoSOPClassUID.erase(dicom::TAG_AFF_SOP_CLASS_UID);
+		emptyEchoSOPClassUID.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_CLASS_UID, dicom::UID(""));
+		assertEchoRequestRejected(emptyEchoSOPClassUID);
+
+		dicom::CommandSet::CEchoRQ echoRequestedClassUID(164,dicom::VERIFICATION_SOP_CLASS);
+		echoRequestedClassUID.Put<dicom::VR_UI>(
+			dicom::TAG_REQ_SOP_CLASS_UID,
+			dicom::VERIFICATION_SOP_CLASS);
+		assertEchoRequestRejected(echoRequestedClassUID);
+
+		dicom::CommandSet::CEchoRQ echoRequestedInstanceUID(166,dicom::VERIFICATION_SOP_CLASS);
+		echoRequestedInstanceUID.Put<dicom::VR_UI>(
+			dicom::TAG_REQ_SOP_INST_UID,
+			dicom::UID("1.2.826.0.1.3680043.10.1553.13.166"));
+		assertEchoRequestRejected(echoRequestedInstanceUID);
+
+		dicom::CommandSet::CEchoRQ echoAffectedInstanceUID(184,dicom::VERIFICATION_SOP_CLASS);
+		echoAffectedInstanceUID.Put<dicom::VR_UI>(
+			dicom::TAG_AFF_SOP_INST_UID,
+			dicom::UID("1.2.826.0.1.3680043.10.1553.13.184"));
+		assertEchoRequestRejected(echoAffectedInstanceUID);
+
+		dicom::CommandSet::CEchoRQ echoPriority(192,dicom::VERIFICATION_SOP_CLASS);
+		echoPriority.Put<dicom::VR_US>(dicom::TAG_PRIORITY, dicom::Priority::MEDIUM);
+		assertEchoRequestRejected(echoPriority);
+
+		dicom::CommandSet::CEchoRQ echoMoveDestination(194,dicom::VERIFICATION_SOP_CLASS);
+		echoMoveDestination.Put<dicom::VR_AE>(dicom::TAG_MOVE_DEST, std::string("ARCHIVE_AE"));
+		assertEchoRequestRejected(echoMoveDestination);
+
+		dicom::CommandSet::CEchoRQ echoMoveOriginatorAET(196,dicom::VERIFICATION_SOP_CLASS);
+		echoMoveOriginatorAET.Put<dicom::VR_AE>(dicom::TAG_MOVE_ORIG_AET, std::string("MOVE_AE"));
+		assertEchoRequestRejected(echoMoveOriginatorAET);
+
+		dicom::CommandSet::CEchoRQ echoMoveOriginatorMessageID(198,dicom::VERIFICATION_SOP_CLASS);
+		echoMoveOriginatorMessageID.Put<dicom::VR_US>(dicom::TAG_MOVE_ORIG_MSG_ID, UINT16(198));
+		assertEchoRequestRejected(echoMoveOriginatorMessageID);
+
 		dicom::CommandSet::CFindRQ notCancel(25,classUID);
 		bool wrongCancelCommandRejected = false;
 		try
@@ -8742,6 +9308,39 @@ namespace
 			dicom::UID("1.2.826.0.1.3680043.10.1553.13.150"));
 		assertStoreRequestRejected(wrongStoreSOPClassUID);
 
+		dicom::CommandSet::CStoreRQ emptyStoreSOPClassUID(
+			220,
+			dicom::CT_IMAGE_STORAGE_SOP_CLASS,
+			dicom::UID("1.2.826.0.1.3680043.10.1553.13.220"));
+		emptyStoreSOPClassUID.erase(dicom::TAG_AFF_SOP_CLASS_UID);
+		emptyStoreSOPClassUID.Put<dicom::VR_UI>(dicom::TAG_AFF_SOP_CLASS_UID, dicom::UID(""));
+		assertStoreRequestRejected(emptyStoreSOPClassUID);
+
+		dicom::CommandSet::CStoreRQ storeRequestedClassUID(
+			168,
+			dicom::CT_IMAGE_STORAGE_SOP_CLASS,
+			dicom::UID("1.2.826.0.1.3680043.10.1553.13.168"));
+		storeRequestedClassUID.Put<dicom::VR_UI>(
+			dicom::TAG_REQ_SOP_CLASS_UID,
+			dicom::CT_IMAGE_STORAGE_SOP_CLASS);
+		assertStoreRequestRejected(storeRequestedClassUID);
+
+		dicom::CommandSet::CStoreRQ storeRequestedInstanceUID(
+			170,
+			dicom::CT_IMAGE_STORAGE_SOP_CLASS,
+			dicom::UID("1.2.826.0.1.3680043.10.1553.13.170"));
+		storeRequestedInstanceUID.Put<dicom::VR_UI>(
+			dicom::TAG_REQ_SOP_INST_UID,
+			dicom::UID("1.2.826.0.1.3680043.10.1553.13.171"));
+		assertStoreRequestRejected(storeRequestedInstanceUID);
+
+		dicom::CommandSet::CStoreRQ storeMoveDestination(
+			200,
+			dicom::CT_IMAGE_STORAGE_SOP_CLASS,
+			dicom::UID("1.2.826.0.1.3680043.10.1553.13.200"));
+		storeMoveDestination.Put<dicom::VR_AE>(dicom::TAG_MOVE_DEST, std::string("ARCHIVE_AE"));
+		assertStoreRequestRejected(storeMoveDestination);
+
 		dicom::CommandSet::CGetRQ duplicateGetCommandField(90,classUID);
 		duplicateGetCommandField.Put<dicom::VR_US>(
 			dicom::TAG_CMD_FIELD,
@@ -8797,6 +9396,42 @@ namespace
 		dicom::CommandSet::CGetRQ wrongGetSOPClassUID(154,wrongClassUID);
 		assertGetRequestRejected(wrongGetSOPClassUID);
 		assertLegacyGetRequestRejected(wrongGetSOPClassUID);
+
+		dicom::CommandSet::CGetRQ getRequestedClassUID(172,classUID);
+		getRequestedClassUID.Put<dicom::VR_UI>(
+			dicom::TAG_REQ_SOP_CLASS_UID,
+			classUID);
+		assertGetRequestRejected(getRequestedClassUID);
+		assertLegacyGetRequestRejected(getRequestedClassUID);
+
+		dicom::CommandSet::CGetRQ getRequestedInstanceUID(174,classUID);
+		getRequestedInstanceUID.Put<dicom::VR_UI>(
+			dicom::TAG_REQ_SOP_INST_UID,
+			dicom::UID("1.2.826.0.1.3680043.10.1553.13.174"));
+		assertGetRequestRejected(getRequestedInstanceUID);
+		assertLegacyGetRequestRejected(getRequestedInstanceUID);
+
+		dicom::CommandSet::CGetRQ getAffectedInstanceUID(186,classUID);
+		getAffectedInstanceUID.Put<dicom::VR_UI>(
+			dicom::TAG_AFF_SOP_INST_UID,
+			dicom::UID("1.2.826.0.1.3680043.10.1553.13.186"));
+		assertGetRequestRejected(getAffectedInstanceUID);
+		assertLegacyGetRequestRejected(getAffectedInstanceUID);
+
+		dicom::CommandSet::CGetRQ getMoveDestination(202,classUID);
+		getMoveDestination.Put<dicom::VR_AE>(dicom::TAG_MOVE_DEST, std::string("ARCHIVE_AE"));
+		assertGetRequestRejected(getMoveDestination);
+		assertLegacyGetRequestRejected(getMoveDestination);
+
+		dicom::CommandSet::CGetRQ getMoveOriginatorAET(204,classUID);
+		getMoveOriginatorAET.Put<dicom::VR_AE>(dicom::TAG_MOVE_ORIG_AET, std::string("MOVE_AE"));
+		assertGetRequestRejected(getMoveOriginatorAET);
+		assertLegacyGetRequestRejected(getMoveOriginatorAET);
+
+		dicom::CommandSet::CGetRQ getMoveOriginatorMessageID(206,classUID);
+		getMoveOriginatorMessageID.Put<dicom::VR_US>(dicom::TAG_MOVE_ORIG_MSG_ID, UINT16(206));
+		assertGetRequestRejected(getMoveOriginatorMessageID);
+		assertLegacyGetRequestRejected(getMoveOriginatorMessageID);
 
 		dicom::CommandSet::CMoveRQ duplicateMoveCommandField(98,classUID,"ARCHIVE_AE");
 		duplicateMoveCommandField.Put<dicom::VR_US>(
@@ -8854,6 +9489,37 @@ namespace
 		assertMoveRequestRejected(wrongMoveSOPClassUID);
 		assertLegacyMoveRequestRejected(wrongMoveSOPClassUID);
 
+		dicom::CommandSet::CMoveRQ moveRequestedClassUID(176,classUID,"ARCHIVE_AE");
+		moveRequestedClassUID.Put<dicom::VR_UI>(
+			dicom::TAG_REQ_SOP_CLASS_UID,
+			classUID);
+		assertMoveRequestRejected(moveRequestedClassUID);
+		assertLegacyMoveRequestRejected(moveRequestedClassUID);
+
+		dicom::CommandSet::CMoveRQ moveRequestedInstanceUID(178,classUID,"ARCHIVE_AE");
+		moveRequestedInstanceUID.Put<dicom::VR_UI>(
+			dicom::TAG_REQ_SOP_INST_UID,
+			dicom::UID("1.2.826.0.1.3680043.10.1553.13.178"));
+		assertMoveRequestRejected(moveRequestedInstanceUID);
+		assertLegacyMoveRequestRejected(moveRequestedInstanceUID);
+
+		dicom::CommandSet::CMoveRQ moveAffectedInstanceUID(188,classUID,"ARCHIVE_AE");
+		moveAffectedInstanceUID.Put<dicom::VR_UI>(
+			dicom::TAG_AFF_SOP_INST_UID,
+			dicom::UID("1.2.826.0.1.3680043.10.1553.13.188"));
+		assertMoveRequestRejected(moveAffectedInstanceUID);
+		assertLegacyMoveRequestRejected(moveAffectedInstanceUID);
+
+		dicom::CommandSet::CMoveRQ moveOriginatorAET(208,classUID,"ARCHIVE_AE");
+		moveOriginatorAET.Put<dicom::VR_AE>(dicom::TAG_MOVE_ORIG_AET, std::string("MOVE_AE"));
+		assertMoveRequestRejected(moveOriginatorAET);
+		assertLegacyMoveRequestRejected(moveOriginatorAET);
+
+		dicom::CommandSet::CMoveRQ moveOriginatorMessageID(210,classUID,"ARCHIVE_AE");
+		moveOriginatorMessageID.Put<dicom::VR_US>(dicom::TAG_MOVE_ORIG_MSG_ID, UINT16(210));
+		assertMoveRequestRejected(moveOriginatorMessageID);
+		assertLegacyMoveRequestRejected(moveOriginatorMessageID);
+
 		dicom::CommandSet::CFindRQ duplicateCommandField(58,classUID);
 		duplicateCommandField.Put<dicom::VR_US>(dicom::TAG_CMD_FIELD, dicom::Command::C_FIND_RQ);
 		assertFindRequestRejected(duplicateCommandField);
@@ -8895,6 +9561,36 @@ namespace
 
 		dicom::CommandSet::CFindRQ wrongFindSOPClassUID(162,wrongClassUID);
 		assertFindRequestRejected(wrongFindSOPClassUID);
+
+		dicom::CommandSet::CFindRQ findRequestedClassUID(180,classUID);
+		findRequestedClassUID.Put<dicom::VR_UI>(
+			dicom::TAG_REQ_SOP_CLASS_UID,
+			classUID);
+		assertFindRequestRejected(findRequestedClassUID);
+
+		dicom::CommandSet::CFindRQ findRequestedInstanceUID(182,classUID);
+		findRequestedInstanceUID.Put<dicom::VR_UI>(
+			dicom::TAG_REQ_SOP_INST_UID,
+			dicom::UID("1.2.826.0.1.3680043.10.1553.13.182"));
+		assertFindRequestRejected(findRequestedInstanceUID);
+
+		dicom::CommandSet::CFindRQ findAffectedInstanceUID(190,classUID);
+		findAffectedInstanceUID.Put<dicom::VR_UI>(
+			dicom::TAG_AFF_SOP_INST_UID,
+			dicom::UID("1.2.826.0.1.3680043.10.1553.13.190"));
+		assertFindRequestRejected(findAffectedInstanceUID);
+
+		dicom::CommandSet::CFindRQ findMoveDestination(212,classUID);
+		findMoveDestination.Put<dicom::VR_AE>(dicom::TAG_MOVE_DEST, std::string("ARCHIVE_AE"));
+		assertFindRequestRejected(findMoveDestination);
+
+		dicom::CommandSet::CFindRQ findMoveOriginatorAET(214,classUID);
+		findMoveOriginatorAET.Put<dicom::VR_AE>(dicom::TAG_MOVE_ORIG_AET, std::string("MOVE_AE"));
+		assertFindRequestRejected(findMoveOriginatorAET);
+
+		dicom::CommandSet::CFindRQ findMoveOriginatorMessageID(216,classUID);
+		findMoveOriginatorMessageID.Put<dicom::VR_US>(dicom::TAG_MOVE_ORIG_MSG_ID, UINT16(216));
+		assertFindRequestRejected(findMoveOriginatorMessageID);
 
 		dicom::DataSet invalidStorePriority;
 		invalidStorePriority.Put<dicom::VR_UI>(
