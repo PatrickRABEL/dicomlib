@@ -59,7 +59,8 @@ Transfer Syntax status categories:
   must be at most 64 characters and contain non-empty numeric components
   separated by single dots.
 - `Server::SetImplementationVersionName()` overrides the Implementation Version
-  Name. Values longer than 16 characters are ignored.
+  Name. Empty string restores the library default; non-empty values longer than
+  16 characters or containing non-printable ISO 646 bytes are ignored.
 - `Server::SetForkPerAssociation(true)` is POSIX-only and intended for
   standalone SCP processes. State that must survive an association must be
   external to the child process or explicitly propagated to the parent.

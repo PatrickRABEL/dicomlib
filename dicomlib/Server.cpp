@@ -76,6 +76,19 @@ namespace dicom
 			}
 			return !previousWasDot;
 		}
+
+		bool IsStrictImplementationVersionName(const std::string& name)
+		{
+			if(name.empty() || name.size()>16)
+				return false;
+			for(size_t i=0;i<name.size();++i)
+			{
+				const unsigned char c = static_cast<unsigned char>(name[i]);
+				if(c<0x20 || c>0x7e)
+					return false;
+			}
+			return true;
+		}
 	}
 
 	using namespace primitive;
@@ -841,9 +854,7 @@ namespace dicom
 	void Server::SetImplementationVersionName(const std::string& name)
 	{
 		std::lock_guard<std::mutex> scoped_lock(mutex_);
-		//PS3.7 D.3.3.2.3, Table D.3-3: 1 to 16 characters. Refuse anything longer
-		//rather than announce a non-conformant value.
-		if(name.size()>16)
+		if(!name.empty() && !IsStrictImplementationVersionName(name))
 			return;
 		ImplementationVersionNameOverride_=name;
 	}

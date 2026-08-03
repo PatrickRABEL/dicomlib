@@ -192,6 +192,18 @@ namespace
 		server.SetImplementationVersionName("THIS_VERSION_NAME_IS_TOO_LONG");
 		server.GetImplementationVersion(implementationVersion);
 		assert(implementationVersion.Name == "APP2026");
+
+		server.SetImplementationVersionName("APP\n2026");
+		server.GetImplementationVersion(implementationVersion);
+		assert(implementationVersion.Name == "APP2026");
+
+		server.SetImplementationVersionName(std::string("APP")+std::string(1,static_cast<char>(0x7f)));
+		server.GetImplementationVersion(implementationVersion);
+		assert(implementationVersion.Name == "APP2026");
+
+		server.SetImplementationVersionName("");
+		server.GetImplementationVersion(implementationVersion);
+		assert(implementationVersion.Name == "DICOMLIB2026");
 	}
 
 	void negotiateAssociation(

@@ -408,8 +408,9 @@ namespace dicom
 			Pass an empty string to fall back to the library default.
 		*/
 		void SetImplementationClassUID				(const std::string& uid);
-		//!Override the (optional) Implementation Version Name. 1-16 characters
-		//!(PS3.7 D.3.3.2.3); longer values are rejected and the default kept.
+		//!Override the (optional) Implementation Version Name.
+		//!Empty string restores the default; non-empty values must be 1-16 printable
+		//!ISO 646 characters.
 		void SetImplementationVersionName			(const std::string& name);
 
 		//!Constructor
