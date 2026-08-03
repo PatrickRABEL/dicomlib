@@ -178,9 +178,15 @@ namespace dicom
 		{
             threadCleanup(false);
 
-			Network::AcceptedSocket* pAccepter=new Network::AcceptedSocket(TheServerSocket);//blocks, waiting for a client.
+			std::unique_ptr<Network::AcceptedSocket> pAccepter =
+				std::make_unique<Network::AcceptedSocket>(TheServerSocket);//blocks, waiting for a client.
 
-            std::shared_ptr<std::thread> pThread(new std::thread(theThreadFunction,pAccepter,std::ref(*this)));
+			std::shared_ptr<std::thread> pThread =
+				std::make_shared<std::thread>(
+					theThreadFunction,
+					pAccepter.get(),
+					std::ref(*this));
+			pAccepter.release();
 
             {
                 std::lock_guard<std::mutex> scoped_lock(mutex_);
@@ -229,7 +235,7 @@ namespace dicom
 
 		KillFlag=false;//Sam add this so that server can be restarted. 8April2009
 		ServerThreadStarter s(*this,port);
-		ServerThread_.reset(new std::thread(s));
+			ServerThread_ = std::make_unique<std::thread>(s);
 	}
 
 
@@ -753,7 +759,5 @@ namespace dicom
 	}
 
 }//namespace dicom
-
-
 
 

@@ -47,7 +47,7 @@ namespace dicom
 			:vr_(vr)
 		{
 			DynamicVRCheck<T>(vr);
-			data_=std::shared_ptr<std::any>(new std::any(data));
+			data_=std::make_shared<std::any>(data);
 		}
 
 		//!Constructor
@@ -56,7 +56,7 @@ namespace dicom
 		Value(VR vr)
 			:vr_(vr)
 		{
-			data_=std::shared_ptr<std::any>(new std::any());
+			data_=std::make_shared<std::any>();
 		}
 
 		//!Query

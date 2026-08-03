@@ -43,12 +43,6 @@ namespace dicom
 		if(ExternalByteOrder_!=__BYTE_ORDER)
 		{
 			SwitchVectorEndian(data);
-//#ifdef _WIN32
-//			swab((char*)(pbData),(char*)(pbData),data.size()*2);
-//#else
-//			swab((void*)(pbData),(void*)(pbData),data.size()*2);
-//#endif
-//			std::cout << "swapped bytes, did it work?" << std::endl;
 		}
 		return *this;
 	}

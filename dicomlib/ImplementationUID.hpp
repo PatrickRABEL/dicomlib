@@ -16,7 +16,7 @@
 namespace dicom
 {
 	const std::string ImplementationClassUID = "1.2.826.0.1.3680043.10.1778";
-	const std::string ImplementationVersionName = "DICOMLIB2008";
+	const std::string ImplementationVersionName = "DICOMLIB2026";
 }//namespace dicom
 
 

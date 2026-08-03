@@ -13,6 +13,7 @@
 #include <cstring>
 #include <exception>
 #include <functional>
+#include <iostream>
 #include <signal.h>
 #include <string>
 #include <sys/socket.h>
@@ -474,6 +475,19 @@ namespace
 		const short port = static_cast<short>(ntohs(address.sin_port));
 		::close(fd);
 		return port;
+	}
+
+	bool canReserveLocalTCPPort()
+	{
+		try
+		{
+			(void)reserveLocalPort();
+			return true;
+		}
+		catch(const SystemError&)
+		{
+			return false;
+		}
 	}
 
 	bool acceptAnyLocalAET(const std::string&)
@@ -3563,12 +3577,12 @@ namespace
 				{
 					dicom::HandleNDelete(noDataSuccess,nullService,command,classUID);
 				}
-				catch(const std::exception&)
-				{
-					rejected = true;
-				}
-				assert(rejected);
-			};
+					catch(const std::exception&)
+					{
+						rejected = true;
+					}
+					assert(rejected);
+				};
 		const auto assertEventRequestRejected =
 			[&](const dicom::DataSet& command)
 			{
@@ -3577,12 +3591,12 @@ namespace
 				{
 					dicom::HandleNEventReport(noDataSuccess,nullService,command,classUID);
 				}
-				catch(const std::exception&)
-				{
-					rejected = true;
-				}
-				assert(rejected);
-			};
+					catch(const std::exception&)
+					{
+						rejected = true;
+					}
+					assert(rejected);
+				};
 		const auto assertActionRequestRejected =
 			[&](const dicom::DataSet& command)
 			{
@@ -6023,9 +6037,9 @@ namespace
 				}
 				assert(rejected);
 			};
-		const auto assertCGetResponseRejected =
-			[&](dicom::DataSet responseCommand, UINT16 messageID)
-			{
+			const auto assertCGetResponseRejected =
+				[&](dicom::DataSet responseCommand, UINT16 messageID)
+				{
 				int sockets[2];
 				makeSocketPair(sockets);
 				PairedService scuSide(sockets[0], classUID);
@@ -6043,12 +6057,12 @@ namespace
 				{
 					scu.readRSP(status, response, data);
 				}
-				catch(const std::exception&)
-				{
-					rejected = true;
-				}
-				assert(rejected);
-			};
+					catch(const std::exception&)
+					{
+						rejected = true;
+					}
+					assert(rejected);
+				};
 		const auto assertCGetResponseRejectedWithStoreHandler =
 			[&](dicom::DataSet responseCommand, UINT16 messageID)
 			{
@@ -6675,11 +6689,11 @@ namespace
 		duplicateGetResponseErrorID.Put<dicom::VR_US>(dicom::TAG_ERR_ID, UINT16(2));
 		assertCGetResponseRejected(duplicateGetResponseErrorID, 175);
 
-		dicom::CommandSet::CGetRSP invalidGetResponseStatus(
-			191,
-			classUID,
-			UINT16(0x0210),
-			dicom::DataSetStatus::NO_DATA_SET);
+			dicom::CommandSet::CGetRSP invalidGetResponseStatus(
+				191,
+				classUID,
+				UINT16(0x0213),
+				dicom::DataSetStatus::NO_DATA_SET);
 		assertCGetResponseRejected(invalidGetResponseStatus, 191);
 
 		dicom::CommandSet::CGetRSP missingGetResponseCommandField(
@@ -12388,23 +12402,30 @@ int main()
 	checkCdimseSCPRequestValidation();
 	checkAssociationExtendedNegotiation();
 	checkAssociationNegotiationAndCEcho();
-	checkServerClientCEcho();
-	checkServerClientNdimseDispatch();
-	checkServerClientExtendedNegotiationState();
-	checkServerClientCStore();
-	checkServerClientCFind();
-	checkServerClientCMove();
-	checkServerClientCMoveStoreSubOperationScheduler();
-	checkServerClientCMoveStoreSubOperationCancel();
-	checkServerClientCGet();
-	checkServerClientCGetStoreSubOperation();
-	checkServerClientCGetStoreSubOperationScheduler();
-	checkServerClientCGetFinalCancelStatus();
-	checkServerClientCMoveFinalCancelStatus();
-	checkServerClientCCancelDispatch();
-	checkServerClientCCancelObservedByRunningHandler();
-	checkServerClientCFindFinalCancelStatus();
-	checkServerClientCFindFinalCancelAfterHandlerReturn();
+	if(canReserveLocalTCPPort())
+	{
+		checkServerClientCEcho();
+		checkServerClientNdimseDispatch();
+		checkServerClientExtendedNegotiationState();
+		checkServerClientCStore();
+		checkServerClientCFind();
+		checkServerClientCMove();
+		checkServerClientCMoveStoreSubOperationScheduler();
+		checkServerClientCMoveStoreSubOperationCancel();
+		checkServerClientCGet();
+		checkServerClientCGetStoreSubOperation();
+		checkServerClientCGetStoreSubOperationScheduler();
+		checkServerClientCGetFinalCancelStatus();
+		checkServerClientCMoveFinalCancelStatus();
+		checkServerClientCCancelDispatch();
+		checkServerClientCCancelObservedByRunningHandler();
+		checkServerClientCFindFinalCancelStatus();
+		checkServerClientCFindFinalCancelAfterHandlerReturn();
+	}
+	else
+	{
+		std::cerr << "Skipping thread-backed TCP SCU/SCP tests because local bind is not permitted." << std::endl;
+	}
 	checkCMove();
 	return 0;
 }

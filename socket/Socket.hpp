@@ -9,7 +9,7 @@
 	#include <netdb.h>
 	#include <arpa/inet.h>
 
-#include <string.h>
+#include <cstring>
 
 #include "SystemError.hpp"
 #include <string>
@@ -65,7 +65,7 @@ namespace Network
 
 			address_.sin_family = AF_INET;			// host byte order
 			address_.sin_port = htons(port);		// short, network byte order
-			address_.sin_addr = *((in_addr*)he->h_addr);
+			std::memcpy(&address_.sin_addr, he->h_addr, sizeof(address_.sin_addr));
 			memset(&(address_.sin_zero), '\0', 8);  // zero the rest of the struct
 		}
 
@@ -264,10 +264,9 @@ namespace Network
 					cases.
 				*/
 
-				T* data_to_send=new T[count];
-				std::transform(Begin,Begin+count,data_to_send,SwitchEndian<T>);
-				Sendn_AlreadySwapped(data_to_send,count);
-				delete[] data_to_send;
+				std::vector<T> data_to_send(count);
+				std::transform(Begin,Begin+count,data_to_send.begin(),SwitchEndian<T>);
+				Sendn_AlreadySwapped(data_to_send.data(),count);
 			}
 		}
 

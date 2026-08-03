@@ -34,6 +34,28 @@ if(DICOMLIB_LEGACY_VISUAL_STUDIO)
     message(FATAL_ERROR "Legacy Visual Studio build files remain in core sources:\n  - ${DICOMLIB_LEGACY_VISUAL_STUDIO_TEXT}")
 endif()
 
+file(GLOB DICOMLIB_LEGACY_UTILITY
+    "${DICOMLIB_SOURCE_DIR}/utility/*"
+)
+if(DICOMLIB_LEGACY_UTILITY)
+    list(JOIN DICOMLIB_LEGACY_UTILITY "\n  - " DICOMLIB_LEGACY_UTILITY_TEXT)
+    message(FATAL_ERROR "Legacy utility sources remain outside the maintained CMake library:\n  - ${DICOMLIB_LEGACY_UTILITY_TEXT}")
+endif()
+
+file(GLOB_RECURSE DICOMLIB_CORE_PLATFORM_SOURCES
+    "${DICOMLIB_SOURCE_DIR}/dicomlib/*.cpp"
+    "${DICOMLIB_SOURCE_DIR}/dicomlib/*.hpp"
+    "${DICOMLIB_SOURCE_DIR}/socket/*.cpp"
+    "${DICOMLIB_SOURCE_DIR}/socket/*.hpp"
+)
+foreach(source IN LISTS DICOMLIB_CORE_PLATFORM_SOURCES)
+    file(READ "${source}" source_text)
+    if(source_text MATCHES "(_WIN32|WinSock|WSAStartup|WSACleanup|windows\\.h|winsock)")
+        file(RELATIVE_PATH relative_source "${DICOMLIB_SOURCE_DIR}" "${source}")
+        message(FATAL_ERROR "Windows-specific code remains in maintained core sources: ${relative_source}")
+    endif()
+endforeach()
+
 file(GLOB_RECURSE DICOMLIB_CORE_SOURCES
     "${DICOMLIB_SOURCE_DIR}/dicomlib/*.cpp"
     "${DICOMLIB_SOURCE_DIR}/dicomlib/*.hpp"

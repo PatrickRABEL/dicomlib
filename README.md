@@ -37,6 +37,10 @@ cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 ```
 
+The C-DIMSE/N-DIMSE command and local P-DATA tests always run. Thread-backed
+TCP SCU/SCP integration scenarios are skipped only when the local environment
+does not permit binding a loopback server socket.
+
 ## Migration to the Current DICOM Standard
 
 The DICOM data dictionary and UID registry were regenerated from the official
@@ -63,13 +67,17 @@ The codebase was simplified for the maintained C++ library build:
 - C++17 standard library facilities replaced Boost equivalents where needed.
 - The old Boost.Python binding and legacy SCons/Visual Studio build files were
   removed.
+- The obsolete WinSock compatibility shim was removed from the maintained socket
+  layer.
+- The unreferenced legacy `utility/` sources were removed from the maintained
+  repository scope.
 - The build system was consolidated around CMake.
 - POSIX threads are used through CMake's `Threads::Threads` target.
 
 Default implementation identity:
 
 - Implementation Class UID: `1.2.826.0.1.3680043.10.1778`
-- Implementation Version Name: `DICOMLIB2008`
+- Implementation Version Name: `DICOMLIB2026`
 
 ## Transfer Syntax Policy
 

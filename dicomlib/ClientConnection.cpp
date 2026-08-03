@@ -7,6 +7,7 @@
 *************************************************************************/
 #include <algorithm>
 #include <iostream>
+#include <memory>
 #include "socket/Socket.hpp"
 #include "UIDs.hpp"
 #include "ImplementationUID.hpp"
@@ -67,8 +68,7 @@ namespace dicom
 		std::string LocalAET,std::string RemoteAET,
 		const PresentationContexts& ProposedPresentationContexts,
 		const primitive::UserInformation& ProposedUserInformation)
-		//: ServiceBase(new Network::ClientSocket(Host,Port))
-        : socket_(new Network::ClientSocket(Host,Port))
+	        : socket_(std::make_unique<Network::ClientSocket>(Host,Port))
 
 	{
 
