@@ -429,6 +429,52 @@ namespace
 		}
 	}
 
+	void assertEncapsulatedPassThroughRejectsNonFragmentPixelData()
+	{
+		const auto assertRejected =
+			[](const dicom::DataSet& source)
+			{
+				bool rejected = false;
+				try
+				{
+					dicom::Buffer encoded(__LITTLE_ENDIAN);
+					dicom::WriteToBuffer(
+						source,
+						encoded,
+						dicom::TS(dicom::JPEG_SPECTRAL_SELECTION_PROCESS_7_9_TRANSFER_SYNTAX));
+				}
+				catch(const std::exception&)
+				{
+					rejected = true;
+				}
+				assert(rejected);
+			};
+
+		dicom::DataSet missingPixelData;
+		missingPixelData.Put<dicom::VR_UI>(dicom::TAG_SOP_CLASS_UID, dicom::SC_IMAGE_STORAGE_SOP_CLASS);
+		missingPixelData.Put<dicom::VR_UI>(
+			dicom::TAG_SOP_INST_UID,
+			dicom::UID("1.2.826.0.1.3680043.10.23"));
+		missingPixelData.Put<dicom::VR_US>(dicom::TAG_ROWS, UINT16(2));
+		missingPixelData.Put<dicom::VR_US>(dicom::TAG_COLUMNS, UINT16(2));
+		missingPixelData.Put<dicom::VR_US>(dicom::TAG_SAMPLES_PER_PX, UINT16(1));
+		missingPixelData.Put<dicom::VR_CS>(dicom::TAG_PHOTOMETRIC, std::string("MONOCHROME2"));
+		missingPixelData.Put<dicom::VR_US>(dicom::TAG_BITS_ALLOC, UINT16(16));
+		missingPixelData.Put<dicom::VR_US>(dicom::TAG_BITS_STORED, UINT16(16));
+		missingPixelData.Put<dicom::VR_US>(dicom::TAG_HIGH_BIT, UINT16(15));
+		missingPixelData.Put<dicom::VR_US>(dicom::TAG_PX_REPRESENT, UINT16(0));
+		assertRejected(missingPixelData);
+
+		dicom::DataSet nativePixelData = missingPixelData;
+		dicom::TypeFromVR<dicom::VR_OW>::Type pixels;
+		pixels.push_back(0x0102);
+		pixels.push_back(0x0304);
+		pixels.push_back(0x0506);
+		pixels.push_back(0x0708);
+		nativePixelData.Put<dicom::VR_OW>(dicom::TAG_PIXEL_DATA, pixels);
+		assertRejected(nativePixelData);
+	}
+
 	void assertEncapsulatedUncompressedOddFrameRoundTrip()
 	{
 		dicom::DataSet source;
@@ -1372,6 +1418,7 @@ int main()
 	assertVideoFragmentPassThrough();
 	assertUnsupportedRetiredJPEGFragmentPassThrough();
 	assertUnsupportedJPEG2000Part2FragmentPassThrough();
+	assertEncapsulatedPassThroughRejectsNonFragmentPixelData();
 #endif
 
 #if DICOMLIB_WITH_JPEG
