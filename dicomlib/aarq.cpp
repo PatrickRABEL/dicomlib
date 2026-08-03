@@ -12,6 +12,23 @@
 #include "Exceptions.hpp"
 using std::for_each;
 
+namespace
+{
+	void WriteFixedAssociationAETitle(
+		Network::Socket& socket,
+		const std::string& title,
+		const char* fieldName)
+	{
+		if(title.size()>16)
+			throw dicom::exception(std::string(fieldName)+" exceeds 16 characters");
+
+		char stringBuffer[16];
+		std::fill(stringBuffer,stringBuffer+16,' ');
+		std::copy(title.begin(),title.end(),stringBuffer);
+		socket.Sendn(stringBuffer,16);
+	}
+}
+
 /*IMPL_VERSION_NAME
 There is much repeated functionality in this file,
 implying a need for a shared base class.
@@ -915,15 +932,8 @@ We should maybe branch to try this out
 
 			socket << ProtocolVersion_;
 			socket << Reserved2_;
-			char StringBuffer[16];
-
-			std::fill(StringBuffer,StringBuffer+16,' ');
-			std::copy(CalledAppTitle_.begin(),CalledAppTitle_.end(),StringBuffer);
-			socket.Send( StringBuffer, StringBuffer+16);
-
-			std::fill(StringBuffer,StringBuffer+16,' ');
-			std::copy(CallingAppTitle_.begin(),CallingAppTitle_.end(),StringBuffer);
-			socket.Send( StringBuffer,StringBuffer+ 16);
+			WriteFixedAssociationAETitle(socket,CalledAppTitle_,"Called AE Title");
+			WriteFixedAssociationAETitle(socket,CallingAppTitle_,"Calling AE Title");
 
 			socket.Send( Reserved3_,Reserved3_+ 32);
 

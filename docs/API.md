@@ -51,6 +51,8 @@ Transfer Syntax status categories:
 - `dicom::ClientConnection` opens an association and can propose caller-provided
   User Information, including Role Selection, SOP Class Extended Negotiation,
   and Asynchronous Operations Window sub-items.
+- Association request and accept PDU writers reject Called/Calling AE Titles
+  longer than the fixed 16-character association fields.
 - `dicom::Server` accepts associations and dispatches registered service
   handlers.
 - `Server::SetImplementationClassUID()` overrides the Implementation Class UID

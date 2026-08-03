@@ -252,6 +252,54 @@ namespace
 		configureAssociation(scuSide, contexts, readAcknowledgement);
 	}
 
+	void checkAssociationAETitleLengthValidation()
+	{
+		int requestSockets[2];
+		makeSocketPair(requestSockets);
+		PairedSocket requestWriter(requestSockets[0]);
+		PairedSocket requestReader(requestSockets[1]);
+
+		dicom::primitive::UserInformation userInfo = makeUserInformation();
+
+		dicom::primitive::AAssociateRQ request;
+		request.CalledAppTitle_ = "12345678901234567";
+		request.CallingAppTitle_ = "SCU_AE";
+		request.SetUserInformation(userInfo);
+
+		bool rejectedLongRequestAETitle = false;
+		try
+		{
+			request.Write(requestWriter);
+		}
+		catch(const dicom::exception&)
+		{
+			rejectedLongRequestAETitle = true;
+		}
+		assert(rejectedLongRequestAETitle);
+
+		int responseSockets[2];
+		makeSocketPair(responseSockets);
+		PairedSocket responseWriter(responseSockets[0]);
+		PairedSocket responseReader(responseSockets[1]);
+
+		dicom::primitive::AAssociateAC acknowledgement;
+		acknowledgement.AppContext_ = dicom::primitive::ApplicationContext(dicom::APPLICATION_CONTEXT);
+		acknowledgement.CalledAppTitle_ = "SCP_AE";
+		acknowledgement.CallingAppTitle_ = "12345678901234567";
+		acknowledgement.SetUserInformation(userInfo);
+
+		bool rejectedLongResponseAETitle = false;
+		try
+		{
+			acknowledgement.Write(responseWriter);
+		}
+		catch(const dicom::exception&)
+		{
+			rejectedLongResponseAETitle = true;
+		}
+		assert(rejectedLongResponseAETitle);
+	}
+
 	void checkAssociationExtendedNegotiation()
 	{
 		int sockets[2];
@@ -12618,6 +12666,7 @@ int main()
 	checkCdimseRoleEnforcement();
 	checkCdimseAsynchronousOperationsWindowEnforcement();
 	checkNdimseAsynchronousOperationsWindowEnforcement();
+	checkAssociationAETitleLengthValidation();
 	checkCCancel();
 	checkCCancelOverPData();
 	checkSCUResponseValidationOverPData();
