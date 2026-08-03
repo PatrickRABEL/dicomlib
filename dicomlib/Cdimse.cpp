@@ -46,6 +46,78 @@ namespace dicom
 					throw exception("Command Set contains non-command element");
 		}
 
+		bool IsAllowedCdimseRequestElement(Tag tag, Command::Code command)
+		{
+			switch(tag)
+			{
+			case TAG_CMD_FIELD:
+			case TAG_DATA_SET_TYPE:
+				return true;
+			case TAG_MSG_ID:
+				return command != Command::C_CANCEL_RQ;
+			case TAG_MSG_ID_RSP:
+				return command == Command::C_CANCEL_RQ;
+			case TAG_AFF_SOP_CLASS_UID:
+				return command != Command::C_CANCEL_RQ;
+			case TAG_AFF_SOP_INST_UID:
+				return command == Command::C_STORE_RQ;
+			case TAG_PRIORITY:
+				return command == Command::C_STORE_RQ ||
+					command == Command::C_FIND_RQ ||
+					command == Command::C_GET_RQ ||
+					command == Command::C_MOVE_RQ;
+			case TAG_MOVE_DEST:
+				return command == Command::C_MOVE_RQ;
+			case TAG_MOVE_ORIG_AET:
+			case TAG_MOVE_ORIG_MSG_ID:
+				return command == Command::C_STORE_RQ;
+			default:
+				return false;
+			}
+		}
+
+		bool IsAllowedCdimseResponseElement(Tag tag, Command::Code command)
+		{
+			switch(tag)
+			{
+			case TAG_CMD_FIELD:
+			case TAG_MSG_ID_RSP:
+			case TAG_DATA_SET_TYPE:
+			case TAG_STATUS:
+			case TAG_AFF_SOP_CLASS_UID:
+			case TAG_OFFEND_ELEM:
+			case TAG_ERR_COMMENT:
+			case TAG_ERR_ID:
+				return true;
+			case TAG_AFF_SOP_INST_UID:
+				return command == Command::C_STORE_RSP;
+			case TAG_NUM_REMAIN_SUBOP:
+			case TAG_NUM_COMPL_SUBOP:
+			case TAG_NUM_FAIL_SUBOP:
+			case TAG_NUM_WARN_SUBOP:
+				return command == Command::C_GET_RSP ||
+					command == Command::C_MOVE_RSP;
+			default:
+				return false;
+			}
+		}
+
+		void ValidateCdimseCommandSetElements(
+			const DataSet& command,
+			Command::Code expectedCommand,
+			bool response)
+		{
+			ValidateCommandSetElements(command);
+			for(DataSet::const_iterator I=command.begin(); I!=command.end(); ++I)
+			{
+				const bool allowed = response ?
+					IsAllowedCdimseResponseElement(I->first,expectedCommand) :
+					IsAllowedCdimseRequestElement(I->first,expectedCommand);
+				if(!allowed)
+					throw exception("Unexpected C-DIMSE command element");
+			}
+		}
+
 		bool HasSingleNonEmptyValue(const DataSet& command, Tag tag)
 		{
 			const std::vector<Value> values = command.Values(tag);
@@ -59,7 +131,7 @@ namespace dicom
 			const UID& expectedClassUID,
 			const UID* expectedInstanceUID = 0)
 		{
-			ValidateCommandSetElements(response);
+			ValidateCdimseCommandSetElements(response,expectedCommand,true);
 			if(!HasSingleNonEmptyValue(response,TAG_CMD_FIELD))
 				throw exception("Invalid C-DIMSE response command field");
 			if(!HasSingleNonEmptyValue(response,TAG_MSG_ID_RSP))
@@ -164,7 +236,7 @@ namespace dicom
 			Command::Code expectedCommand,
 			const UID* expectedClassUID = 0)
 		{
-			ValidateCommandSetElements(command);
+			ValidateCdimseCommandSetElements(command,expectedCommand,false);
 			if(!HasSingleNonEmptyValue(command,TAG_CMD_FIELD))
 				throw exception("Invalid C-DIMSE request command field");
 			if(command.exists(TAG_MSG_ID_RSP) &&

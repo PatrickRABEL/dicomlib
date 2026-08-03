@@ -5935,6 +5935,45 @@ namespace
 			nonCommandElementRejected = true;
 		}
 		assert(nonCommandElementRejected);
+
+		dicom::CommandSet::CCancelRQ eventTypeID(32);
+		eventTypeID.Put<dicom::VR_US>(dicom::TAG_EVENT_TYPE_ID, UINT16(1));
+		bool eventTypeIDRejected = false;
+		try
+		{
+			dicom::HandleCCancel(service, eventTypeID);
+		}
+		catch(const std::exception&)
+		{
+			eventTypeIDRejected = true;
+		}
+		assert(eventTypeIDRejected);
+
+		dicom::CommandSet::CCancelRQ actionTypeID(34);
+		actionTypeID.Put<dicom::VR_US>(dicom::TAG_ACTION_TYPE_ID, UINT16(1));
+		bool actionTypeIDRejected = false;
+		try
+		{
+			dicom::HandleCCancel(service, actionTypeID);
+		}
+		catch(const std::exception&)
+		{
+			actionTypeIDRejected = true;
+		}
+		assert(actionTypeIDRejected);
+
+		dicom::CommandSet::CCancelRQ attributeIdentifierList(36);
+		attributeIdentifierList.Put<dicom::VR_AT>(dicom::TAG_ATTR_ID_LIST, dicom::TAG_PAT_ID);
+		bool attributeIdentifierListRejected = false;
+		try
+		{
+			dicom::HandleCCancel(service, attributeIdentifierList);
+		}
+		catch(const std::exception&)
+		{
+			attributeIdentifierListRejected = true;
+		}
+		assert(attributeIdentifierListRejected);
 	}
 
 	void checkCCancelOverPData()
@@ -6297,6 +6336,32 @@ namespace
 			dicom::DataSetStatus::NO_DATA_SET);
 		findResponseWithMessageID.Put<dicom::VR_US>(dicom::TAG_MSG_ID, UINT16(268));
 		assertCFindResponseRejected(findResponseWithMessageID, 268);
+
+		dicom::CommandSet::CFindRSP findResponseWithEventTypeID(
+			272,
+			classUID,
+			dicom::Status::SUCCESS,
+			dicom::DataSetStatus::NO_DATA_SET);
+		findResponseWithEventTypeID.Put<dicom::VR_US>(dicom::TAG_EVENT_TYPE_ID, UINT16(1));
+		assertCFindResponseRejected(findResponseWithEventTypeID, 272);
+
+		dicom::CommandSet::CGetRSP getResponseWithActionTypeID(
+			274,
+			classUID,
+			dicom::Status::SUCCESS,
+			dicom::DataSetStatus::NO_DATA_SET);
+		getResponseWithActionTypeID.Put<dicom::VR_US>(dicom::TAG_ACTION_TYPE_ID, UINT16(1));
+		assertCGetResponseRejected(getResponseWithActionTypeID, 274);
+
+		dicom::CommandSet::CMoveRSP moveResponseWithAttributeIdentifierList(
+			276,
+			classUID,
+			dicom::Status::SUCCESS,
+			dicom::DataSetStatus::NO_DATA_SET);
+		moveResponseWithAttributeIdentifierList.Put<dicom::VR_AT>(
+			dicom::TAG_ATTR_ID_LIST,
+			dicom::TAG_PAT_ID);
+		assertCMoveResponseRejected(moveResponseWithAttributeIdentifierList, 276);
 
 		dicom::CommandSet::CFindRSP findResponseWithEmptyMessageID(
 			270,
@@ -9895,6 +9960,21 @@ namespace
 			[](dicom::DataSet& command)
 			{
 				command.Put<dicom::VR_US>(dicom::TAG_MSG_ID_RSP,UINT16(234));
+			});
+		assertAllNormalCdimseRequestsRejected(
+			[](dicom::DataSet& command)
+			{
+				command.Put<dicom::VR_US>(dicom::TAG_EVENT_TYPE_ID,UINT16(1));
+			});
+		assertAllNormalCdimseRequestsRejected(
+			[](dicom::DataSet& command)
+			{
+				command.Put<dicom::VR_US>(dicom::TAG_ACTION_TYPE_ID,UINT16(1));
+			});
+		assertAllNormalCdimseRequestsRejected(
+			[](dicom::DataSet& command)
+			{
+				command.Put<dicom::VR_AT>(dicom::TAG_ATTR_ID_LIST,dicom::TAG_PAT_ID);
 			});
 
 		dicom::CommandSet::CStoreRQ duplicateStoreCommandField(
