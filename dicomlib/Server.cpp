@@ -59,13 +59,22 @@ namespace dicom
 		{
 			if(uid.empty() || uid.size()>64)
 				return false;
+			bool previousWasDot = false;
 			for(size_t i=0;i<uid.size();++i)
 			{
 				const unsigned char c = static_cast<unsigned char>(uid[i]);
-				if(uid[i]!='.' && !std::isdigit(c))
+				if(uid[i]=='.')
+				{
+					if(i==0 || previousWasDot)
+						return false;
+					previousWasDot = true;
+				}
+				else if(std::isdigit(c))
+					previousWasDot = false;
+				else
 					return false;
 			}
-			return true;
+			return !previousWasDot;
 		}
 	}
 

@@ -55,7 +55,9 @@ Transfer Syntax status categories:
   handlers.
 - `Server::SetImplementationClassUID()` overrides the Implementation Class UID
   announced during association negotiation. Empty string restores the library
-  default; invalid implementation UIDs are ignored.
+  default; non-empty malformed implementation UIDs are ignored. The override
+  must be at most 64 characters and contain non-empty numeric components
+  separated by single dots.
 - `Server::SetImplementationVersionName()` overrides the Implementation Version
   Name. Values longer than 16 characters are ignored.
 - `Server::SetForkPerAssociation(true)` is POSIX-only and intended for

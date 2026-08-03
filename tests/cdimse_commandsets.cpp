@@ -166,13 +166,20 @@ namespace
 		server.GetImplementationClass(implementationClass);
 		assert(implementationClass.UID_ == dicom::UID("1.2.826.0.1.3680043.10.1778.1"));
 
-		server.SetImplementationClassUID("1.2.826.0.1.3680043.10.1778-BAD");
-		server.GetImplementationClass(implementationClass);
-		assert(implementationClass.UID_ == dicom::UID("1.2.826.0.1.3680043.10.1778.1"));
+		const auto assertImplementationUIDOverrideRejected =
+			[&](const std::string& implementationUID)
+			{
+				server.SetImplementationClassUID(implementationUID);
+				server.GetImplementationClass(implementationClass);
+				assert(implementationClass.UID_ == dicom::UID("1.2.826.0.1.3680043.10.1778.1"));
+			};
 
-		server.SetImplementationClassUID("1.2.826.0.1.3680043.10.1778*BAD");
-		server.GetImplementationClass(implementationClass);
-		assert(implementationClass.UID_ == dicom::UID("1.2.826.0.1.3680043.10.1778.1"));
+		assertImplementationUIDOverrideRejected("1.2.826.0.1.3680043.10.1778-BAD");
+		assertImplementationUIDOverrideRejected("1.2.826.0.1.3680043.10.1778*BAD");
+		assertImplementationUIDOverrideRejected(".1.2.826");
+		assertImplementationUIDOverrideRejected("1.2.826.");
+		assertImplementationUIDOverrideRejected("1.2..826");
+		assertImplementationUIDOverrideRejected(std::string(65,'1'));
 
 		server.SetImplementationClassUID("");
 		server.GetImplementationClass(implementationClass);
