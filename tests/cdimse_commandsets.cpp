@@ -4049,6 +4049,26 @@ namespace
 			{
 				command.Put<dicom::VR_LO>(dicom::TAG_PAT_ID,std::string("PATIENT"));
 			});
+		assertAllNdimseRequestsRejected(
+			[](dicom::DataSet& command)
+			{
+				command.Put<dicom::VR_US>(dicom::TAG_PRIORITY,dicom::Priority::MEDIUM);
+			});
+		assertAllNdimseRequestsRejected(
+			[](dicom::DataSet& command)
+			{
+				command.Put<dicom::VR_AE>(dicom::TAG_MOVE_DEST,std::string("MOVE_AE"));
+			});
+		assertAllNdimseRequestsRejected(
+			[](dicom::DataSet& command)
+			{
+				command.Put<dicom::VR_US>(dicom::TAG_STATUS,dicom::Status::SUCCESS);
+			});
+		assertAllNdimseRequestsRejected(
+			[](dicom::DataSet& command)
+			{
+				command.Put<dicom::VR_US>(dicom::TAG_NUM_REMAIN_SUBOP,UINT16(1));
+			});
 		assertAffectedClassRequestsRejected(
 			[&](dicom::DataSet& command)
 			{
@@ -4973,6 +4993,26 @@ namespace
 			{
 				response.Put<dicom::VR_US>(dicom::TAG_ERR_ID,UINT16(1));
 				response.Put<dicom::VR_US>(dicom::TAG_ERR_ID,UINT16(2));
+			});
+		assertAllNdimseResponsesRejected(
+			[](dicom::DataSet& response)
+			{
+				response.Put<dicom::VR_US>(dicom::TAG_PRIORITY,dicom::Priority::MEDIUM);
+			});
+		assertAllNdimseResponsesRejected(
+			[](dicom::DataSet& response)
+			{
+				response.Put<dicom::VR_AE>(dicom::TAG_MOVE_DEST,std::string("MOVE_AE"));
+			});
+		assertAllNdimseResponsesRejected(
+			[](dicom::DataSet& response)
+			{
+				response.Put<dicom::VR_US>(dicom::TAG_NUM_COMPL_SUBOP,UINT16(1));
+			});
+		assertAllNdimseResponsesRejected(
+			[](dicom::DataSet& response)
+			{
+				response.Put<dicom::VR_AE>(dicom::TAG_MOVE_ORIG_AET,std::string("ORIG_AE"));
 			});
 
 		assertGetResponseRejected(
