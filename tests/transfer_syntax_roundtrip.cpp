@@ -12,6 +12,7 @@
 #include <cassert>
 #include <cstdlib>
 #include <exception>
+#include <functional>
 #include <vector>
 
 #if DICOMLIB_WITH_GDCM
@@ -1271,6 +1272,72 @@ namespace
 		}
 		assert(rejected);
 	}
+
+	void assertJPIPReferencedRejectsInvalidDataSets()
+	{
+		const auto assertRejected =
+			[](const std::function<void(dicom::DataSet&)>& mutate)
+			{
+				dicom::DataSet source = makeJPIPReferencedDataSet();
+				mutate(source);
+
+				bool rejected = false;
+				try
+				{
+					dicom::Buffer encoded(__LITTLE_ENDIAN);
+					dicom::WriteToBuffer(source, encoded, dicom::TS(dicom::JPIP_REFERENCED_TRANSFER_SYNTAX));
+				}
+				catch(const std::exception&)
+				{
+					rejected = true;
+				}
+				assert(rejected);
+			};
+
+		assertRejected(
+			[](dicom::DataSet& source)
+			{
+				source.erase(dicom::TAG_PIXEL_DATA_PROVIDER_URL);
+			});
+		assertRejected(
+			[](dicom::DataSet& source)
+			{
+				source.erase(dicom::TAG_PIXEL_DATA_PROVIDER_URL);
+				source.Put<dicom::VR_UR>(dicom::TAG_PIXEL_DATA_PROVIDER_URL, std::string(""));
+			});
+		assertRejected(
+			[](dicom::DataSet& source)
+			{
+				source.erase(dicom::TAG_PIXEL_DATA_PROVIDER_URL);
+				source.Put<dicom::VR_LO>(
+					dicom::TAG_PIXEL_DATA_PROVIDER_URL,
+					std::string("https://example.test/jpip?target=image.jp2"));
+			});
+		assertRejected(
+			[](dicom::DataSet& source)
+			{
+				dicom::TypeFromVR<dicom::VR_OF>::Type pixels(64, 0.0f);
+				source.Put<dicom::VR_OF>(dicom::TAG_FLOAT_PIXEL_DATA, pixels);
+			});
+		assertRejected(
+			[](dicom::DataSet& source)
+			{
+				dicom::TypeFromVR<dicom::VR_OD>::Type pixels(64, 0.0);
+				source.Put<dicom::VR_OD>(dicom::TAG_DOUBLE_FLOAT_PIXEL_DATA, pixels);
+			});
+		assertRejected(
+			[](dicom::DataSet& source)
+			{
+				source.erase(dicom::TAG_PHOTOMETRIC);
+				source.Put<dicom::VR_LO>(dicom::TAG_PHOTOMETRIC, std::string("MONOCHROME2"));
+			});
+		assertRejected(
+			[](dicom::DataSet& source)
+			{
+				source.erase(dicom::TAG_PHOTOMETRIC);
+				source.Put<dicom::VR_CS>(dicom::TAG_PHOTOMETRIC, std::string("RGB"));
+			});
+	}
 }
 
 int main()
@@ -1282,6 +1349,7 @@ int main()
 	assertJPIPReferencedRoundTrip(dicom::JPIP_REFERENCED_TRANSFER_SYNTAX);
 	assertJPIPReferencedRoundTrip(dicom::JPIP_HTJ2K_REFERENCED_TRANSFER_SYNTAX);
 	assertJPIPReferencedRejectsPixelData();
+	assertJPIPReferencedRejectsInvalidDataSets();
 
 #if DICOMLIB_ENABLE_EXPLICIT_VR_BIG_ENDIAN
 	assertRoundTrip(dicom::TS(dicom::EXPL_VR_BE_TRANSFER_SYNTAX));
