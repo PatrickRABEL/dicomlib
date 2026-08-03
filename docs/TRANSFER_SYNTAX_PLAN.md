@@ -4,6 +4,17 @@ This plan records only support that is implemented and verified in this
 repository. A Transfer Syntax is not advertised as codec-supported until the
 corresponding encode/decode path is implemented and covered by tests.
 
+Status terms:
+
+- Supported: an implemented local encode/decode or association path is covered
+  by tests.
+- Recognized: UID constants and registry entries exist, but this does not imply
+  local codec support.
+- Pass-through: already-encapsulated fragments are preserved without pixel
+  decode/recompression.
+- Not implemented: no support is advertised; CMake options stay blocked where
+  enabling them would imply unverified codec behavior.
+
 ## Completed
 
 | Transfer Syntax family | UID(s) | Status | Build option | Verification |

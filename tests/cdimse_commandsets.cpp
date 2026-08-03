@@ -1,5 +1,7 @@
 #include "dicomlib/Cdimse.hpp"
+#include "dicomlib/AssociationRejection.hpp"
 #include "dicomlib/aaac.hpp"
+#include "dicomlib/aarj.hpp"
 #include "dicomlib/ClientConnection.hpp"
 #include "dicomlib/CommandSets.hpp"
 #include "dicomlib/ImplementationUID.hpp"
@@ -10876,6 +10878,55 @@ namespace
 		assert(completed);
 	}
 
+	void checkServerClientAssociationLimitRejection()
+	{
+		const short port = reserveLocalPort();
+		QuietLogger logger;
+		dicom::Server server;
+		server.SetLogger(&logger);
+		server.SetCheckLocalAETCallback(acceptAnyLocalAET);
+		server.SetCheckRemoteAETCallback(acceptAnyRemoteAET);
+		server.SetMaxConcurrentAssociations(1);
+		server.ServeInNewThread(port);
+
+		dicom::PresentationContexts contexts;
+		contexts.Add(dicom::VERIFICATION_SOP_CLASS, dicom::TS(dicom::IMPL_VR_LE_TRANSFER_SYNTAX));
+
+		bool completed = false;
+		for(int attempt = 0; attempt < 20 && !completed; ++attempt)
+		{
+			try
+			{
+				dicom::ClientConnection first("127.0.0.1", port, "SCU_AE", "SCP_AE", contexts);
+				dicom::DataSet response = first.Echo();
+				assert(get<UINT16>(response, dicom::TAG_STATUS) == dicom::Status::SUCCESS);
+
+				bool rejected = false;
+				try
+				{
+					dicom::ClientConnection second("127.0.0.1", port, "SCU_AE2", "SCP_AE", contexts);
+					(void)second;
+				}
+				catch(const dicom::AssociationRejection& rejection)
+				{
+					rejected = true;
+					assert(rejection.Result_ == dicom::primitive::AAssociateRJ::REJECTED_TRANSIENT);
+					assert(rejection.Source_ == dicom::primitive::AAssociateRJ::DICOM_SERVICE_PROVIDER_PRESENTATION);
+					assert(rejection.Reason_ == dicom::primitive::AAssociateRJ::LOCAL_LIMIT_EXCEEDED);
+				}
+				assert(rejected);
+				completed = true;
+			}
+			catch(const SystemError&)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(50));
+			}
+		}
+
+		server.Stop();
+		assert(completed);
+	}
+
 	void checkServerClientNdimseDispatch()
 	{
 		const short port = reserveLocalPort();
@@ -12405,6 +12456,7 @@ int main()
 	if(canReserveLocalTCPPort())
 	{
 		checkServerClientCEcho();
+		checkServerClientAssociationLimitRejection();
 		checkServerClientNdimseDispatch();
 		checkServerClientExtendedNegotiationState();
 		checkServerClientCStore();

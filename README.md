@@ -189,6 +189,17 @@ syntaxes that it cannot actually decode or encode.
 The detailed implementation plan and current completion state are maintained in
 [`docs/TRANSFER_SYNTAX_PLAN.md`](docs/TRANSFER_SYNTAX_PLAN.md).
 
+Support terms used by this repository:
+
+- **Supported**: implemented encode/decode or DIMSE behavior exists and is
+  covered by tests.
+- **Recognized**: UID, tag, or command constants are present, but this does not
+  imply local codec or SOP-class-specific behavior.
+- **Pass-through**: already-encoded encapsulated Pixel Data fragments can be
+  preserved without local pixel decode/recompression.
+- **Not implemented**: the library does not advertise the behavior and CMake
+  options remain blocked where advertising support would be misleading.
+
 ## C-DIMSE Support
 
 C-DIMSE command sets, SCU response handling, and SCP dispatch are covered by
@@ -305,8 +316,21 @@ request/response paths track invoked/performed operations by Message ID and
 enforce negotiated operation window limits for the tested synchronous paths.
 Asynchronous DIMSE operation scheduling is not yet implemented.
 
+`Server::SetMaxConcurrentAssociations()` limits simultaneous associations; a
+limit of `0` means unlimited. Tested thread-backed servers reject an excess
+association with A-ASSOCIATE-RJ `local-limit-exceeded`. `Server` also exposes a
+POSIX `SetForkPerAssociation()` mode for standalone SCP processes that need one
+child process per association; this mode is not advertised for multithreaded
+parent processes and is not a DIMSE scheduler.
+
 The detailed DIMSE implementation plan and remaining work are maintained in
 [`docs/CDIMSE_PLAN.md`](docs/CDIMSE_PLAN.md).
+
+## API Documentation
+
+A minimal API overview is maintained in [`docs/API.md`](docs/API.md). It records
+the public entry points and the current non-implemented areas without claiming
+full DICOM conformance for untested behavior.
 
 ## Compatibility Notes
 

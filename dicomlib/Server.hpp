@@ -23,6 +23,11 @@
 #include "aarq.hpp"
 namespace dicom
 {
+	namespace Implementation
+	{
+		struct ThreadSpecificServer;
+	}
+
 	struct TerminateServerThread : public std::exception{};
 /*
 	The alternative to setting up all these callbacks would be to use
@@ -83,8 +88,10 @@ namespace dicom
 
 	*/
     class Server
-	{
-		Server(const Server&) = delete;
+		{
+			friend struct Implementation::ThreadSpecificServer;
+
+			Server(const Server&) = delete;
 		Server& operator=(const Server&) = delete;
 
 		//!Only used if Server runs in a new thread.
@@ -240,6 +247,11 @@ namespace dicom
         */
         void waitForChildSlot();
 
+        //!true si une association de plus peut être acceptée ; la comptabilise.
+        bool TryBeginAssociation();
+        //!Libère un jeton pris par TryBeginAssociation().
+        void EndAssociation();
+
         //!Does housekeeping work on clientThreads_
         void threadCleanup(bool cleanAll);
 
@@ -248,22 +260,19 @@ namespace dicom
 
         //!Traite chaque association dans un PROCESSUS FILS plutôt qu'un thread.
         /*!
-            Motivation, mesurée sur cible : une image de modalité en pleine
-            résolution (68,7 Mo) laisse, après traitement, un résidu de mémoire
-            que l'allocateur ne rend jamais au noyau — ni `malloc_trim` ni les
-            réglages d'arène n'y changent quoi que ce soit. À la sortie d'un
-            PROCESSUS, en revanche, le noyau récupère tout, sans exception.
-
-            C'est l'architecture de `dcmprscp` (dcmtk), que ce SCP remplace :
-            un père qui écoute et un fils par association, détruit à la fin.
+            Ce mode est destiné aux SCP autonomes qui traitent de gros objets
+            par association et qui doivent rendre toute la mémoire au système à
+            la fin de chaque association. À la sortie d'un processus fils, le
+            noyau récupère la mémoire du traitement sans dépendre du comportement
+            de l'allocateur du processus père.
 
             ⚠ NE PAS activer depuis un processus multithreadé sans `exec()` : le
             fils n'hérite que du thread appelant mais de TOUS les mutex dans leur
             état du moment — un verrou tenu par un autre thread reste verrouillé
             à jamais dans le fils. Ce mode vise le SCP autonome.
 
-            L'état qui doit survivre à une association (registre des Print Job)
-            doit vivre HORS du processus ; c'est le cas.
+            Tout état qui doit survivre à une association doit vivre hors du
+            processus fils ou être propagé explicitement au père.
         */
         void SetForkPerAssociation(bool enabled);
 
@@ -275,11 +284,6 @@ namespace dicom
             invite le SCU à réessayer plus tard plutôt qu'à abandonner.
         */
         void SetMaxConcurrentAssociations(size_t maximum);
-
-        //!true si une association de plus peut être acceptée ; la comptabilise.
-        bool TryBeginAssociation();
-        //!Libère un jeton pris par TryBeginAssociation().
-        void EndAssociation();
 
         //!signal to server object that current thread is free to be cleaned up
         void allDone();
