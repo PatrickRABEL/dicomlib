@@ -50,16 +50,57 @@ namespace dicom
 		void ThreadSpecificServer::operator()()
 		{
 
+			/*!
+				AssociationTerminated() DOIT être notifié sur TOUS les chemins de
+				sortie, pas seulement sur la fermeture propre.
+
+				Auparavant le hook n'était appelé que dans le catch de
+				TerminateServerThread. Toute autre fin — abandon du SCU, erreur
+				de socket, exception de décodage — le sautait. Une application
+				qui libère son état par association (tampons d'image de plusieurs
+				dizaines de Mo pour un Print SCP) ne le faisait alors jamais, et
+				les traitements de fin d'association (impression des images
+				reçues en C-STORE) étaient perdus en silence.
+
+				Un objet RAII garantit la notification, quelle que soit la façon
+				dont on quitte le bloc.
+			*/
+			struct AssociationScope
+			{
+				Server& server_;
+				bool& negotiated_;
+				explicit AssociationScope(Server& s,bool& negotiated)
+					:server_(s),negotiated_(negotiated){}
+				~AssociationScope()
+				{
+					//N'annonce la fin que si un début a été annoncé : sans cela
+					//une association refusée à la négociation déclencherait un
+					//AssociationTerminated() sans AssociationNegotiated().
+					if(!negotiated_)
+						return;
+					try
+					{
+						server_.AssociationTerminated();
+					}
+					catch(...)
+					{
+						//Un destructeur ne doit pas propager : l'application
+						//est en train de fermer, et laisser filer l'exception
+						//ferait tomber le processus entier.
+					}
+				}
+			};
+
 			//Now we start up a message loop to handle incoming requests.
 			try
 			{
+				AssociationScope scope(server_,AssociationNegotiated_);
 				while(!server_.KillFlagRaised())//do we need to inform the client if we're shutting down?
 					if(socket_->MoreData(1))
 						HandleData();
 			}
 			catch(TerminateServerThread)//this is expected
 			{
-				server_.AssociationTerminated();
 			}
 			catch(std::exception& e)//this is unexpected.
 			{
