@@ -25,6 +25,7 @@
 
 
 #include <algorithm>
+#include <cctype>
 #include <exception>
 #include <iostream>
 
@@ -52,6 +53,21 @@ using std::string;using std::cout; using std::endl;
 
 namespace dicom
 {
+	namespace
+	{
+		bool IsStrictImplementationUID(const std::string& uid)
+		{
+			if(uid.empty() || uid.size()>64)
+				return false;
+			for(size_t i=0;i<uid.size();++i)
+			{
+				const unsigned char c = static_cast<unsigned char>(uid[i]);
+				if(uid[i]!='.' && !std::isdigit(c))
+					return false;
+			}
+			return true;
+		}
+	}
 
 	using namespace primitive;
 	std::mutex Server::cerr_mutex;
@@ -808,6 +824,8 @@ namespace dicom
 	void Server::SetImplementationClassUID(const std::string& uid)
 	{
 		std::lock_guard<std::mutex> scoped_lock(mutex_);
+		if(!uid.empty() && !IsStrictImplementationUID(uid))
+			return;
 		ImplementationClassUIDOverride_=uid;
 	}
 
@@ -937,5 +955,3 @@ namespace dicom
 	}
 
 }//namespace dicom
-
-

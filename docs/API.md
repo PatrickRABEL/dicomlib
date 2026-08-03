@@ -53,6 +53,11 @@ Transfer Syntax status categories:
   and Asynchronous Operations Window sub-items.
 - `dicom::Server` accepts associations and dispatches registered service
   handlers.
+- `Server::SetImplementationClassUID()` overrides the Implementation Class UID
+  announced during association negotiation. Empty string restores the library
+  default; invalid implementation UIDs are ignored.
+- `Server::SetImplementationVersionName()` overrides the Implementation Version
+  Name. Values longer than 16 characters are ignored.
 - `Server::SetForkPerAssociation(true)` is POSIX-only and intended for
   standalone SCP processes. State that must survive an association must be
   external to the child process or explicitly propagated to the parent.

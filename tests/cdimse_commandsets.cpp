@@ -148,10 +148,43 @@ namespace
 	{
 		const dicom::UID expectedImplementationClassUID("1.2.826.0.1.3680043.10.1778");
 		assert(dicom::ImplementationClassUID == expectedImplementationClassUID.str());
+		assert(dicom::ImplementationVersionName == std::string("DICOMLIB2026"));
 
 		dicom::primitive::UserInformation userInfo = makeUserInformation();
 		assert(userInfo.ImpClass_.UID_ == expectedImplementationClassUID);
 		assert(userInfo.ImpVersion_.Name == dicom::ImplementationVersionName);
+
+		dicom::Server server;
+		dicom::primitive::ImplementationClass implementationClass(expectedImplementationClassUID);
+		dicom::primitive::ImplementationVersion implementationVersion;
+		server.GetImplementationClass(implementationClass);
+		server.GetImplementationVersion(implementationVersion);
+		assert(implementationClass.UID_ == expectedImplementationClassUID);
+		assert(implementationVersion.Name == "DICOMLIB2026");
+
+		server.SetImplementationClassUID("1.2.826.0.1.3680043.10.1778.1");
+		server.GetImplementationClass(implementationClass);
+		assert(implementationClass.UID_ == dicom::UID("1.2.826.0.1.3680043.10.1778.1"));
+
+		server.SetImplementationClassUID("1.2.826.0.1.3680043.10.1778-BAD");
+		server.GetImplementationClass(implementationClass);
+		assert(implementationClass.UID_ == dicom::UID("1.2.826.0.1.3680043.10.1778.1"));
+
+		server.SetImplementationClassUID("1.2.826.0.1.3680043.10.1778*BAD");
+		server.GetImplementationClass(implementationClass);
+		assert(implementationClass.UID_ == dicom::UID("1.2.826.0.1.3680043.10.1778.1"));
+
+		server.SetImplementationClassUID("");
+		server.GetImplementationClass(implementationClass);
+		assert(implementationClass.UID_ == expectedImplementationClassUID);
+
+		server.SetImplementationVersionName("APP2026");
+		server.GetImplementationVersion(implementationVersion);
+		assert(implementationVersion.Name == "APP2026");
+
+		server.SetImplementationVersionName("THIS_VERSION_NAME_IS_TOO_LONG");
+		server.GetImplementationVersion(implementationVersion);
+		assert(implementationVersion.Name == "APP2026");
 	}
 
 	void negotiateAssociation(
