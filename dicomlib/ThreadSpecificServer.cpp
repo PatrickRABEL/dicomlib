@@ -33,6 +33,7 @@ namespace dicom
 		:server_(s)
 		,socket_(socket)
 		,AssociationNegotiated_(false)
+		,AssociationCounted_(false)
 // 		,association_identifier_(0)
 		{
 		}
@@ -69,10 +70,16 @@ namespace dicom
 			{
 				Server& server_;
 				bool& negotiated_;
-				explicit AssociationScope(Server& s,bool& negotiated)
-					:server_(s),negotiated_(negotiated){}
+				bool& counted_;
+				AssociationScope(Server& s,bool& negotiated,bool& counted)
+					:server_(s),negotiated_(negotiated),counted_(counted){}
 				~AssociationScope()
 				{
+					//Le jeton est rendu AVANT la notification : si l'application
+					//passe du temps dans son traitement de fin d'association, la
+					//place est déjà libre pour le SCU suivant.
+					if(counted_)
+						server_.EndAssociation();
 					//N'annonce la fin que si un début a été annoncé : sans cela
 					//une association refusée à la négociation déclencherait un
 					//AssociationTerminated() sans AssociationNegotiated().
@@ -94,7 +101,7 @@ namespace dicom
 			//Now we start up a message loop to handle incoming requests.
 			try
 			{
-				AssociationScope scope(server_,AssociationNegotiated_);
+				AssociationScope scope(server_,AssociationNegotiated_,AssociationCounted_);
 				while(!server_.KillFlagRaised())//do we need to inform the client if we're shutting down?
 					if(socket_->MoreData(1))
 						HandleData();
@@ -133,6 +140,27 @@ namespace dicom
 
 			if(InterogateAAssociateRQ(association_request))
 			{
+				/*!
+					Limite d'associations SIMULTANÉES.
+
+					Contrôlée une fois la requête jugée acceptable par ailleurs :
+					un refus pour cause de charge n'a de sens que si l'association
+					aurait autrement été acceptée. Le refus est TRANSITOIRE — le
+					SCU est invité à réessayer — et emploie le couple prévu par
+					PS3.8 §9.3.4, Table 9-21 : Result 2 (rejected-transient),
+					Source 3 (service-provider, presentation), Reason 2
+					(local-limit-exceeded).
+				*/
+				if(!server_.TryBeginAssociation())
+				{
+					AAssociateRJ Rejection(AAssociateRJ::REJECTED_TRANSIENT,
+						AAssociateRJ::DICOM_SERVICE_PROVIDER_PRESENTATION,
+						AAssociateRJ::LOCAL_LIMIT_EXCEEDED);
+					server_.LogMessage("Association refusee : limite d'associations simultanees atteinte");
+					Rejection.Write(*socket_);
+					throw FailedAssociation();
+				}
+				AssociationCounted_=true;
 				AssociationNegotiated_=true;
 				server_.AssociationNegotiated(association_request);
 

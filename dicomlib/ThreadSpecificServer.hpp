@@ -32,6 +32,8 @@ namespace dicom
 			Network::AcceptedSocket* socket_;
 			virtual Network::Socket* GetSocket(){return socket_;}
 			bool AssociationNegotiated_;
+			//!true si un jeton d'association simultanée a été pris (à rendre).
+			bool AssociationCounted_;
 
 			//!This gets created by the ThreadedServer framework
 			ThreadSpecificServer(Network::AcceptedSocket* socket,Server& s);

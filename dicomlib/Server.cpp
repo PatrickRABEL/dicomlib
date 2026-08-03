@@ -32,6 +32,9 @@
 #include <memory>
 #include <mutex>
 #include <thread>
+#include <cerrno>
+#include <sys/wait.h>
+#include <unistd.h>
 
 #include "Server.hpp"
 #include "UIDs.hpp"
@@ -116,6 +119,100 @@ namespace dicom
         Indicate that the currently executing thread can be safely deleted.
         We do this by comparing thread identifiers in a cross-platform way via thread::operator ==
     */
+    void Server::SetForkPerAssociation(bool enabled)
+    {
+        std::lock_guard<std::mutex> scoped_lock(mutex_);
+        forkPerAssociation_=enabled;
+    }
+
+    /*!
+        Récolte les fils terminés, sans bloquer.
+
+        Sans waitpid(), chaque association laisserait un zombie — une entrée dans
+        la table des processus jamais rendue. Après quelques milliers
+        d'impressions, plus aucun fork ne serait possible.
+    */
+    void Server::reapFinishedChildren()
+    {
+        int status=0;
+        while(::waitpid(-1,&status,WNOHANG)>0)
+        {
+            std::lock_guard<std::mutex> scoped_lock(mutex_);
+            if(liveChildren_>0)
+                --liveChildren_;
+        }
+    }
+
+    /*!
+        Bloque tant que le nombre de fils vivants atteint la limite.
+        Voir Server.hpp pour la raison d'être — c'est le père qui compte.
+    */
+    void Server::waitForChildSlot()
+    {
+        for(;;)
+        {
+            reapFinishedChildren();
+
+            size_t live=0,maximum=0;
+            {
+                std::lock_guard<std::mutex> scoped_lock(mutex_);
+                live=liveChildren_;
+                maximum=maxConcurrentAssociations_;
+            }
+            if(maximum==0 || live<maximum)
+                return;
+
+            int status=0;
+            const pid_t pid=::waitpid(-1,&status,0);//bloquant : on attend une place
+            if(pid>0)
+            {
+                std::lock_guard<std::mutex> scoped_lock(mutex_);
+                if(liveChildren_>0)
+                    --liveChildren_;
+                continue;
+            }
+            if(errno==EINTR)
+                continue;
+            //Plus aucun fils à attendre alors que le compteur en annonce : il est
+            //désynchronisé. Le remettre à zéro plutôt que boucler indéfiniment.
+            {
+                std::lock_guard<std::mutex> scoped_lock(mutex_);
+                liveChildren_=0;
+            }
+            return;
+        }
+    }
+
+    void Server::SetMaxConcurrentAssociations(size_t maximum)
+    {
+        std::lock_guard<std::mutex> scoped_lock(mutex_);
+        maxConcurrentAssociations_=maximum;
+    }
+
+    /*!
+        Prend un jeton d'association si la limite le permet.
+
+        Comptabilisé APRÈS acceptation de l'A-ASSOCIATE-RQ mais AVANT tout
+        traitement : c'est le moment où l'association va commencer à consommer
+        de la mémoire.
+    */
+    bool Server::TryBeginAssociation()
+    {
+        std::lock_guard<std::mutex> scoped_lock(mutex_);
+        if(maxConcurrentAssociations_!=0 &&
+           activeAssociations_>=maxConcurrentAssociations_)
+            return false;
+        ++activeAssociations_;
+        return true;
+    }
+
+    void Server::EndAssociation()
+    {
+        std::lock_guard<std::mutex> scoped_lock(mutex_);
+        if(activeAssociations_>0)
+            --activeAssociations_;
+    }
+
     void Server::allDone()
     {
         std::lock_guard<std::mutex> scoped_lock(mutex_);
@@ -178,8 +275,68 @@ namespace dicom
 		{
             threadCleanup(false);
 
+            {
+                bool forkMode=false;
+                {
+                    std::lock_guard<std::mutex> scoped_lock(mutex_);
+                    forkMode=forkPerAssociation_;
+                }
+                //Avant l'accept : la connexion de trop reste dans le backlog du
+                //noyau plutôt que d'être acceptée puis laissée en attente.
+                if(forkMode)
+                    waitForChildSlot();
+            }
+
 			std::unique_ptr<Network::AcceptedSocket> pAccepter =
 				std::make_unique<Network::AcceptedSocket>(TheServerSocket);//blocks, waiting for a client.
+
+			bool useFork=false;
+			{
+				std::lock_guard<std::mutex> scoped_lock(mutex_);
+				useFork=forkPerAssociation_;
+			}
+
+			if(useFork)
+			{
+				/*
+					Un processus par association (cf. SetForkPerAssociation).
+
+					Le fils traite l'association puis sort par _exit() : le noyau
+					reprend alors TOUTE sa mémoire, ce qu'un thread ne permet pas.
+					_exit() et non exit() : les destructeurs globaux et le vidage
+					des flux du père ne doivent pas être rejoués dans le fils.
+				*/
+				reapFinishedChildren();
+
+				const pid_t pid=fork();
+				if(pid==0)
+				{
+					//Le fils ne doit pas conserver la socket d'ECOUTE du père :
+					//il l'empêcherait d'être libérée et pourrait accepter des
+					//connexions à sa place.
+					::close(TheServerSocket.GetSocketDescriptor());
+					Implementation::ThreadSpecificServer threadServer(pAccepter.release(),*this);
+					threadServer();
+					_exit(0);
+				}
+				if(pid>0)
+				{
+					{
+						std::lock_guard<std::mutex> scoped_lock(mutex_);
+						++liveChildren_;
+					}
+					//Le père referme SA copie de la socket acceptée : sans cela
+					//la connexion ne se fermerait jamais vraiment et chaque
+					//descripteur fuirait. (unique_ptr s'en charge en sortant.)
+					continue;
+				}
+				//fork() a échoué : traiter dans le processus courant plutôt que
+				//de perdre l'association.
+				LogError("fork() impossible, association traitee dans le processus courant");
+				Implementation::ThreadSpecificServer threadServer(pAccepter.release(),*this);
+				threadServer();
+				continue;
+			}
 
 			std::shared_ptr<std::thread> pThread =
 				std::make_shared<std::thread>(
@@ -696,6 +853,27 @@ namespace dicom
 				throw SystemError("Select");
 			if (retval)
 				return true;
+
+			/*
+				select() a expiré : c'est le SEUL moment où le père a la main
+				pendant qu'il attend une connexion. On en profite pour récolter
+				les fils terminés.
+
+				Sans cela ils restent ZOMBIES jusqu'à la connexion suivante — leur
+				mémoire est bien rendue au noyau, mais leur entrée dans la table
+				des processus subsiste (visible en RES=0 dans htop). Après le
+				dernier travail d'une série, plus rien ne déclenchait la récolte :
+				les zombies s'accumulaient jusqu'à épuiser la table.
+			*/
+			{
+				bool forkMode=false;
+				{
+					std::lock_guard<std::mutex> scoped_lock(mutex_);
+					forkMode=forkPerAssociation_;
+				}
+				if(forkMode)
+					reapFinishedChildren();
+			}
 		}
 		LogMessage ("Kill flag raised, accepting no more connections.");
 		return false;

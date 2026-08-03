@@ -199,12 +199,87 @@ namespace dicom
         //!Each thread owns an open socket connection to a client
         ThreadGroup clientThreads_;
 
+        //!Nombre maximal d'associations traitées SIMULTANÉMENT (0 = illimité).
+        /*!
+            Un SCP Print manipule des images de plusieurs dizaines de Mo : chaque
+            association concurrente en détient une pendant tout son traitement.
+            Sans borne, N associations simultanées demandent N fois cette taille,
+            et sur une carte embarquée le noyau finit par tuer le processus — ou
+            la carte redémarre. Mesuré : 5 impressions simultanées d'une image
+            4310×5312 RGB (68,7 Mo) ont fait tomber une carte de 963 Mo, alors
+            que les mêmes 5 impressions en série tiennent dans 38 Mo.
+
+            Refuser une association de plus est le comportement PRÉVU par la
+            norme, et il est transitoire : le SCU réessaie.
+        */
+        size_t maxConcurrentAssociations_ = 0;
+        size_t activeAssociations_ = 0;
+
+        //!Un processus fils par association (cf. SetForkPerAssociation).
+        bool forkPerAssociation_ = false;
+        //!Nombre de processus fils vivants (mode fork).
+        size_t liveChildren_ = 0;
+
+        //!Récolte les fils terminés (waitpid non bloquant) — évite les zombies.
+        void reapFinishedChildren();
+
+        //!Attend qu'une place se libère avant d'accepter une association de plus.
+        /*!
+            EN MODE FORK, C'EST LE PÈRE QUI DOIT COMPTER.
+
+            La limite est d'abord passée par TryBeginAssociation(), appelé depuis
+            la négociation — donc dans le FILS. Or le compteur vit dans la mémoire
+            du père : chaque fils incrémentait sa propre copie, invisible du père
+            et des autres. La limite ne bornait donc rien du tout, et N images de
+            plusieurs dizaines de Mo étaient traitées en parallèle. Mesuré : la
+            carte redémarre.
+
+            Le père attend ici qu'un fils se termine. Les connexions en attente
+            patientent dans le backlog du noyau — un SCU qui patiente vaut mieux
+            qu'une carte qui tombe.
+        */
+        void waitForChildSlot();
+
         //!Does housekeeping work on clientThreads_
         void threadCleanup(bool cleanAll);
 
 
 	public:
 
+        //!Traite chaque association dans un PROCESSUS FILS plutôt qu'un thread.
+        /*!
+            Motivation, mesurée sur cible : une image de modalité en pleine
+            résolution (68,7 Mo) laisse, après traitement, un résidu de mémoire
+            que l'allocateur ne rend jamais au noyau — ni `malloc_trim` ni les
+            réglages d'arène n'y changent quoi que ce soit. À la sortie d'un
+            PROCESSUS, en revanche, le noyau récupère tout, sans exception.
+
+            C'est l'architecture de `dcmprscp` (dcmtk), que ce SCP remplace :
+            un père qui écoute et un fils par association, détruit à la fin.
+
+            ⚠ NE PAS activer depuis un processus multithreadé sans `exec()` : le
+            fils n'hérite que du thread appelant mais de TOUS les mutex dans leur
+            état du moment — un verrou tenu par un autre thread reste verrouillé
+            à jamais dans le fils. Ce mode vise le SCP autonome.
+
+            L'état qui doit survivre à une association (registre des Print Job)
+            doit vivre HORS du processus ; c'est le cas.
+        */
+        void SetForkPerAssociation(bool enabled);
+
+        //!Borne le nombre d'associations simultanées (0 = illimité, défaut).
+        /*!
+            À poser AVANT Serve(). Au-delà de la limite, l'association est
+            refusée par A-ASSOCIATE-RJ « rejected-transient / local-limit-exceeded »
+            (PS3.8 §9.3.4, Table 9-21 : Result 2, Source 3, Reason 2), ce qui
+            invite le SCU à réessayer plus tard plutôt qu'à abandonner.
+        */
+        void SetMaxConcurrentAssociations(size_t maximum);
+
+        //!true si une association de plus peut être acceptée ; la comptabilise.
+        bool TryBeginAssociation();
+        //!Libère un jeton pris par TryBeginAssociation().
+        void EndAssociation();
 
         //!signal to server object that current thread is free to be cleaned up
         void allDone();
