@@ -58,6 +58,7 @@ Transfer Syntax status categories:
   the fixed association fields.
 - Association request and accept PDU readers reject unsupported UL protocol
   version fields.
+- Association accept PDU readers reject unsupported Application Context UIDs.
 - `dicom::Server` accepts associations and dispatches registered service
   handlers.
 - `Server::SetImplementationClassUID()` overrides the Implementation Class UID

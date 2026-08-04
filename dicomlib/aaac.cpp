@@ -8,6 +8,7 @@
 
 #include "aaac.hpp"
 #include "Exceptions.hpp"
+#include "UIDs.hpp"
 #include <algorithm>
 #include <functional>
 
@@ -262,6 +263,8 @@ namespace dicom
 					tmp_read=AppContext_.ReadDynamic(socket);
 					byteread+=tmp_read;
 					BytesLeftToRead = BytesLeftToRead - tmp_read;//AppContext_.Size();
+					if(AppContext_.UID_!=APPLICATION_CONTEXT)
+						throw dicom::exception("Unsupported Application Context in A-ASSOCIATE-AC");
 					break;
 				default:
 					throw BadItemType(TempByte,0);

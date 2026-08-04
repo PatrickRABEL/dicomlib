@@ -443,6 +443,35 @@ namespace
 		}
 	}
 
+	void checkAssociationApplicationContextValidation()
+	{
+		int sockets[2];
+		makeSocketPair(sockets);
+		PairedSocket writer(sockets[0]);
+		PairedSocket reader(sockets[1]);
+
+		dicom::primitive::AAssociateAC acknowledgement;
+		acknowledgement.CalledAppTitle_ = "SCP_AE";
+		acknowledgement.CallingAppTitle_ = "SCU_AE";
+		acknowledgement.AppContext_ =
+			dicom::primitive::ApplicationContext(dicom::UID("1.2.3"));
+		dicom::primitive::UserInformation userInfo = makeUserInformation();
+		acknowledgement.SetUserInformation(userInfo);
+		acknowledgement.Write(writer);
+
+		bool rejected = false;
+		try
+		{
+			dicom::primitive::AAssociateAC readAcknowledgement;
+			readAcknowledgement.Read(reader);
+		}
+		catch(const dicom::exception&)
+		{
+			rejected = true;
+		}
+		assert(rejected);
+	}
+
 	void checkAssociationExtendedNegotiation()
 	{
 		int sockets[2];
@@ -12812,6 +12841,7 @@ int main()
 	checkAssociationAETitleLengthValidation();
 	checkAssociationPDULengthValidation();
 	checkAssociationProtocolVersionValidation();
+	checkAssociationApplicationContextValidation();
 	checkCCancel();
 	checkCCancelOverPData();
 	checkSCUResponseValidationOverPData();
