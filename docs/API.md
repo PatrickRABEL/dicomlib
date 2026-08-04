@@ -56,6 +56,8 @@ Transfer Syntax status categories:
   non-printable bytes, or containing `\`.
 - Association request and accept PDU readers reject PDU lengths shorter than
   the fixed association fields.
+- Association request and accept PDU readers reject unsupported UL protocol
+  version fields.
 - `dicom::Server` accepts associations and dispatches registered service
   handlers.
 - `Server::SetImplementationClassUID()` overrides the Implementation Class UID

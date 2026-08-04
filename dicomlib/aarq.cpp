@@ -977,7 +977,8 @@ We should maybe branch to try this out
 				throw dicom::exception("A-ASSOCIATE-RQ length is shorter than fixed fields");
 
 			socket >> tmpUINT16;
-			//check protocol version...
+			if((tmpUINT16 & ProtocolVersion_) != ProtocolVersion_)
+				throw dicom::exception("Unsupported A-ASSOCIATE-RQ protocol version");
 			socket >>	tmpUINT16;
 			byteread+=sizeof(tmpBYTE)+sizeof(length)+2*sizeof(tmpUINT16);
 

@@ -144,7 +144,7 @@ namespace
 		return userInfo;
 	}
 
-	void sendAssociationPDUWithLength(SOCKET fd, BYTE pduType, UINT32 length)
+	void sendAssociationPDU(SOCKET fd, BYTE pduType, UINT32 length, UINT16 protocolVersion)
 	{
 		std::vector<unsigned char> pdu;
 		pdu.push_back(pduType);
@@ -153,8 +153,8 @@ namespace
 		pdu.push_back(static_cast<unsigned char>((length >> 16) & 0xff));
 		pdu.push_back(static_cast<unsigned char>((length >> 8) & 0xff));
 		pdu.push_back(static_cast<unsigned char>(length & 0xff));
-		pdu.push_back(0x00);
-		pdu.push_back(0x01);
+		pdu.push_back(static_cast<unsigned char>((protocolVersion >> 8) & 0xff));
+		pdu.push_back(static_cast<unsigned char>(protocolVersion & 0xff));
 		pdu.push_back(0x00);
 		pdu.push_back(0x00);
 		pdu.insert(pdu.end(),16,' ');
@@ -167,6 +167,11 @@ namespace
 			pdu.size(),
 			0);
 		assert(sent == static_cast<ssize_t>(pdu.size()));
+	}
+
+	void sendAssociationPDUWithLength(SOCKET fd, BYTE pduType, UINT32 length)
+	{
+		sendAssociationPDU(fd,pduType,length,0x0001);
 	}
 
 	void checkImplementationIdentityDefaults()
@@ -377,6 +382,52 @@ namespace
 			PairedSocket writer(sockets[0]);
 			PairedSocket reader(sockets[1]);
 			sendAssociationPDUWithLength(writer.GetSocketDescriptor(),0x02,tooShortLength);
+
+			bool rejected = false;
+			try
+			{
+				dicom::primitive::AAssociateAC acknowledgement;
+				acknowledgement.Read(reader);
+			}
+			catch(const dicom::exception&)
+			{
+				rejected = true;
+			}
+			assert(rejected);
+		}
+	}
+
+	void checkAssociationProtocolVersionValidation()
+	{
+		const UINT32 fixedAssociationFieldLength =
+			sizeof(UINT16) + sizeof(UINT16) + 16 + 16 + 32;
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedSocket writer(sockets[0]);
+			PairedSocket reader(sockets[1]);
+			sendAssociationPDU(writer.GetSocketDescriptor(),0x01,fixedAssociationFieldLength,0x0000);
+
+			bool rejected = false;
+			try
+			{
+				dicom::primitive::AAssociateRQ request;
+				request.Read(reader);
+			}
+			catch(const dicom::exception&)
+			{
+				rejected = true;
+			}
+			assert(rejected);
+		}
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedSocket writer(sockets[0]);
+			PairedSocket reader(sockets[1]);
+			sendAssociationPDU(writer.GetSocketDescriptor(),0x02,fixedAssociationFieldLength,0x0000);
 
 			bool rejected = false;
 			try
@@ -12760,6 +12811,7 @@ int main()
 	checkNdimseAsynchronousOperationsWindowEnforcement();
 	checkAssociationAETitleLengthValidation();
 	checkAssociationPDULengthValidation();
+	checkAssociationProtocolVersionValidation();
 	checkCCancel();
 	checkCCancelOverPData();
 	checkSCUResponseValidationOverPData();

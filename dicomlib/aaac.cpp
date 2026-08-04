@@ -219,9 +219,8 @@ namespace dicom
 				throw dicom::exception("A-ASSOCIATE-AC length is shorter than fixed fields");
 
 			socket >> tmpUINT16;
-			/*
-			verify that (tmpUINT16 bitand 0x01) is true; - see part 8, table 9-17
-			*/
+			if((tmpUINT16 & ProtocolVersion_) != ProtocolVersion_)
+				throw dicom::exception("Unsupported A-ASSOCIATE-AC protocol version");
 
 			socket >>	tmpUINT16;
 			byteread+=sizeof(length)+2*sizeof(tmpUINT16);
