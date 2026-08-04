@@ -54,6 +54,8 @@ Transfer Syntax status categories:
 - Association request and accept PDU writers reject Called/Calling AE Titles
   longer than the fixed 16-character association fields, containing
   non-printable bytes, or containing `\`.
+- Association request and accept PDU readers reject PDU lengths shorter than
+  the fixed association fields.
 - `dicom::Server` accepts associations and dispatches registered service
   handlers.
 - `Server::SetImplementationClassUID()` overrides the Implementation Class UID

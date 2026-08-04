@@ -213,6 +213,10 @@ namespace dicom
 		
 			UINT32 length;
 			socket >> length;
+			const UINT32 fixedFieldsLength =
+				sizeof(UINT16) + sizeof(UINT16) + 16 + 16 + 32;
+			if(length<fixedFieldsLength)
+				throw dicom::exception("A-ASSOCIATE-AC length is shorter than fixed fields");
 
 			socket >> tmpUINT16;
 			/*
@@ -236,7 +240,7 @@ namespace dicom
 
 			socket.Readn(Reserved3_,32);
 			byteread+=32;
-			int BytesLeftToRead = length - sizeof(UINT16) - sizeof(UINT16) - 16 - 16 - 32;
+			int BytesLeftToRead = static_cast<int>(length - fixedFieldsLength);
 			while(BytesLeftToRead > 0)
 			{
 				socket >> TempByte;
@@ -268,9 +272,8 @@ namespace dicom
 			//This line is not enforcible because it may not be true-Sam 28Nov2007
 			//Enforce(length==Size()-6);
 
-			//This if will never happen because of the while loop above. -Sam 28Nov2007
-			//if(BytesLeftToRead)
-			//	throw dicom::exception("non-zero remaining bytes in AAssociateAC::ReadDynamic()");
+			if(BytesLeftToRead)
+				throw dicom::exception("non-zero remaining bytes in AAssociateAC::ReadDynamic()");
 			return byteread;
 		}
 

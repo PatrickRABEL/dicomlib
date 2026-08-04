@@ -971,6 +971,10 @@ We should maybe branch to try this out
 
 			UINT32 length;
 			socket >> length;
+			const UINT32 fixedFieldsLength =
+				sizeof(UINT16) + sizeof(UINT16) + 16 + 16 + 32;
+			if(length<fixedFieldsLength)
+				throw dicom::exception("A-ASSOCIATE-RQ length is shorter than fixed fields");
 
 			socket >> tmpUINT16;
 			//check protocol version...
@@ -1000,7 +1004,7 @@ We should maybe branch to try this out
 			//CalledApTitle[16] = '\0';
 			//CallingApTitle[16] = '\0';
 
-			int BytesLeftToRead = length - sizeof(UINT16) - sizeof(UINT16) - 16 - 16 - 32;
+			int BytesLeftToRead = static_cast<int>(length - fixedFieldsLength);
 			while(BytesLeftToRead > 0)
 			{
 				socket >> TempByte;

@@ -144,6 +144,31 @@ namespace
 		return userInfo;
 	}
 
+	void sendAssociationPDUWithLength(SOCKET fd, BYTE pduType, UINT32 length)
+	{
+		std::vector<unsigned char> pdu;
+		pdu.push_back(pduType);
+		pdu.push_back(0x00);
+		pdu.push_back(static_cast<unsigned char>((length >> 24) & 0xff));
+		pdu.push_back(static_cast<unsigned char>((length >> 16) & 0xff));
+		pdu.push_back(static_cast<unsigned char>((length >> 8) & 0xff));
+		pdu.push_back(static_cast<unsigned char>(length & 0xff));
+		pdu.push_back(0x00);
+		pdu.push_back(0x01);
+		pdu.push_back(0x00);
+		pdu.push_back(0x00);
+		pdu.insert(pdu.end(),16,' ');
+		pdu.insert(pdu.end(),16,' ');
+		pdu.insert(pdu.end(),32,0x00);
+
+		const ssize_t sent = ::send(
+			fd,
+			reinterpret_cast<const char*>(&pdu[0]),
+			pdu.size(),
+			0);
+		assert(sent == static_cast<ssize_t>(pdu.size()));
+	}
+
 	void checkImplementationIdentityDefaults()
 	{
 		const dicom::UID expectedImplementationClassUID("1.2.826.0.1.3680043.10.1778");
@@ -318,6 +343,53 @@ namespace
 		assertRequestWriteRejected("SCP_AE", "SCU\\AE");
 		assertAcceptWriteRejected("SCP\nAE", "SCU_AE");
 		assertAcceptWriteRejected("SCP_AE", "SCU\\AE");
+	}
+
+	void checkAssociationPDULengthValidation()
+	{
+		const UINT32 fixedAssociationFieldLength =
+			sizeof(UINT16) + sizeof(UINT16) + 16 + 16 + 32;
+		const UINT32 tooShortLength = fixedAssociationFieldLength - 1;
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedSocket writer(sockets[0]);
+			PairedSocket reader(sockets[1]);
+			sendAssociationPDUWithLength(writer.GetSocketDescriptor(),0x01,tooShortLength);
+
+			bool rejected = false;
+			try
+			{
+				dicom::primitive::AAssociateRQ request;
+				request.Read(reader);
+			}
+			catch(const dicom::exception&)
+			{
+				rejected = true;
+			}
+			assert(rejected);
+		}
+
+		{
+			int sockets[2];
+			makeSocketPair(sockets);
+			PairedSocket writer(sockets[0]);
+			PairedSocket reader(sockets[1]);
+			sendAssociationPDUWithLength(writer.GetSocketDescriptor(),0x02,tooShortLength);
+
+			bool rejected = false;
+			try
+			{
+				dicom::primitive::AAssociateAC acknowledgement;
+				acknowledgement.Read(reader);
+			}
+			catch(const dicom::exception&)
+			{
+				rejected = true;
+			}
+			assert(rejected);
+		}
 	}
 
 	void checkAssociationExtendedNegotiation()
@@ -12687,6 +12759,7 @@ int main()
 	checkCdimseAsynchronousOperationsWindowEnforcement();
 	checkNdimseAsynchronousOperationsWindowEnforcement();
 	checkAssociationAETitleLengthValidation();
+	checkAssociationPDULengthValidation();
 	checkCCancel();
 	checkCCancelOverPData();
 	checkSCUResponseValidationOverPData();
