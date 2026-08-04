@@ -52,7 +52,8 @@ Transfer Syntax status categories:
   User Information, including Role Selection, SOP Class Extended Negotiation,
   and Asynchronous Operations Window sub-items.
 - Association request and accept PDU writers reject Called/Calling AE Titles
-  longer than the fixed 16-character association fields.
+  longer than the fixed 16-character association fields, containing
+  non-printable bytes, or containing `\`.
 - `dicom::Server` accepts associations and dispatches registered service
   handlers.
 - `Server::SetImplementationClassUID()` overrides the Implementation Class UID

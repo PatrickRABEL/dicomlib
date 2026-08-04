@@ -313,6 +313,11 @@ namespace
 		assertRequestWriteRejected("SCP_AE", tooLongAETitle);
 		assertAcceptWriteRejected(tooLongAETitle, "SCU_AE");
 		assertAcceptWriteRejected("SCP_AE", tooLongAETitle);
+
+		assertRequestWriteRejected("SCP\nAE", "SCU_AE");
+		assertRequestWriteRejected("SCP_AE", "SCU\\AE");
+		assertAcceptWriteRejected("SCP\nAE", "SCU_AE");
+		assertAcceptWriteRejected("SCP_AE", "SCU\\AE");
 	}
 
 	void checkAssociationExtendedNegotiation()

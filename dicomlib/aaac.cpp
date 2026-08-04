@@ -23,6 +23,12 @@ namespace
 	{
 		if(title.size()>16)
 			throw dicom::exception(std::string(fieldName)+" exceeds 16 characters");
+		for(size_t i=0;i<title.size();++i)
+		{
+			const unsigned char c = static_cast<unsigned char>(title[i]);
+			if(c<0x20 || c>0x7e || title[i]=='\\')
+				throw dicom::exception(std::string(fieldName)+" contains invalid characters");
+		}
 
 		char stringBuffer[16];
 		std::fill(stringBuffer,stringBuffer+16,' ');
