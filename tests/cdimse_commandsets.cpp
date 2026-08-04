@@ -254,50 +254,65 @@ namespace
 
 	void checkAssociationAETitleLengthValidation()
 	{
-		int requestSockets[2];
-		makeSocketPair(requestSockets);
-		PairedSocket requestWriter(requestSockets[0]);
-		PairedSocket requestReader(requestSockets[1]);
-
 		dicom::primitive::UserInformation userInfo = makeUserInformation();
+		const std::string tooLongAETitle = "12345678901234567";
 
-		dicom::primitive::AAssociateRQ request;
-		request.CalledAppTitle_ = "12345678901234567";
-		request.CallingAppTitle_ = "SCU_AE";
-		request.SetUserInformation(userInfo);
+		const auto assertRequestWriteRejected =
+			[&](const std::string& calledAETitle, const std::string& callingAETitle)
+			{
+				int sockets[2];
+				makeSocketPair(sockets);
+				PairedSocket writer(sockets[0]);
+				PairedSocket reader(sockets[1]);
 
-		bool rejectedLongRequestAETitle = false;
-		try
-		{
-			request.Write(requestWriter);
-		}
-		catch(const dicom::exception&)
-		{
-			rejectedLongRequestAETitle = true;
-		}
-		assert(rejectedLongRequestAETitle);
+				dicom::primitive::AAssociateRQ request;
+				request.CalledAppTitle_ = calledAETitle;
+				request.CallingAppTitle_ = callingAETitle;
+				request.SetUserInformation(userInfo);
 
-		int responseSockets[2];
-		makeSocketPair(responseSockets);
-		PairedSocket responseWriter(responseSockets[0]);
-		PairedSocket responseReader(responseSockets[1]);
+				bool rejected = false;
+				try
+				{
+					request.Write(writer);
+				}
+				catch(const dicom::exception&)
+				{
+					rejected = true;
+				}
+				assert(rejected);
+			};
 
-		dicom::primitive::AAssociateAC acknowledgement;
-		acknowledgement.AppContext_ = dicom::primitive::ApplicationContext(dicom::APPLICATION_CONTEXT);
-		acknowledgement.CalledAppTitle_ = "SCP_AE";
-		acknowledgement.CallingAppTitle_ = "12345678901234567";
-		acknowledgement.SetUserInformation(userInfo);
+		const auto assertAcceptWriteRejected =
+			[&](const std::string& calledAETitle, const std::string& callingAETitle)
+			{
+				int sockets[2];
+				makeSocketPair(sockets);
+				PairedSocket writer(sockets[0]);
+				PairedSocket reader(sockets[1]);
 
-		bool rejectedLongResponseAETitle = false;
-		try
-		{
-			acknowledgement.Write(responseWriter);
-		}
-		catch(const dicom::exception&)
-		{
-			rejectedLongResponseAETitle = true;
-		}
-		assert(rejectedLongResponseAETitle);
+				dicom::primitive::AAssociateAC acknowledgement;
+				acknowledgement.AppContext_ =
+					dicom::primitive::ApplicationContext(dicom::APPLICATION_CONTEXT);
+				acknowledgement.CalledAppTitle_ = calledAETitle;
+				acknowledgement.CallingAppTitle_ = callingAETitle;
+				acknowledgement.SetUserInformation(userInfo);
+
+				bool rejected = false;
+				try
+				{
+					acknowledgement.Write(writer);
+				}
+				catch(const dicom::exception&)
+				{
+					rejected = true;
+				}
+				assert(rejected);
+			};
+
+		assertRequestWriteRejected(tooLongAETitle, "SCU_AE");
+		assertRequestWriteRejected("SCP_AE", tooLongAETitle);
+		assertAcceptWriteRejected(tooLongAETitle, "SCU_AE");
+		assertAcceptWriteRejected("SCP_AE", tooLongAETitle);
 	}
 
 	void checkAssociationExtendedNegotiation()
